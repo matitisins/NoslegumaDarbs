@@ -5,7 +5,6 @@ export default function PlayerSelect({ playerId, setPlayerId, players }) {
   const safePlayers = Array.isArray(players) ? players : [];
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filtrējam spēlētājus pēc teksta meklēšanas laukā
   const filteredPlayers = safePlayers.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.team.toLowerCase().includes(searchQuery.toLowerCase())
@@ -15,7 +14,6 @@ export default function PlayerSelect({ playerId, setPlayerId, players }) {
     const query = e.target.value;
     setSearchQuery(query);
     
-    // Ja lietotājs kaut ko ieraksta, automātiski atlasām pirmo sakritību
     const matched = safePlayers.find(p => 
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.team.toLowerCase().includes(query.toLowerCase())
@@ -29,10 +27,6 @@ export default function PlayerSelect({ playerId, setPlayerId, players }) {
   const handleSelectChange = (e) => {
     const id = Number(e.target.value);
     setPlayerId(id);
-    const selectedPlayer = safePlayers.find(p => p.id === id);
-    if (selectedPlayer) {
-      setSearchQuery(""); // Notīkam meklēšanu, kad izvēlas no saraksta
-    }
   };
 
   return (
