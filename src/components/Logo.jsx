@@ -1,7 +1,10 @@
 // src/components/Logo.jsx
+
 import React from "react";
 
-export default function Logo({ className = "w-7 h-7" }) {
+export default function Logo({
+  className = "w-7 h-7",
+}) {
   return (
     <svg
       className={className}
@@ -21,7 +24,10 @@ export default function Logo({ className = "w-7 h-7" }) {
           gradientUnits="userSpaceOnUse"
         >
           <stop stopColor="#10B981" />
-          <stop offset="1" stopColor="#047857" />
+          <stop
+            offset="1"
+            stopColor="#047857"
+          />
         </linearGradient>
       </defs>
 
@@ -40,8 +46,19 @@ export default function Logo({ className = "w-7 h-7" }) {
         strokeLinejoin="round"
       />
 
-      <circle cx="14" cy="13" r="1.5" fill="white" />
-      <circle cx="21" cy="21" r="1.5" fill="white" />
+      <circle
+        cx="14"
+        cy="13"
+        r="1.5"
+        fill="white"
+      />
+
+      <circle
+        cx="21"
+        cy="21"
+        r="1.5"
+        fill="white"
+      />
     </svg>
   );
 }

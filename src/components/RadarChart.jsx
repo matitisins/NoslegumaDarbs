@@ -1,12 +1,20 @@
 // src/components/RadarChart.jsx
+
 import React from "react";
 
-export default function RadarChart({ players = [] }) {
-  if (!Array.isArray(players) || players.length === 0) {
+export default function RadarChart({
+  players = [],
+}) {
+  if (
+    !Array.isArray(players) ||
+    players.length === 0
+  ) {
     return null;
   }
 
-  const keys = Object.keys(players[0]?.customStats || {});
+  const keys = Object.keys(
+    players[0]?.customStats || {}
+  );
 
   if (keys.length === 0) {
     return (
@@ -43,40 +51,55 @@ export default function RadarChart({ players = [] }) {
         role="img"
         aria-label="Spēlētāju radara salīdzinājums"
       >
-        {[0.25, 0.5, 0.75, 1].map((level, index) => (
-          <circle
-            key={index}
-            cx={center}
-            cy={center}
-            r={radius * level}
-            fill="none"
-            stroke="#e2e8f0"
-            strokeWidth="1"
-            strokeDasharray={index < 3 ? "3 3" : undefined}
-          />
-        ))}
+        {[0.25, 0.5, 0.75, 1].map(
+          (level, index) => (
+            <circle
+              key={index}
+              cx={center}
+              cy={center}
+              r={radius * level}
+              fill="none"
+              stroke="#e2e8f0"
+              strokeWidth="1"
+              strokeDasharray={
+                index < 3
+                  ? "3 3"
+                  : undefined
+              }
+            />
+          )
+        )}
 
         {keys.map((key, index) => {
           const angle =
-            (Math.PI * 2 / total) * index - Math.PI / 2;
+            (Math.PI * 2 / total) * index -
+            Math.PI / 2;
 
           const x2 =
-            center + radius * Math.cos(angle);
+            center +
+            radius * Math.cos(angle);
 
           const y2 =
-            center + radius * Math.sin(angle);
+            center +
+            radius * Math.sin(angle);
 
           const labelRadius = radius + 32;
 
           const lx =
-            center + labelRadius * Math.cos(angle);
+            center +
+            labelRadius *
+              Math.cos(angle);
 
           const ly =
-            center + labelRadius * Math.sin(angle);
+            center +
+            labelRadius *
+              Math.sin(angle);
 
           const label = key
             .replace(/([A-Z])/g, " $1")
-            .replace(/^./, (char) => char.toUpperCase());
+            .replace(/^./, (char) =>
+              char.toUpperCase()
+            );
 
           return (
             <React.Fragment key={key}>
@@ -93,7 +116,7 @@ export default function RadarChart({ players = [] }) {
                 x={lx}
                 y={ly}
                 fill="#64748b"
-                fontSize="11"
+                fontSize="10"
                 fontWeight="600"
                 textAnchor="middle"
                 dominantBaseline="central"
@@ -104,77 +127,119 @@ export default function RadarChart({ players = [] }) {
           );
         })}
 
-        {players.map((player, playerIndex) => {
-          const stats = player.customStats || {};
+        {players.map(
+          (player, playerIndex) => {
+            const stats =
+              player.customStats || {};
 
-          const color =
-            playerColors[
-              playerIndex % playerColors.length
-            ];
+            const color =
+              playerColors[
+                playerIndex %
+                  playerColors.length
+              ];
 
-          const pointsData = keys.map((key, index) => {
-            const angle =
-              (Math.PI * 2 / total) * index -
-              Math.PI / 2;
+            const pointsData = keys.map(
+              (key, index) => {
+                const angle =
+                  (Math.PI * 2 / total) *
+                    index -
+                  Math.PI / 2;
 
-            const rawValue =
-              stats[key] !== undefined
-                ? stats[key]
-                : 0;
+                const rawValue =
+                  stats[key] !== undefined
+                    ? stats[key]
+                    : 0;
 
-            const numericValue =
-              parseFloat(
-                String(rawValue).replace("%", "")
-              ) || 0;
+                const numericValue =
+                  parseFloat(
+                    String(rawValue).replace(
+                      "%",
+                      ""
+                    )
+                  ) || 0;
 
-            const clampedValue = Math.min(
-              Math.max(numericValue, 0),
-              100
+                const clampedValue =
+                  Math.min(
+                    Math.max(
+                      numericValue,
+                      0
+                    ),
+                    100
+                  );
+
+                const r =
+                  (clampedValue / 100) *
+                  radius;
+
+                const x =
+                  center +
+                  r * Math.cos(angle);
+
+                const y =
+                  center +
+                  r * Math.sin(angle);
+
+                return { x, y };
+              }
             );
 
-            const r =
-              (clampedValue / 100) * radius;
+            const polygonPoints =
+              pointsData
+                .map(
+                  (point) =>
+                    `${point.x},${point.y}`
+                )
+                .join(" ");
 
-            const x =
-              center + r * Math.cos(angle);
-
-            const y =
-              center + r * Math.sin(angle);
-
-            return { x, y };
-          });
-
-          const polygonPoints = pointsData
-            .map((point) => `${point.x},${point.y}`)
-            .join(" ");
-
-          return (
-            <g key={player.id || playerIndex}>
-              <polygon
-                points={polygonPoints}
-                fill={color.fill}
-                stroke={color.stroke}
-                strokeWidth="2"
-              />
-
-              {pointsData.map((point, index) => (
-                <circle
-                  key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r="3.5"
-                  fill={color.dot}
+            return (
+              <g
+                key={`${player.id}-${playerIndex}`}
+              >
+                <polygon
+                  points={polygonPoints}
+                  fill={color.fill}
+                  stroke={color.stroke}
+                  strokeWidth="2"
                 />
-              ))}
-            </g>
-          );
-        })}
+
+                {pointsData.map(
+                  (point, index) => (
+                    <circle
+                      key={index}
+                      cx={point.x}
+                      cy={point.y}
+                      r="3.5"
+                      fill={color.dot}
+                    />
+                  )
+                )}
+              </g>
+            );
+          }
+        )}
       </svg>
 
-      <div className="absolute bottom-3 left-3 flex items-center gap-1.5 opacity-60">
-        <div className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[9px] font-bold">
-          MB
-        </div>
+      <div className="absolute bottom-3 left-3 flex items-center gap-3 bg-white/90 rounded-lg px-2 py-1 shadow-sm">
+        {players.map(
+          (player, index) => (
+            <div
+              key={`${player.id}-legend`}
+              className="flex items-center gap-1"
+            >
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  index === 0
+                    ? "bg-rose-500"
+                    : "bg-emerald-500"
+                }`}
+              />
+
+              <span className="text-[9px] font-semibold text-slate-500 max-w-24 truncate">
+                {player.name}
+              </span>
+            </div>
+          )
+        )}
       </div>
     </div>
   );

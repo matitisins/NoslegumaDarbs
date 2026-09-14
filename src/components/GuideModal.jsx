@@ -2,17 +2,19 @@
 
 import React from "react";
 
-export default function GuideModal({ onClose }) {
+export default function GuideModal({
+  onClose,
+}) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm
-                 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto
-                   rounded-2xl shadow-xl border border-slate-200 p-6"
-        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl border border-slate-200 p-6"
+        onClick={(event) =>
+          event.stopPropagation()
+        }
       >
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -27,8 +29,7 @@ export default function GuideModal({ onClose }) {
 
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700
-                       text-xl font-bold px-2"
+            className="text-slate-400 hover:text-slate-700 text-xl font-bold px-2"
             aria-label="Aizvērt"
           >
             ×
@@ -42,9 +43,10 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p>
-              Flow ir futbola spēlētāju salīdzināšanas un analīzes
-              rīks, kas palīdz ātri izvērtēt, kurš spēlētājs varētu
-              būt labāka izvēle Fantasy Football komandai.
+              Flow ir futbola spēlētāju
+              salīdzināšanas un analīzes rīks.
+              Tas izmanto API-Sports datus, lai
+              salīdzinātu spēlētāju statistiku.
             </p>
           </section>
 
@@ -54,9 +56,9 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p>
-              Lietotne ir paredzēta Fantasy Football spēlētājiem,
-              kuri vēlas salīdzināt divus spēlētājus, apskatīt viņu
-              statistiku un pieņemt pamatotāku lēmumu par sastāvu.
+              Lietotne paredzēta Fantasy Football
+              spēlētājiem, kuri vēlas ātri
+              salīdzināt divus spēlētājus.
             </p>
           </section>
 
@@ -66,8 +68,9 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p>
-              Sākumā izvēlies sezonu un līgu, kuru vēlies analizēt.
-              Flow parādīs pieejamās spēlētāju kategorijas.
+              Izvēlies sezonu un līgu. Flow
+              ielādēs spēlētāju statistiku no
+              API-Sports.
             </p>
           </section>
 
@@ -77,8 +80,8 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p>
-              Izvēlies spēlētāju kategoriju, piemēram, vārtsargus,
-              aizsargus, pussargus vai uzbrucējus.
+              Izvēlies vārtsargus, aizsargus,
+              pussargus vai uzbrucējus.
             </p>
           </section>
 
@@ -88,8 +91,8 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p className="mb-3">
-              Pēc kategorijas izvēles vari izvēlēties divus
-              spēlētājus, kurus vēlies salīdzināt.
+              Izvēlies divus spēlētājus un apskati
+              viņu statistiku.
             </p>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -98,11 +101,25 @@ export default function GuideModal({ onClose }) {
               </p>
 
               <ul className="space-y-2 list-disc list-inside">
-                <li>Radarā — spēlētāju statistikas salīdzinājumu.</li>
-                <li>Fantasy punktus — kopējo rezultātu.</li>
-                <li>Pozīcijas specifisko statistiku.</li>
-                <li>Pēdējo 5 spēļu formu.</li>
-                <li>Kapteiņa izvēles prognozi.</li>
+                <li>
+                  Radara statistikas salīdzinājumu.
+                </li>
+
+                <li>
+                  Fantasy punktus.
+                </li>
+
+                <li>
+                  Pozīcijas statistiku.
+                </li>
+
+                <li>
+                  Spēlētāja sezonas formu.
+                </li>
+
+                <li>
+                  Kapteiņa izvēles prognozi.
+                </li>
               </ul>
             </div>
           </section>
@@ -113,22 +130,20 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p>
-              Radara diagramma ļauj vizuāli salīdzināt abu spēlētāju
-              stiprās un vājās puses. Jo tālāk statistikas rādītājs
-              atrodas no centra, jo labāks ir rezultāts konkrētajā
-              kategorijā.
+              Radars vizuāli parāda abu spēlētāju
+              statistikas stiprās un vājās puses.
             </p>
           </section>
 
           <section>
             <h3 className="text-base font-bold text-slate-900 mb-2">
-              📈 Pēdējo spēļu forma
+              📈 Spēlētāja forma
             </h3>
 
             <p>
-              Formas diagramma parāda spēlētāja pēdējo piecu spēļu
-              rezultātus. Tas palīdz saprast, vai spēlētāja sniegums
-              šobrīd uzlabojas vai pasliktinās.
+              Diagramma parāda aprēķinātu formu,
+              izmantojot API pieejamos sezonas
+              statistikas datus.
             </p>
           </section>
 
@@ -138,10 +153,9 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p>
-              Flow izmanto spēlētāja punktu rezultātus un pretinieka
-              kalendāra sarežģītību (FDR), lai izveidotu vienkāršotu
-              nākamās kārtas prognozi. Spēlētājs ar augstāku prognozi
-              tiek atzīmēts kā ieteicamā kapteiņa izvēle.
+              Flow izmanto Fantasy punktus un
+              spēlētāja reitingu, lai izveidotu
+              vienkāršotu kapteiņa prognozi.
             </p>
           </section>
 
@@ -151,9 +165,10 @@ export default function GuideModal({ onClose }) {
             </h3>
 
             <p className="text-emerald-800">
-              Izvēlies līgu → izvēlies kategoriju → izvēlies divus
-              spēlētājus → salīdzini statistiku → izvēlies labāko
-              Fantasy variantu.
+              Izvēlies līgu → izvēlies kategoriju
+              → izvēlies divus spēlētājus →
+              salīdzini statistiku → izvēlies
+              labāko Fantasy variantu.
             </p>
           </section>
         </div>
@@ -161,9 +176,7 @@ export default function GuideModal({ onClose }) {
         <div className="flex justify-end mt-6 pt-4 border-t border-slate-100">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500
-                       text-white rounded-lg text-sm font-bold
-                       transition-colors"
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold transition-colors"
           >
             Sapratu
           </button>

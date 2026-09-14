@@ -2,28 +2,33 @@
 
 import React from "react";
 
-export default function PlayerFormTrend({ player }) {
-  const form = Array.isArray(player?.recentForm)
-    ? player.recentForm
-    : [6, 2, 9, 12, 7];
+export default function PlayerFormTrend({
+  player,
+}) {
+  const form =
+    Array.isArray(player?.recentForm) &&
+    player.recentForm.length > 0
+      ? player.recentForm
+      : [0, 0, 0, 0, 0];
 
-  const max = Math.max(...form, 10);
+  const max = Math.max(...form, 1);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 mt-6 shadow-sm">
       <div className="flex justify-between mb-3">
         <span className="text-xs uppercase font-semibold text-emerald-600">
-          Pēdējo 5 spēļu forma
+          Aprēķinātā forma
         </span>
 
         <span className="text-xs text-slate-500">
-          {player.name}
+          {player?.name}
         </span>
       </div>
 
       <div className="flex items-end justify-between gap-2 h-24 pt-4 px-2 bg-slate-50 rounded-lg">
         {form.map((points, index) => {
-          const value = Number(points) || 0;
+          const value =
+            Number(points) || 0;
 
           return (
             <div
@@ -37,7 +42,10 @@ export default function PlayerFormTrend({ player }) {
               <div
                 className="w-full bg-emerald-500 hover:bg-emerald-400 rounded-t transition-all"
                 style={{
-                  height: `${Math.max((value / max) * 100, 10)}%`,
+                  height: `${Math.max(
+                    (value / max) * 100,
+                    value > 0 ? 10 : 0
+                  )}%`,
                 }}
               />
 
@@ -48,6 +56,10 @@ export default function PlayerFormTrend({ player }) {
           );
         })}
       </div>
+
+      <p className="text-[10px] text-slate-400 mt-2">
+        Forma aprēķināta no API sezonas datiem.
+      </p>
     </div>
   );
 }
