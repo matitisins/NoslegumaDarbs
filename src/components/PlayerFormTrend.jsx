@@ -1,65 +1,212 @@
-// src/components/PlayerFormTrend.jsx
-
 import React from "react";
+
+function normalizeValue(item) {
+  if (
+    typeof item === "number"
+  ) {
+    return item;
+  }
+
+  if (
+    typeof item === "string"
+  ) {
+    const number =
+      Number(item);
+
+    return Number.isFinite(number)
+      ? number
+      : 0;
+  }
+
+  if (item && typeof item === "object") {
+    const possibleValues = [
+      item.value,
+      item.points,
+      item.score,
+      item.rating,
+      item.fantasy,
+      item.total,
+    ];
+
+    for (const value of possibleValues) {
+      const number =
+        Number(value);
+
+      if (
+        Number.isFinite(number)
+      ) {
+        return number;
+      }
+    }
+  }
+
+  return 0;
+}
+
+function normalizeForm(form) {
+  if (!Array.isArray(form)) {
+    return [];
+  }
+
+  return form.map(
+    (item, index) => ({
+      value: normalizeValue(item),
+      label:
+        item?.label ||
+        item?.gameweek ||
+        item?.week ||
+        `GW ${index + 1}`,
+    })
+  );
+}
 
 export default function PlayerFormTrend({
   player,
+  data,
+  title = "Formas tendence",
 }) {
-  const form =
-    Array.isArray(player?.recentForm) &&
-    player.recentForm.length > 0
-      ? player.recentForm
-      : [0, 0, 0, 0, 0];
+  const rawData =
+    data ??
+    player?.recentForm ??
+    player?.form ??
+    player?.formMetrics ??
+    [];
 
-  const max = Math.max(...form, 1);
+  const form =
+    normalizeForm(rawData);
+
+  if (!form.length) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900">
+              {title}
+            </h3>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Pēdējo spēļu formas dati nav pieejami.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex h-28 items-center justify-center rounded-xl bg-slate-50">
+          <span className="text-xs font-semibold text-slate-400">
+            Nav pietiekami daudz datu
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const max =
+    Math.max(
+      1,
+      ...form.map(
+        item => item.value
+      )
+    );
+
+  const min =
+    Math.min(
+      0,
+      ...form.map(
+        item => item.value
+      )
+    );
+
+  const range =
+    Math.max(
+      1,
+      max - min
+    );
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 mt-6 shadow-sm">
-      <div className="flex justify-between mb-3">
-        <span className="text-xs uppercase font-semibold text-emerald-600">
-          Aprēķinātā forma
-        </span>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-900">
+            {title}
+          </h3>
 
-        <span className="text-xs text-slate-500">
-          {player?.name}
+          <p className="mt-1 text-xs text-slate-400">
+            Spēlētāja pēdējās formas rādītāji
+          </p>
+        </div>
+
+        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+          Forma
         </span>
       </div>
 
-      <div className="flex items-end justify-between gap-2 h-24 pt-4 px-2 bg-slate-50 rounded-lg">
-        {form.map((points, index) => {
-          const value =
-            Number(points) || 0;
+      <div className="mt-6">
+        <div className="flex h-32 items-end gap-2">
+          {form.map(
+            (item, index) => {
+              const normalized =
+                ((item.value - min) /
+                  range) *
+                100;
 
-          return (
-            <div
-              key={index}
-              className="flex-1 flex flex-col items-center gap-1 h-full justify-end"
-            >
-              <span className="text-[10px] font-bold">
-                {value}
-              </span>
+              const height =
+                Math.max(
+                  8,
+                  Math.min(
+                    100,
+                    normalized
+                  )
+                );
 
-              <div
-                className="w-full bg-emerald-500 hover:bg-emerald-400 rounded-t transition-all"
-                style={{
-                  height: `${Math.max(
-                    (value / max) * 100,
-                    value > 0 ? 10 : 0
-                  )}%`,
-                }}
-              />
+              return (
+                <div
+                  key={`${item.label}-${index}`}
+                  className="group flex h-full flex-1 flex-col justify-end"
+                >
+                  <div className="relative flex flex-1 items-end">
+                    <div
+                      className="w-full rounded-t-lg bg-emerald-400 transition-all duration-200 group-hover:bg-emerald-500"
+                      style={{
+                        height: `${height}%`,
+                      }}
+                      title={`${item.label}: ${item.value}`}
+                    />
+                  </div>
 
-              <span className="text-[9px] text-slate-400">
-                #{index + 1}
-              </span>
-            </div>
-          );
-        })}
+                  <div className="mt-2 truncate text-center text-[9px] font-bold text-slate-400">
+                    {item.label}
+                  </div>
+                </div>
+              );
+            }
+          )}
+        </div>
       </div>
 
-      <p className="text-[10px] text-slate-400 mt-2">
-        Forma aprēķināta no API sezonas datiem.
-      </p>
+      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          Zemākais
+        </span>
+
+        <span className="text-xs font-black text-slate-700">
+          {Math.min(
+            ...form.map(
+              item => item.value
+            )
+          )}
+        </span>
+
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          Augstākais
+        </span>
+
+        <span className="text-xs font-black text-emerald-600">
+          {Math.max(
+            ...form.map(
+              item => item.value
+            )
+          )}
+        </span>
+      </div>
     </div>
   );
 }

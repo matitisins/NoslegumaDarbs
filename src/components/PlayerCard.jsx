@@ -1,161 +1,330 @@
-// src/components/PlayerCard.jsx
-
 import React from "react";
-import PlayerFormTrend from "./PlayerFormTrend";
+
 import PlayerStatBar from "./PlayerStatBar";
+import PlayerFormTrend from "./PlayerFormTrend";
+
+function initials(name) {
+  return (
+    String(name || "")
+      .split(" ")
+      .map(part => part[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "PL"
+  );
+}
+
+function value(value) {
+  return value === null ||
+    value === undefined
+    ? "—"
+    : value;
+}
 
 export default function PlayerCard({
   player,
-  players,
+  players = [],
   onChange,
   color = "emerald",
 }) {
-  if (!player) return null;
+  if (!player) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex min-h-[280px] items-center justify-center text-center">
+          <div>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+              👤
+            </div>
 
-  const colorText =
-    color === "rose"
-      ? "text-rose-600"
-      : "text-emerald-600";
+            <p className="mt-4 text-sm font-bold text-slate-500">
+              Izvēlies spēlētāju
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const statColor =
-    color === "rose"
+  const rose =
+    color === "rose";
+
+  const borderClass =
+    rose
+      ? "border-rose-200"
+      : "border-emerald-200";
+
+  const accentClass =
+    rose
       ? "bg-rose-500"
       : "bg-emerald-500";
 
-  const points =
-    Number(player.points) || 0;
+  const softClass =
+    rose
+      ? "bg-rose-50 text-rose-500"
+      : "bg-emerald-50 text-emerald-600";
+
+  const maxGoals =
+    Math.max(
+      1,
+      ...players.map(
+        item =>
+          Number(item.goals) || 0
+      )
+    );
+
+  const maxAssists =
+    Math.max(
+      1,
+      ...players.map(
+        item =>
+          Number(item.assists) || 0
+      )
+    );
+
+  const maxPoints =
+    Math.max(
+      1,
+      ...players.map(
+        item =>
+          Number(item.points) || 0
+      )
+    );
+
+  const maxAppearances =
+    Math.max(
+      1,
+      ...players.map(
+        item =>
+          Number(item.appearances) ||
+          0
+      )
+    );
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-      <div className="flex justify-between items-center mb-4 gap-3">
-        <span
-          className={`bg-slate-100 ${colorText} text-xs font-bold px-2.5 py-1 rounded`}
-        >
-          {player.positionLabel ||
-            player.position}
-        </span>
+    <div
+      className={`overflow-hidden rounded-2xl border ${borderClass} bg-white shadow-sm`}
+    >
+      {/* HEADER */}
+      <div className="relative overflow-hidden bg-slate-950 p-5 text-white">
+        <div
+          className={`absolute left-0 top-0 h-full w-1 ${accentClass}`}
+        />
 
-        <span className="text-xs text-slate-500 text-right">
-          Klubs:{" "}
-          <strong className="text-slate-800">
-            {player.team}
-          </strong>
-        </span>
-      </div>
-
-      <select
-        value={player.id}
-        onChange={onChange}
-        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 mb-6 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
-      >
-        {players.map((item) => (
-          <option
-            key={`${item.id}-${item.teamId || ""}`}
-            value={item.id}
+        <div className="relative flex items-center gap-4">
+          <div
+            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-black ${softClass}`}
           >
-            {item.name} ({item.team})
-          </option>
-        ))}
-      </select>
-
-      <div className="space-y-4 text-sm">
-        <div>
-          <div className="flex justify-between text-slate-600 mb-1">
-            <span>Fantasy Punkti</span>
-
-            <span className="font-bold text-slate-900">
-              {points}
-            </span>
+            {initials(player.name)}
           </div>
 
-          <div className="w-full bg-slate-100 h-1.5 rounded overflow-hidden">
-            <div
-              className={`${statColor} h-full transition-all`}
-              style={{
-                width: `${Math.min(
-                  points * 2,
-                  100
-                )}%`,
-              }}
-            />
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+              {player.positionLabel ||
+                player.position ||
+                "Spēlētājs"}
+            </p>
+
+            <h3 className="mt-1 truncate text-xl font-black">
+              {player.name}
+            </h3>
+
+            <p className="mt-1 truncate text-xs text-slate-400">
+              {player.team ||
+                "Nezināms klubs"}
+            </p>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-          <div className="bg-slate-50 rounded-lg p-3">
-            <p className="text-[10px] uppercase text-slate-400">
-              Spēles
+      {/* BASIC STATS */}
+      <div className="grid grid-cols-2 gap-px border-b border-slate-200 bg-slate-200 sm:grid-cols-4">
+        <div className="bg-white p-4 text-center">
+          <p className="text-xl font-black text-slate-900">
+            {value(
+              player.appearances
+            )}
+          </p>
+
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+            Spēles
+          </p>
+        </div>
+
+        <div className="bg-white p-4 text-center">
+          <p className="text-xl font-black text-slate-900">
+            {value(
+              player.goals
+            )}
+          </p>
+
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+            Vārti
+          </p>
+        </div>
+
+        <div className="bg-white p-4 text-center">
+          <p className="text-xl font-black text-slate-900">
+            {value(
+              player.assists
+            )}
+          </p>
+
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+            Assist
+          </p>
+        </div>
+
+        <div className="bg-white p-4 text-center">
+          <p className="text-xl font-black text-emerald-600">
+            {value(
+              player.points
+            )}
+          </p>
+
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+            Fantasy
+          </p>
+        </div>
+      </div>
+
+      {/* STAT BARS */}
+      <div className="space-y-4 p-5">
+        <PlayerStatBar
+          label="Vārti"
+          value={
+            Number(player.goals) ||
+            0
+          }
+          max={maxGoals}
+          color={
+            rose
+              ? "rose"
+              : "emerald"
+          }
+        />
+
+        <PlayerStatBar
+          label="Assist"
+          value={
+            Number(player.assists) ||
+            0
+          }
+          max={maxAssists}
+          color={
+            rose
+              ? "rose"
+              : "emerald"
+          }
+        />
+
+        <PlayerStatBar
+          label="Fantasy punkti"
+          value={
+            Number(player.points) ||
+            0
+          }
+          max={maxPoints}
+          color={
+            rose
+              ? "rose"
+              : "emerald"
+          }
+        />
+
+        <PlayerStatBar
+          label="Spēles"
+          value={
+            Number(
+              player.appearances
+            ) || 0
+          }
+          max={maxAppearances}
+          color={
+            rose
+              ? "rose"
+              : "emerald"
+          }
+        />
+      </div>
+
+      {/* EXTRA STATS */}
+      <div className="border-t border-slate-100 p-5">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+              Pen. vārti
             </p>
 
-            <p className="font-bold text-slate-800">
-              {player.appearances}
+            <p className="mt-1 text-lg font-black text-slate-800">
+              {value(
+                player.penalties
+              )}
             </p>
           </div>
 
-          <div className="bg-slate-50 rounded-lg p-3">
-            <p className="text-[10px] uppercase text-slate-400">
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
               Minūtes
             </p>
 
-            <p className="font-bold text-slate-800">
-              {player.minutes}
+            <p className="mt-1 text-lg font-black text-slate-800">
+              {value(
+                player.minutes
+              )}
             </p>
           </div>
 
-          <div className="bg-slate-50 rounded-lg p-3">
-            <p className="text-[10px] uppercase text-slate-400">
-              Vārti
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+              Clean sheets
             </p>
 
-            <p className="font-bold text-slate-800">
-              {player.goals}
+            <p className="mt-1 text-lg font-black text-slate-800">
+              {value(
+                player.cleanSheets
+              )}
             </p>
           </div>
 
-          <div className="bg-slate-50 rounded-lg p-3">
-            <p className="text-[10px] uppercase text-slate-400">
-              Assistē
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+              Sezona
             </p>
 
-            <p className="font-bold text-slate-800">
-              {player.assists}
+            <p className="mt-1 text-lg font-black text-slate-800">
+              {player.season ||
+                "—"}
             </p>
           </div>
         </div>
-
-        <div className="pt-3 border-t border-slate-100">
-          <p className="text-xs text-emerald-600 uppercase font-semibold mb-3">
-            Pozīcijas statistika
-          </p>
-
-          <div className="space-y-3">
-            {Object.entries(
-              player.customStats || {}
-            ).map(([key, value]) => (
-              <PlayerStatBar
-                key={key}
-                label={key}
-                value={value}
-                colorClass={statColor}
-              />
-            ))}
-          </div>
-        </div>
-
-        {player.rating > 0 && (
-          <div className="pt-3 border-t border-slate-100 flex justify-between">
-            <span className="text-slate-500">
-              API reitings
-            </span>
-
-            <strong className="text-slate-900">
-              {Number(player.rating).toFixed(2)}
-            </strong>
-          </div>
-        )}
       </div>
 
-      <PlayerFormTrend player={player} />
+      {/* FORM */}
+      {Array.isArray(
+        player.recentForm
+      ) &&
+        player.recentForm.length >
+          0 && (
+          <div className="border-t border-slate-100 p-5">
+            <PlayerFormTrend
+              player={player}
+            />
+          </div>
+        )}
+
+      {/* FOOTER */}
+      <div className="border-t border-slate-100 bg-slate-50 px-5 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+            Player ID
+          </span>
+
+          <span className="max-w-[180px] truncate text-[10px] font-bold text-slate-500">
+            {player.id}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

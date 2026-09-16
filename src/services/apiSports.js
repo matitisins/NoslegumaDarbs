@@ -1,5 +1,10 @@
 const BASE_URL = "/api";
 
+const CACHE_PREFIX = "flow_football_data_";
+
+const CACHE_TIME =
+  30 * 60 * 1000;
+
 export const COMPETITION_IDS = {
   PL: "PL",
   PD: "PD",
@@ -22,12 +27,6 @@ export const LEAGUE_NAMES = {
   FL1: "Ligue 1",
 };
 
-const CACHE_PREFIX =
-  "flow_football_data_";
-
-const CACHE_TIME =
-  1000 * 60 * 30;
-
 const POSITION_LABELS = {
   GOALKEEPERS: "Vārtsargi",
   DEFENDERS: "Aizsargi",
@@ -35,7 +34,7 @@ const POSITION_LABELS = {
   STRIKERS: "Uzbrucēji",
 };
 
-const toNumber = (value) => {
+const num = value => {
   const number = Number(value);
 
   return Number.isFinite(number)
@@ -43,19 +42,17 @@ const toNumber = (value) => {
     : 0;
 };
 
-const getCache = (key) => {
+const getCache = key => {
   try {
-    const raw =
-      localStorage.getItem(
-        `${CACHE_PREFIX}${key}`
-      );
+    const raw = localStorage.getItem(
+      `${CACHE_PREFIX}${key}`
+    );
 
     if (!raw) {
       return null;
     }
 
-    const parsed =
-      JSON.parse(raw);
+    const parsed = JSON.parse(raw);
 
     if (
       !parsed?.timestamp ||
@@ -91,133 +88,77 @@ const setCache = (key, data) => {
       })
     );
   } catch {
-    // Ignore localStorage errors.
+    // localStorage errors are ignored.
   }
 };
 
-const getPositionCategory = (
-  position
-) => {
+const getPositionCategory = position => {
   if (!position) {
     return "STRIKERS";
   }
 
-  const normalized =
-    String(position)
-      .trim()
-      .toLowerCase();
+  const normalized = String(position)
+    .trim()
+    .toLowerCase();
 
-  /*
-   * Goalkeepers
-   */
   if (
-    normalized.includes(
-      "goalkeeper"
-    ) ||
-    normalized.includes(
-      "keeper"
-    )
+    normalized.includes("goalkeeper") ||
+    normalized.includes("keeper")
   ) {
     return "GOALKEEPERS";
   }
 
-  /*
-   * Defenders
-   *
-   * football-data.org can return:
-   * Defence
-   * Defender
-   * Centre-Back
-   * Centre Back
-   * Left-Back
-   * Right-Back
-   * Full-Back
-   */
   if (
-    normalized.includes(
-      "defence"
-    ) ||
-    normalized.includes(
-      "defender"
-    ) ||
-    normalized.includes(
-      "back"
-    ) ||
-    normalized.includes(
-      "centre-back"
-    ) ||
-    normalized.includes(
-      "center-back"
-    )
+    normalized.includes("defence") ||
+    normalized.includes("defender") ||
+    normalized.includes("back") ||
+    normalized.includes("centre-back") ||
+    normalized.includes("center-back")
   ) {
     return "DEFENDERS";
   }
 
-  /*
-   * Midfielders
-   *
-   * football-data.org can return:
-   * Midfield
-   * Midfielder
-   * Central Midfield
-   * Defensive Midfield
-   * Attacking Midfield
-   */
   if (
-    normalized.includes(
-      "midfield"
-    ) ||
-    normalized.includes(
-      "midfielder"
-    )
+    normalized.includes("midfield") ||
+    normalized.includes("midfielder")
   ) {
     return "MIDFIELDERS";
   }
 
-  /*
-   * Everything else becomes an attacker.
-   */
   return "STRIKERS";
 };
 
-const getPositionLabel = (
-  category
-) =>
+const getPositionLabel = category =>
   POSITION_LABELS[category] ||
   "Uzbrucēji";
 
+/*
+ * Fantasy calculation uses only statistics
+ * actually available from the scorer endpoint.
+ */
 const calculateFantasyPoints = ({
   category,
   goals,
   assists,
-  cleanSheets,
-  yellowCards,
-  redCards,
   penalties,
 }) => {
   let points = 0;
 
   if (
-    category ===
-    "GOALKEEPERS"
+    category === "GOALKEEPERS"
   ) {
     points += goals * 10;
     points += assists * 3;
-    points += cleanSheets * 4;
   } else if (
-    category ===
-    "DEFENDERS"
+    category === "DEFENDERS"
   ) {
     points += goals * 6;
     points += assists * 3;
-    points += cleanSheets * 4;
   } else if (
-    category ===
-    "MIDFIELDERS"
+    category === "MIDFIELDERS"
   ) {
     points += goals * 5;
     points += assists * 3;
-    points += cleanSheets;
   } else {
     points += goals * 4;
     points += assists * 3;
@@ -225,65 +166,59 @@ const calculateFantasyPoints = ({
 
   points += penalties * 2;
 
-  points -= yellowCards;
-
-  points -= redCards * 3;
-
   return Math.max(
     0,
     Math.round(points)
   );
 };
 
-const buildCustomStats = (
+const relative = (
+  value,
+  max
+) => {
+  return Math.min(
+    100,
+    Math.round(
+      (Number(value || 0) /
+        Math.max(
+          1,
+          Number(max || 1)
+        )) *
+        100
+    )
+  );
+};
+
+const buildRadarStats = (
   player,
   allPlayers
 ) => {
-  const maxGoals =
+  const maxGoals = Math.max(
+    1,
+    ...allPlayers.map(
+      item => item.goals
+    )
+  );
+
+  const maxAssists = Math.max(
+    1,
+    ...allPlayers.map(
+      item => item.assists
+    )
+  );
+
+  const maxPoints = Math.max(
+    1,
+    ...allPlayers.map(
+      item => item.points
+    )
+  );
+
+  const maxAppearances =
     Math.max(
       1,
       ...allPlayers.map(
-        (item) =>
-          item.goals
-      )
-    );
-
-  const maxAssists =
-    Math.max(
-      1,
-      ...allPlayers.map(
-        (item) =>
-          item.assists
-      )
-    );
-
-  const maxPoints =
-    Math.max(
-      1,
-      ...allPlayers.map(
-        (item) =>
-          item.points
-      )
-    );
-
-  const maxCleanSheets =
-    Math.max(
-      1,
-      ...allPlayers.map(
-        (item) =>
-          item.cleanSheets
-      )
-    );
-
-  const relative = (
-    value,
-    maximum
-  ) =>
-    Math.min(
-      100,
-      Math.round(
-        (value / maximum) *
-          100
+        item => item.appearances
       )
     );
 
@@ -303,199 +238,183 @@ const buildCustomStats = (
       maxPoints
     ),
 
-    cleanSheets:
-      relative(
-        player.cleanSheets,
-        maxCleanSheets
-      ),
+    appearances: relative(
+      player.appearances,
+      maxAppearances
+    ),
 
-    experience:
-      Math.min(
-        100,
-        player.appearances * 5
-      ),
+    cleanSheets: 0,
+
+    experience: relative(
+      player.appearances,
+      maxAppearances
+    ),
   };
 };
 
 const buildFormMetrics = (
   player,
-  allPlayers
+  players
 ) => {
-  const maxPoints =
-    Math.max(
-      1,
-      ...allPlayers.map(
-        (item) =>
-          item.points
-      )
-    );
+  const maxGoals = Math.max(
+    1,
+    ...players.map(
+      item => item.goals
+    )
+  );
 
-  const maxGoals =
-    Math.max(
-      1,
-      ...allPlayers.map(
-        (item) =>
-          item.goals
-      )
-    );
+  const maxAssists = Math.max(
+    1,
+    ...players.map(
+      item => item.assists
+    )
+  );
 
-  const maxAssists =
-    Math.max(
-      1,
-      ...allPlayers.map(
-        (item) =>
-          item.assists
-      )
-    );
+  const maxPoints = Math.max(
+    1,
+    ...players.map(
+      item => item.points
+    )
+  );
+
+  const maxApps = Math.max(
+    1,
+    ...players.map(
+      item => item.appearances
+    )
+  );
 
   return [
     {
       label: "Punkti",
-
-      value: Math.min(
-        100,
-        Math.round(
-          (player.points /
-            maxPoints) *
-            100
-        )
+      value: relative(
+        player.points,
+        maxPoints
       ),
     },
 
     {
       label: "Vārti",
-
-      value: Math.min(
-        100,
-        Math.round(
-          (player.goals /
-            maxGoals) *
-            100
-        )
+      value: relative(
+        player.goals,
+        maxGoals
       ),
     },
 
     {
       label: "Assist",
-
-      value: Math.min(
-        100,
-        Math.round(
-          (player.assists /
-            maxAssists) *
-            100
-        )
+      value: relative(
+        player.assists,
+        maxAssists
       ),
     },
 
     {
       label: "Spēles",
-
-      value: Math.min(
-        100,
-        player.appearances *
-          5
-      ),
-    },
-
-    {
-      label: "Tīras spēles",
-
-      value: Math.min(
-        100,
-        player.cleanSheets *
-          10
+      value: relative(
+        player.appearances,
+        maxApps
       ),
     },
   ];
 };
 
-const normalizeScorers = (
-  scorers
-) => {
-  const players =
-    scorers.map(
-      (item, index) => {
-        const player =
-          item?.player || {};
+const normalizeScorers = scorers => {
+  const players = scorers.map(
+    (item, index) => {
+      const player =
+        item?.player || {};
 
-        const team =
-          item?.team || {};
+      const team =
+        item?.team || {};
 
-        const goals =
-          toNumber(
-            item?.goals
-          );
+      const goals = num(
+        item.goals
+      );
 
-        const assists =
-          toNumber(
-            item?.assists
-          );
+      const assists = num(
+        item.assists
+      );
 
-        const penalties =
-          toNumber(
-            item?.penalties
-          );
+      const penalties = num(
+        item.penalties
+      );
 
-        const position =
-          player.position ||
-          "Forward";
+      const appearances = num(
+        item.playedMatches
+      );
 
-        const category =
-          getPositionCategory(
-            position
-          );
+      const position =
+        player.position ||
+        "Forward";
 
-        const cleanSheets =
-          0;
+      const category =
+        getPositionCategory(
+          position
+        );
 
-        const yellowCards =
-          0;
-
-        const redCards =
-          0;
-
-        const appearances =
-          toNumber(
-            item?.playedMatches
-          );
-
-        const points =
-          calculateFantasyPoints({
-            category,
-            goals,
-            assists,
-            cleanSheets,
-            yellowCards,
-            redCards,
-            penalties,
-          });
-
-        return {
-          id:
-            player.id ||
-            `player-${index + 1}`,
-
-          name:
-            player.name ||
-            "Nezināms spēlētājs",
-
-          teamId:
-            team.id ||
-            null,
-
-          team:
-            team.name ||
-            "Nezināms klubs",
-
-          position,
-
-          positionLabel:
-            getPositionLabel(
-              category
-            ),
-
+      const points =
+        calculateFantasyPoints({
           category,
+          goals,
+          assists,
+          penalties,
+        });
+
+      return {
+        id:
+          player.id ||
+          `player-${index + 1}`,
+
+        name:
+          player.name ||
+          "Nezināms spēlētājs",
+
+        teamId:
+          team.id || null,
+
+        team:
+          team.name ||
+          "Nezināms klubs",
+
+        position,
+
+        positionLabel:
+          getPositionLabel(
+            category
+          ),
+
+        category,
+
+        /*
+         * REAL API STATISTICS
+         */
+        goals,
+
+        assists,
+
+        penalties,
+
+        appearances,
+
+        /*
+         * These are not provided by
+         * the current scorer response.
+         */
+        minutes: null,
+
+        cleanSheets: null,
+
+        yellowCards: null,
+
+        redCards: null,
+
+        points,
+
+        photo: null,
+
+        realStats: {
+          appearances,
 
           goals,
 
@@ -503,61 +422,48 @@ const normalizeScorers = (
 
           penalties,
 
-          minutes: 0,
+          minutes: null,
 
-          appearances,
+          cleanSheets: null,
 
-          cleanSheets,
+          yellowCards: null,
 
-          yellowCards,
+          redCards: null,
+        },
 
-          redCards,
+        customStats: {},
 
-          points,
+        formMetrics: [],
 
-          photo: null,
-
-          customStats: {},
-
-          formMetrics: [],
-
-          recentForm: [],
-        };
-      }
-    );
+        recentForm: [],
+      };
+    }
+  );
 
   const unique = [];
 
-  const ids =
-    new Set();
+  const ids = new Set();
 
   for (
-    const player
-    of players
+    const player of players
   ) {
     if (
-      ids.has(
-        player.id
-      )
+      ids.has(player.id)
     ) {
       continue;
     }
 
-    ids.add(
-      player.id
-    );
+    ids.add(player.id);
 
-    unique.push(
-      player
-    );
+    unique.push(player);
   }
 
   return unique.map(
-    (player) => ({
+    player => ({
       ...player,
 
       customStats:
-        buildCustomStats(
+        buildRadarStats(
           player,
           unique
         ),
@@ -612,7 +518,7 @@ const request = async (
 };
 
 export const seasonToApiSeason =
-  (season) => {
+  season => {
     if (
       typeof season ===
       "number"
@@ -621,9 +527,7 @@ export const seasonToApiSeason =
     }
 
     const match =
-      String(
-        season
-      ).match(
+      String(season).match(
         /^(\d{4})/
       );
 
@@ -640,14 +544,13 @@ export const seasonToApiSeason =
 export const fetchApiSportsPlayers =
   async (
     leagueId = "PL",
-    season = 2026,
+    season = 2025,
     options = {}
   ) => {
     const competition =
       COMPETITION_IDS[
         leagueId
-      ] ||
-      leagueId;
+      ] || leagueId;
 
     const apiSeason =
       seasonToApiSeason(
@@ -655,20 +558,16 @@ export const fetchApiSportsPlayers =
       );
 
     const cacheKey =
-      `scorers_${competition}_${apiSeason}`;
+      `players_${competition}_${apiSeason}`;
 
     if (
       !options.forceRefresh
     ) {
       const cached =
-        getCache(
-          cacheKey
-        );
+        getCache(cacheKey);
 
       if (
-        Array.isArray(
-          cached
-        ) &&
+        Array.isArray(cached) &&
         cached.length
       ) {
         options.onProgress?.({
@@ -693,30 +592,24 @@ export const fetchApiSportsPlayers =
       )
     ) {
       throw new Error(
-        "API neatgrieza spēlētāju statistiku."
+        "API neatgriež spēlētāju statistiku."
       );
     }
 
     const players =
       normalizeScorers(
         data.scorers
-      ).map(
-        (player) => ({
-          ...player,
+      ).map(player => ({
+        ...player,
 
-          league:
-            competition,
+        league:
+          competition,
 
-          season:
-            String(
-              apiSeason
-            ),
-        })
-      );
+        season:
+          String(apiSeason),
+      }));
 
-    if (
-      !players.length
-    ) {
+    if (!players.length) {
       throw new Error(
         "Šai līgai un sezonai nav pieejamu spēlētāju datu."
       );
@@ -736,17 +629,29 @@ export const fetchApiSportsPlayers =
     return players;
   };
 
-export const fetchCompetitionStandings =
+/*
+ * FDR is intentionally kept separate
+ * from player statistics.
+ *
+ * If no team difficulty data is available,
+ * Flow uses a neutral value of 3.
+ */
+export const getTeamFdr =
   async (
-    leagueId = "PL",
-    season = 2026
+    teamId,
+    league,
+    season
   ) => {
-    return [];
+    void teamId;
+    void league;
+    void season;
+
+    return 3;
   };
 
-export const getTeamFdr =
+export const fetchCompetitionStandings =
   async () => {
-    return 3;
+    return [];
   };
 
 export const clearFootballDataCache =
@@ -755,26 +660,23 @@ export const clearFootballDataCache =
       Object.keys(
         localStorage
       )
-        .filter(
-          (key) =>
-            key.startsWith(
-              CACHE_PREFIX
-            )
+        .filter(key =>
+          key.startsWith(
+            CACHE_PREFIX
+          )
         )
-        .forEach(
-          (key) =>
-            localStorage.removeItem(
-              key
-            )
+        .forEach(key =>
+          localStorage.removeItem(
+            key
+          )
         );
     } catch {
-      // Ignore cache errors.
+      // Ignore localStorage errors.
     }
   };
 
 export const getPositionName =
-  (category) =>
+  category =>
     POSITION_LABELS[
       category
-    ] ||
-    category;
+    ] || category;

@@ -1,64 +1,54 @@
-// src/components/Logo.jsx
-
 import React from "react";
 
 export default function Logo({
-  className = "w-7 h-7",
+  className = "h-9 w-9",
 }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label="Flow logo"
-      role="img"
+    <div
+      className={`flex items-center justify-center rounded-xl bg-slate-950 text-white ${className}`}
+      aria-label="Flow"
     >
-      <defs>
-        <linearGradient
-          id="flowGradient"
-          x1="2"
-          y1="2"
-          x2="30"
-          y2="30"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#10B981" />
-          <stop
-            offset="1"
-            stopColor="#047857"
-          />
-        </linearGradient>
-      </defs>
+      <svg
+        viewBox="0 0 40 40"
+        className="h-full w-full p-1.5"
+        fill="none"
+      >
+        <path
+          d="M11 9.5 20 5l9 4.5v10L20 24l-9-4.5v-10Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
 
-      <rect
-        width="32"
-        height="32"
-        rx="8"
-        fill="url(#flowGradient)"
-      />
+        <path
+          d="M11 19.5V30l9 4.5 9-4.5V19.5"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
 
-      <path
-        d="M7 19C10 19 11 13 14 13C17 13 18 21 21 21C24 21 25 11 27 11"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+        <path
+          d="M20 14v10"
+          stroke="#10b981"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
 
-      <circle
-        cx="14"
-        cy="13"
-        r="1.5"
-        fill="white"
-      />
+        <path
+          d="m15.5 16.5 4.5 2.3 4.5-2.3"
+          stroke="#10b981"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
 
-      <circle
-        cx="21"
-        cy="21"
-        r="1.5"
-        fill="white"
-      />
-    </svg>
+        <circle
+          cx="20"
+          cy="24"
+          r="2.2"
+          fill="#10b981"
+        />
+      </svg>
+    </div>
   );
 }
