@@ -1,392 +1,284 @@
 import React from "react";
 
-const DEFAULT_STATS = [
-  {
-    key: "goals",
-    label: "Vārti",
-  },
-  {
-    key: "assists",
-    label: "Assist",
-  },
-  {
-    key: "points",
-    label: "Punkti",
-  },
-  {
-    key: "appearances",
-    label: "Spēles",
-  },
-  {
-    key: "cleanSheets",
-    label: "Clean sheets",
-  },
-  {
-    key: "experience",
-    label: "Pieredze",
-  },
+const labels = [
+  "Vārti",
+  "Assist",
+  "Punkti",
+  "Spēles",
+  "Clean sheets",
+  "Pieredze",
 ];
 
-function getStatValue(
-  player,
-  key
-) {
-  const value =
-    player?.customStats?.[
-      key
-    ];
+const getStats = player => {
+  const stats = player?.customStats || {};
 
-  const number =
-    Number(value);
+  return [
+    Number(stats.goals ?? 0),
+    Number(stats.assists ?? 0),
+    Number(stats.points ?? 0),
+    Number(stats.appearances ?? 0),
+    Number(stats.cleanSheets ?? 0),
+    Number(stats.experience ?? 0),
+  ].map(value =>
+    Number.isFinite(value)
+      ? Math.max(0, Math.min(100, value))
+      : 0
+  );
+};
 
-  if (
-    Number.isFinite(number)
-  ) {
-    return Math.max(
-      0,
-      Math.min(100, number)
-    );
-  }
+const point = (index, value, cx, cy, radius) => {
+  const angle =
+    -Math.PI / 2 +
+    (index * Math.PI * 2) / labels.length;
 
-  return 0;
-}
-
-function polarToCartesian(
-  center,
-  radius,
-  angle
-) {
-  const radians =
-    ((angle - 90) *
-      Math.PI) /
-    180;
+  const r = (value / 100) * radius;
 
   return {
-    x:
-      center +
-      radius *
-        Math.cos(radians),
-
-    y:
-      center +
-      radius *
-        Math.sin(radians),
+    x: cx + Math.cos(angle) * r,
+    y: cy + Math.sin(angle) * r,
   };
-}
+};
 
-function createPolygon(
+const polygonPoints = (
   values,
-  center,
+  cx,
+  cy,
   radius
-) {
-  return values
-    .map(
-      (value, index) => {
-        const angle =
-          (360 /
-            values.length) *
-          index;
+) =>
+  values
+    .map((value, index) => {
+      const p = point(
+        index,
+        value,
+        cx,
+        cy,
+        radius
+      );
 
-        const point =
-          polarToCartesian(
-            center,
-            (radius *
-              value) /
-              100,
-            angle
-          );
-
-        return `${point.x},${point.y}`;
-      }
-    )
+      return `${p.x},${p.y}`;
+    })
     .join(" ");
-}
 
-function createGridPolygon(
-  count,
-  center,
-  radius,
-  level
-) {
-  const values =
-    Array(count).fill(
-      level
-    );
-
-  return createPolygon(
-    values,
-    center,
-    radius
-  );
-}
+const gridPoints = (
+  level,
+  cx,
+  cy,
+  radius
+) =>
+  Array.from(
+    { length: labels.length },
+    (_, index) =>
+      point(
+        index,
+        level,
+        cx,
+        cy,
+        radius
+      )
+  )
+    .map(p => `${p.x},${p.y}`)
+    .join(" ");
 
 export default function RadarChart({
   players = [],
-  stats = DEFAULT_STATS,
-  height = 420,
 }) {
-  const validPlayers =
-    players.filter(Boolean);
+  const first = players[0] || null;
+  const second = players[1] || null;
 
-  if (!validPlayers.length) {
-    return (
-      <div className="flex min-h-[300px] items-center justify-center rounded-2xl bg-slate-50">
-        <p className="text-sm text-slate-400">
-          Nav spēlētāju datu.
-        </p>
-      </div>
-    );
-  }
+  const firstStats = getStats(first);
+  const secondStats = getStats(second);
 
-  const size = 420;
-  const center = size / 2;
-  const radius = 145;
-
-  const statValues =
-    validPlayers.map(
-      player =>
-        stats.map(stat =>
-          getStatValue(
-            player,
-            stat.key
-          )
-        )
-    );
-
-  const axisPoints =
-    stats.map(
-      (_, index) => {
-        const angle =
-          (360 /
-            stats.length) *
-          index;
-
-        return polarToCartesian(
-          center,
-          radius,
-          angle
-        );
-      }
-    );
-
-  const playerColors = [
-    {
-      fill: "rgba(244,63,94,0.16)",
-      stroke: "#f43f5e",
-    },
-    {
-      fill: "rgba(16,185,129,0.16)",
-      stroke: "#10b981",
-    },
-  ];
+  const cx = 300;
+  const cy = 220;
+  const radius = 150;
 
   return (
-    <div className="w-full">
-      <div className="relative mx-auto w-full max-w-[520px]">
-        <svg
-          viewBox={`0 0 ${size} ${size}`}
-          width="100%"
-          height={height}
-          role="img"
-          aria-label="Spēlētāju statistikas radara diagramma"
-        >
-          {/* GRID */}
-          {[20, 40, 60, 80, 100].map(
-            level => (
-              <polygon
-                key={level}
-                points={createGridPolygon(
-                  stats.length,
-                  center,
-                  radius,
-                  level
-                )}
-                fill="none"
-                stroke="#e2e8f0"
-                strokeWidth="1"
-              />
-            )
-          )}
+    <div className="w-full overflow-hidden">
+      <svg
+        viewBox="0 0 600 520"
+        className="mx-auto block h-auto w-full max-w-3xl"
+      >
+        {/* GRID */}
+        {[20, 40, 60, 80, 100].map(level => (
+          <polygon
+            key={level}
+            points={gridPoints(
+              level,
+              cx,
+              cy,
+              radius
+            )}
+            fill="none"
+            stroke="#dbe4ee"
+            strokeWidth="1"
+          />
+        ))}
 
-          {/* AXES */}
-          {axisPoints.map(
-            (point, index) => (
-              <line
-                key={`axis-${index}`}
-                x1={center}
-                y1={center}
-                x2={point.x}
-                y2={point.y}
-                stroke="#e2e8f0"
-                strokeWidth="1"
-              />
-            )
-          )}
+        {/* AXES */}
+        {labels.map((label, index) => {
+          const end = point(
+            index,
+            100,
+            cx,
+            cy,
+            radius
+          );
 
-          {/* PLAYER POLYGONS */}
-          {statValues.map(
-            (values, playerIndex) => {
-              const style =
-                playerColors[
-                  playerIndex %
-                    playerColors.length
-                ];
+          return (
+            <line
+              key={label}
+              x1={cx}
+              y1={cy}
+              x2={end.x}
+              y2={end.y}
+              stroke="#dbe4ee"
+              strokeWidth="1"
+            />
+          );
+        })}
 
-              return (
-                <polygon
-                  key={`player-${playerIndex}`}
-                  points={createPolygon(
-                    values,
-                    center,
-                    radius
-                  )}
-                  fill={style.fill}
-                  stroke={style.stroke}
-                  strokeWidth="3"
-                  strokeLinejoin="round"
-                />
-              );
-            }
-          )}
+        {/* PLAYER 1 */}
+        {first && (
+          <>
+            <polygon
+              points={polygonPoints(
+                firstStats,
+                cx,
+                cy,
+                radius
+              )}
+              fill="#fb7185"
+              fillOpacity="0.20"
+              stroke="#f43f5e"
+              strokeWidth="3"
+              strokeLinejoin="round"
+            />
 
-          {/* PLAYER POINTS */}
-          {statValues.map(
-            (values, playerIndex) => {
-              const style =
-                playerColors[
-                  playerIndex %
-                    playerColors.length
-                ];
-
-              return values.map(
-                (
+            {firstStats.map(
+              (value, index) => {
+                const p = point(
+                  index,
                   value,
-                  index
-                ) => {
-                  const angle =
-                    (360 /
-                      stats.length) *
-                    index;
-
-                  const point =
-                    polarToCartesian(
-                      center,
-                      (radius *
-                        value) /
-                        100,
-                      angle
-                    );
-
-                  return (
-                    <circle
-                      key={`${playerIndex}-${index}`}
-                      cx={point.x}
-                      cy={point.y}
-                      r="4"
-                      fill="white"
-                      stroke={
-                        style.stroke
-                      }
-                      strokeWidth="2"
-                    />
-                  );
-                }
-              );
-            }
-          )}
-
-          {/* LABELS */}
-          {axisPoints.map(
-            (point, index) => {
-              const angle =
-                (360 /
-                  stats.length) *
-                index;
-
-              const labelPoint =
-                polarToCartesian(
-                  center,
-                  radius + 34,
-                  angle
+                  cx,
+                  cy,
+                  radius
                 );
 
-              const anchor =
-                labelPoint.x <
-                center - 10
-                  ? "end"
-                  : labelPoint.x >
-                    center + 10
-                  ? "start"
-                  : "middle";
+                return (
+                  <circle
+                    key={`first-${index}`}
+                    cx={p.x}
+                    cy={p.y}
+                    r="5"
+                    fill="white"
+                    stroke="#f43f5e"
+                    strokeWidth="3"
+                  />
+                );
+              }
+            )}
+          </>
+        )}
 
-              return (
-                <text
-                  key={`label-${index}`}
-                  x={labelPoint.x}
-                  y={labelPoint.y}
-                  textAnchor={
-                    anchor
-                  }
-                  dominantBaseline="middle"
-                  className="fill-slate-500 text-[11px] font-bold"
-                >
-                  {stats[index].label}
-                </text>
-              );
-            }
-          )}
+        {/* PLAYER 2 */}
+        {second && (
+          <>
+            <polygon
+              points={polygonPoints(
+                secondStats,
+                cx,
+                cy,
+                radius
+              )}
+              fill="#10b981"
+              fillOpacity="0.18"
+              stroke="#10b981"
+              strokeWidth="3"
+              strokeLinejoin="round"
+            />
 
-          {/* CENTER */}
-          <circle
-            cx={center}
-            cy={center}
-            r="3"
-            fill="#94a3b8"
-          />
-        </svg>
-      </div>
+            {secondStats.map(
+              (value, index) => {
+                const p = point(
+                  index,
+                  value,
+                  cx,
+                  cy,
+                  radius
+                );
+
+                return (
+                  <circle
+                    key={`second-${index}`}
+                    cx={p.x}
+                    cy={p.y}
+                    r="5"
+                    fill="white"
+                    stroke="#10b981"
+                    strokeWidth="3"
+                  />
+                );
+              }
+            )}
+          </>
+        )}
+
+        {/* LABELS */}
+        {labels.map((label, index) => {
+          const p = point(
+            index,
+            118,
+            cx,
+            cy,
+            radius
+          );
+
+          let anchor = "middle";
+
+          if (p.x < cx - 30) {
+            anchor = "end";
+          }
+
+          if (p.x > cx + 30) {
+            anchor = "start";
+          }
+
+          return (
+            <text
+              key={label}
+              x={p.x}
+              y={p.y}
+              textAnchor={anchor}
+              dominantBaseline="middle"
+              className="fill-slate-600 text-[12px] font-bold"
+            >
+              {label}
+            </text>
+          );
+        })}
+      </svg>
 
       {/* LEGEND */}
-      <div className="mt-3 flex flex-wrap justify-center gap-5">
-        {validPlayers
-          .slice(0, 2)
-          .map(
-            (
-              player,
-              index
-            ) => {
-              const style =
-                playerColors[
-                  index %
-                    playerColors.length
-                ];
+      <div className="flex flex-wrap items-center justify-center gap-6 pb-2 pt-1">
+        {first && (
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-rose-500" />
 
-              return (
-                <div
-                  key={
-                    player.id ||
-                    index
-                  }
-                  className="flex items-center gap-2"
-                >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{
-                      backgroundColor:
-                        style.stroke,
-                    }}
-                  />
+            <span className="text-sm font-bold text-slate-700">
+              {first.name}
+            </span>
+          </div>
+        )}
 
-                  <span className="text-xs font-bold text-slate-600">
-                    {player.name ||
-                      `Spēlētājs ${
-                        index + 1
-                      }`}
-                  </span>
-                </div>
-              );
-            }
-          )}
+        {second && (
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-emerald-500" />
+
+            <span className="text-sm font-bold text-slate-700">
+              {second.name}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

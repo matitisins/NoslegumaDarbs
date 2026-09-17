@@ -36,7 +36,6 @@ const CATEGORIES = {
     desc: "Finisēšana, vārtu iesaiste un uzbrukuma produktivitāte.",
     tag: "Uzbrukuma produktivitāte",
   },
-
   MIDFIELDERS: {
     name: "Pussargi",
     icon: "◈",
@@ -44,7 +43,6 @@ const CATEGORIES = {
     desc: "Radošums, progresija un iesaiste vārtu guvumos.",
     tag: "Radošums un kontrole",
   },
-
   DEFENDERS: {
     name: "Aizsargi",
     icon: "◆",
@@ -52,7 +50,6 @@ const CATEGORIES = {
     desc: "Uzticamība, vārtu draudi un iespēju veidošana.",
     tag: "Aizsardzība un stabilitāte",
   },
-
   GOALKEEPERS: {
     name: "Vārtsargi",
     icon: "⬢",
@@ -91,17 +88,16 @@ function Star({ active = false }) {
 }
 
 function SearchBox({
-  value,
-  onChange,
   players,
   selected,
   onSelect,
-  onOpen,
   isFavorite,
   onToggleFavorite,
   color,
   label,
 }) {
+  const [value, setValue] = useState("");
+
   const results = value
     ? players.filter(player => {
         const q = normalize(value);
@@ -114,6 +110,13 @@ function SearchBox({
     : [];
 
   const rose = color === "rose";
+
+  const handleSelect = player => {
+    if (!player?.id) return;
+
+    onSelect(player);
+    setValue("");
+  };
 
   return (
     <div
@@ -128,8 +131,9 @@ function SearchBox({
       <div className="relative">
         <input
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => setValue(e.target.value)}
           placeholder="Meklē pēc vārda vai kluba..."
+          maxLength={100}
           className={`w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 pr-9 text-sm outline-none transition focus:bg-white focus:ring-2 ${
             rose
               ? "focus:border-rose-400 focus:ring-rose-100"
@@ -140,7 +144,7 @@ function SearchBox({
         {value && (
           <button
             type="button"
-            onClick={() => onChange("")}
+            onClick={() => setValue("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
           >
             ✕
@@ -160,7 +164,7 @@ function SearchBox({
               >
                 <button
                   type="button"
-                  onClick={() => onOpen(player)}
+                  onClick={() => handleSelect(player)}
                   className="flex min-w-0 flex-1 items-center justify-between px-1 py-1.5 text-left"
                 >
                   <span className="min-w-0">
@@ -174,7 +178,7 @@ function SearchBox({
                   </span>
 
                   <span className="ml-3 shrink-0 text-[10px] font-bold uppercase text-slate-400">
-                    Skatīt
+                    Izvēlēties
                   </span>
                 </button>
 
@@ -197,7 +201,7 @@ function SearchBox({
 
                 <button
                   type="button"
-                  onClick={() => onSelect(player)}
+                  onClick={() => handleSelect(player)}
                   className={`rounded-lg px-2.5 py-2 text-[10px] font-bold text-white ${
                     rose
                       ? "bg-rose-500 hover:bg-rose-600"
@@ -219,6 +223,8 @@ function SearchBox({
       <p className="mt-2 text-xs text-slate-400">
         {value
           ? `Atrasti: ${results.length} spēlētāji`
+          : selected
+          ? `Izvēlēts: ${selected.name}`
           : "Ieraksti spēlētāja vārdu vai klubu"}
       </p>
     </div>
@@ -250,18 +256,12 @@ function Stat({ icon, title, value, text, color }) {
         {value}
       </p>
 
-      <p className="mt-1 text-xs text-slate-500">
-        {text}
-      </p>
+      <p className="mt-1 text-xs text-slate-500">{text}</p>
     </div>
   );
 }
 
-function CategoryCard({
-  category,
-  count,
-  onClick,
-}) {
+function CategoryCard({ category, count, onClick }) {
   const info = CATEGORIES[category];
 
   const accent = {
@@ -330,9 +330,7 @@ function PlayerDetailsModal({
   onCompare,
   onClose,
 }) {
-  if (!player) {
-    return null;
-  }
+  if (!player) return null;
 
   const availableStats = [
     ["Spēles", player.appearances],
@@ -346,9 +344,7 @@ function PlayerDetailsModal({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
       onMouseDown={e => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
@@ -403,9 +399,7 @@ function PlayerDetailsModal({
 
             <button
               type="button"
-              onClick={() =>
-                onToggleFavorite(player)
-              }
+              onClick={() => onToggleFavorite(player)}
               className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition ${
                 favorite
                   ? "border-amber-200 bg-amber-50 text-amber-600"
@@ -413,7 +407,6 @@ function PlayerDetailsModal({
               }`}
             >
               <Star active={favorite} />
-
               {favorite
                 ? "Favorītos"
                 : "Pievienot favorītiem"}
@@ -421,22 +414,20 @@ function PlayerDetailsModal({
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {availableStats.map(
-              ([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center"
-                >
-                  <p className="text-2xl font-black text-slate-900">
-                    {value ?? "—"}
-                  </p>
+            {availableStats.map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center"
+              >
+                <p className="text-2xl font-black text-slate-900">
+                  {value ?? "—"}
+                </p>
 
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {label}
-                  </p>
-                </div>
-              )
-            )}
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {label}
+                </p>
+              </div>
+            ))}
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -495,9 +486,7 @@ function PlayerDetailsModal({
 
               <button
                 type="button"
-                onClick={() =>
-                  onCompare(player)
-                }
+                onClick={() => onCompare(player)}
                 className="rounded-xl bg-emerald-500 px-5 py-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600"
               >
                 + Pievienot salīdzināšanai
@@ -558,9 +547,7 @@ function FavoriteCard({
 
       <button
         type="button"
-        onClick={() =>
-          onToggleFavorite(player)
-        }
+        onClick={() => onToggleFavorite(player)}
         title="Noņemt no favorītiem"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-500 hover:bg-amber-100"
       >
@@ -580,30 +567,22 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] =
     useState(null);
 
-  const [leaguePlayers, setLeaguePlayers] =
-    useState([]);
+  const [leaguePlayers, setLeaguePlayers] = useState([]);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [username, setUsername] = useState(
+    () =>
+      localStorage.getItem("radars_username") ||
+      "Matīss"
+  );
 
-  const [username, setUsername] =
-    useState(
-      () =>
-        localStorage.getItem(
-          "radars_username"
-        ) || "Matīss"
-    );
-
-  const [avatarUrl, setAvatarUrl] =
-    useState(
-      () =>
-        localStorage.getItem(
-          "radars_avatar"
-        ) || DEFAULT_AVATAR
-    );
+  const [avatarUrl, setAvatarUrl] = useState(
+    () =>
+      localStorage.getItem("radars_avatar") ||
+      DEFAULT_AVATAR
+  );
 
   const [isAccountOpen, setIsAccountOpen] =
     useState(false);
@@ -617,24 +596,15 @@ export default function App() {
   const [tempAvatar, setTempAvatar] =
     useState(avatarUrl);
 
-  const [player1, setPlayer1] =
-    useState(null);
+  const [player1, setPlayer1] = useState(null);
+  const [player2, setPlayer2] = useState(null);
 
-  const [player2, setPlayer2] =
-    useState(null);
+  const [selectionError, setSelectionError] = useState("");
 
-  const [playerSearch1, setPlayerSearch1] =
-    useState("");
+  const loadRequestRef = useRef(0);
 
-  const [playerSearch2, setPlayerSearch2] =
-    useState("");
-
-  const [fdr1, setFdr1] =
-    useState(3);
-
-  const [fdr2, setFdr2] =
-    useState(3);
-
+  const [fdr1, setFdr1] = useState(3);
+  const [fdr2, setFdr2] = useState(3);
   const [fdrLoading, setFdrLoading] =
     useState(false);
 
@@ -642,9 +612,8 @@ export default function App() {
     useState(() => {
       try {
         return JSON.parse(
-          localStorage.getItem(
-            "flow_favorite_players"
-          ) || "[]"
+          localStorage.getItem("flow_favorite_players") ||
+            "[]"
         );
       } catch {
         return [];
@@ -654,201 +623,173 @@ export default function App() {
   const [detailsPlayer, setDetailsPlayer] =
     useState(null);
 
-  const captureRef =
-    useRef(null);
+  const captureRef = useRef(null);
 
   const apiSeason =
-    seasonToApiSeason(
-      selectedSeason
-    );
+    seasonToApiSeason(selectedSeason);
 
   const leagueName =
-    LEAGUES.find(
-      x =>
-        x[0] ===
-        selectedLeague
-    )?.[1] ||
+    LEAGUES.find(x => x[0] === selectedLeague)?.[1] ||
     selectedLeague;
 
-  const categories =
-    CATEGORY_ORDER.filter(
-      category =>
-        leaguePlayers.some(
-          player =>
-            player.category ===
-            category
-        )
-    );
+  const categories = CATEGORY_ORDER.filter(
+    category =>
+      leaguePlayers.some(
+        player => player.category === category
+      )
+  );
 
-  const categoryPlayers =
-    selectedCategory
-      ? leaguePlayers.filter(
-          player =>
-            player.category ===
-            selectedCategory
-        )
-      : [];
+  const categoryPlayers = selectedCategory
+    ? leaguePlayers.filter(
+        player =>
+          player.category === selectedCategory
+      )
+    : [];
 
-  const favorites =
-    leaguePlayers.filter(
-      player =>
-        favoriteIds.includes(
-          player.id
-        )
-    );
+  const favorites = leaguePlayers.filter(
+    player => favoriteIds.includes(player.id)
+  );
 
-  const isFavorite =
-    player =>
-      favoriteIds.includes(
-        player.id
+  const isFavorite = player =>
+    favoriteIds.includes(player.id);
+
+  const toggleFavorite = player => {
+    if (!player?.id) return;
+
+    setFavoriteIds(current => {
+      const exists = current.includes(player.id);
+
+      const next = exists
+        ? current.filter(id => id !== player.id)
+        : [...current, player.id];
+
+      localStorage.setItem(
+        "flow_favorite_players",
+        JSON.stringify(next)
       );
 
-  const toggleFavorite =
-    player => {
-      if (!player?.id) {
-        return;
-      }
+      return next;
+    });
+  };
 
-      setFavoriteIds(
-        current => {
-          const exists =
-            current.includes(
-              player.id
-            );
+  const resetPlayers = () => {
+    setSelectedCategory(null);
+    setPlayer1(null);
+    setPlayer2(null);
+    setSelectionError("");
+  };
 
-          const next =
-            exists
-              ? current.filter(
-                  id =>
-                    id !==
-                    player.id
-                )
-              : [
-                  ...current,
-                  player.id,
-                ];
+  const loadPlayers = async (
+    forceRefresh = false
+  ) => {
+    const requestId = ++loadRequestRef.current;
+    const competition = COMPETITION_IDS[selectedLeague];
 
-          localStorage.setItem(
-            "flow_favorite_players",
-            JSON.stringify(
-              next
-            )
-          );
+    setLoading(true);
+    setError("");
 
-          return next;
-        }
+    if (!competition) {
+      setLeaguePlayers([]);
+      setLoading(false);
+      setError(
+        "Izvēlētajai līgai nav konfigurēts API identifikators."
       );
-    };
-
-  const resetPlayers =
-    () => {
-      setSelectedCategory(
-        null
-      );
-
-      setPlayer1(null);
-
-      setPlayer2(null);
-
-      setPlayerSearch1("");
-
-      setPlayerSearch2("");
-    };
-
-  const loadPlayers =
-    async (
-      forceRefresh = false
-    ) => {
-      setLoading(true);
-
-      setError("");
-
-      try {
-        const players =
-          await fetchApiSportsPlayers(
-            COMPETITION_IDS[
-              selectedLeague
-            ],
-            apiSeason,
-            {
-              forceRefresh,
-            }
-          );
-
-        setLeaguePlayers(
-          players
-        );
-      } catch (err) {
-        console.error(err);
-
-        setLeaguePlayers([]);
-
-        setError(
-          err?.message ||
-            "Neizdevās ielādēt datus no API."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-  useEffect(() => {
-    resetPlayers();
-
-    loadPlayers();
-  }, [
-    selectedLeague,
-    selectedSeason,
-  ]);
-
-  useEffect(() => {
-    if (!selectedCategory) {
       return;
     }
 
-    const players =
-      leaguePlayers.filter(
-        p =>
-          p.category ===
-          selectedCategory
+    if (!Number.isInteger(apiSeason) || apiSeason < 2000) {
+      setLeaguePlayers([]);
+      setLoading(false);
+      setError("Izvēlētā sezona nav derīga.");
+      return;
+    }
+
+    try {
+      const players =
+        await fetchApiSportsPlayers(
+          competition,
+          apiSeason,
+          { forceRefresh }
+        );
+
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      if (!Array.isArray(players)) {
+        throw new Error(
+          "API neatgrieza derīgu spēlētāju sarakstu."
+        );
+      }
+
+      const validPlayers = players.filter(
+        player =>
+          player &&
+          player.id !== null &&
+          player.id !== undefined &&
+          String(player.name || "").trim() &&
+          String(player.team || "").trim()
       );
 
-    setPlayer1(
-      current =>
-        current &&
-        players.some(
-          p =>
-            p.id ===
-            current.id
-        )
-          ? current
-          : players[0] ||
-            null
-    );
+      if (!validPlayers.length) {
+        throw new Error(
+          "API neatgrieza nevienu derīgu spēlētāju."
+        );
+      }
 
-    setPlayer2(
-      current =>
-        current &&
-        players.some(
-          p =>
-            p.id ===
-            current.id
-        )
-          ? current
-          : players[1] ||
-            players[0] ||
-            null
-    );
-  }, [
-    selectedCategory,
-    leaguePlayers,
-  ]);
+      setLeaguePlayers(validPlayers);
+    } catch (err) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      console.error(err);
+      setLeaguePlayers([]);
+
+      setError(
+        err?.message ||
+          "Neizdevās ielādēt datus no API."
+      );
+    } finally {
+      if (requestId === loadRequestRef.current) {
+        setLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
-    if (
-      !player1 ||
-      !player2
-    ) {
+    resetPlayers();
+    loadPlayers();
+  }, [selectedLeague, selectedSeason]);
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+
+    const players = leaguePlayers.filter(
+      p => p.category === selectedCategory
+    );
+
+    setPlayer1(current =>
+      current &&
+      players.some(p => p.id === current.id)
+        ? current
+        : players[0] || null
+    );
+
+    setPlayer2(current => {
+      if (players.length < 2) {
+        return null;
+      }
+
+      return current &&
+        players.some(p => p.id === current.id)
+        ? current
+        : players[1] || null;
+    });
+  }, [selectedCategory, leaguePlayers]);
+
+  useEffect(() => {
+    if (!player1 || !player2) {
       setFdr1(3);
       setFdr2(3);
       return;
@@ -856,49 +797,39 @@ export default function App() {
 
     let cancelled = false;
 
-    const loadFdr =
-      async () => {
-        setFdrLoading(true);
+    const loadFdr = async () => {
+      setFdrLoading(true);
 
-        try {
-          const [
-            firstFdr,
-            secondFdr,
-          ] =
-            await Promise.all([
-              getTeamFdr(
-                player1.teamId,
-                selectedLeague,
-                apiSeason
-              ),
+      try {
+        const [first, second] =
+          await Promise.all([
+            getTeamFdr(
+              player1.teamId,
+              selectedLeague,
+              apiSeason
+            ),
+            getTeamFdr(
+              player2.teamId,
+              selectedLeague,
+              apiSeason
+            ),
+          ]);
 
-              getTeamFdr(
-                player2.teamId,
-                selectedLeague,
-                apiSeason
-              ),
-            ]);
-
-          if (!cancelled) {
-            setFdr1(
-              firstFdr
-            );
-
-            setFdr2(
-              secondFdr
-            );
-          }
-        } catch {
-          if (!cancelled) {
-            setFdr1(3);
-            setFdr2(3);
-          }
-        } finally {
-          if (!cancelled) {
-            setFdrLoading(false);
-          }
+        if (!cancelled) {
+          setFdr1(first);
+          setFdr2(second);
         }
-      };
+      } catch {
+        if (!cancelled) {
+          setFdr1(3);
+          setFdr2(3);
+        }
+      } finally {
+        if (!cancelled) {
+          setFdrLoading(false);
+        }
+      }
+    };
 
     loadFdr();
 
@@ -912,248 +843,270 @@ export default function App() {
     apiSeason,
   ]);
 
-  const selectCategory =
-    category => {
-      const players =
-        leaguePlayers.filter(
-          p =>
-            p.category ===
-            category
-        );
+  const selectCategory = category => {
+    const players = leaguePlayers.filter(
+      p => p.category === category
+    );
 
-      setSelectedCategory(
-        category
-      );
+    setSelectedCategory(category);
+    setSelectionError("");
+    setPlayer1(players[0] || null);
+    setPlayer2(
+      players.length > 1
+        ? players[1]
+        : null
+    );
+  };
 
-      setPlayer1(
-        players[0] ||
-          null
-      );
+  const addToComparison = player => {
+    if (!player?.id) {
+      return;
+    }
 
-      setPlayer2(
-        players[1] ||
-          players[0] ||
-          null
-      );
+    setSelectionError("");
+    setSelectedCategory(player.category);
 
-      setPlayerSearch1("");
-
-      setPlayerSearch2("");
-    };
-
-  const addToComparison =
-    player => {
-      if (!player) {
-        return;
-      }
-
-      setSelectedCategory(
-        player.category
-      );
-
-      if (
-        !player1 ||
-        player1.id ===
-          player.id
-      ) {
-        setPlayer1(player);
-
-        if (
-          player2?.id ===
-          player.id
-        ) {
-          setPlayer2(null);
-        }
-      } else if (
-        !player2 ||
-        player2.id ===
-          player.id
-      ) {
-        setPlayer2(player);
-      } else {
-        setPlayer2(player);
-      }
-
-      setPlayerSearch1("");
-
-      setPlayerSearch2("");
-
+    if (player1?.id === player.id) {
       setDetailsPlayer(null);
-    };
+      return;
+    }
 
-  const openPlayer =
-    player => {
-      setDetailsPlayer(
-        player
+    if (!player1) {
+      setPlayer1(player);
+      setDetailsPlayer(null);
+      return;
+    }
+
+    if (player2?.id === player.id) {
+      setDetailsPlayer(null);
+      return;
+    }
+
+    setPlayer2(player);
+    setDetailsPlayer(null);
+  };
+
+  const openPlayer = player => {
+    setDetailsPlayer(player);
+  };
+
+  const selectPlayer1 = player => {
+    if (!player?.id) {
+      setSelectionError(
+        "Nevarēja izvēlēties spēlētāju."
       );
-    };
+      return;
+    }
 
-  const handlePlayerChange =
-    setter =>
-    event => {
-      const player =
-        categoryPlayers.find(
-          item =>
-            String(
-              item.id
-            ) ===
-            String(
-              event.target.value
-            )
+    if (player2?.id === player.id) {
+      setSelectionError(
+        "Vienu un to pašu spēlētāju nevar salīdzināt ar sevi. Izvēlies citu spēlētāju."
+      );
+      return;
+    }
+
+    setPlayer1(player);
+    setSelectionError("");
+  };
+
+  const selectPlayer2 = player => {
+    if (!player?.id) {
+      setSelectionError(
+        "Nevarēja izvēlēties spēlētāju."
+      );
+      return;
+    }
+
+    if (player1?.id === player.id) {
+      setSelectionError(
+        "Vienu un to pašu spēlētāju nevar salīdzināt ar sevi. Izvēlies citu spēlētāju."
+      );
+      return;
+    }
+
+    setPlayer2(player);
+    setSelectionError("");
+  };
+
+  const handlePlayer1Change = event => {
+    const player = categoryPlayers.find(
+      item =>
+        String(item.id) ===
+        String(event.target.value)
+    );
+
+    if (player) {
+      selectPlayer1(player);
+    }
+  };
+
+  const handlePlayer2Change = event => {
+    const player = categoryPlayers.find(
+      item =>
+        String(item.id) ===
+        String(event.target.value)
+    );
+
+    if (player) {
+      selectPlayer2(player);
+    }
+  };
+
+  const openAccount = () => {
+    setTempUsername(username);
+    setTempAvatar(avatarUrl);
+    setIsAccountOpen(true);
+  };
+
+  const handleFileChange = e => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      window.alert(
+        "Lūdzu, izvēlies attēla failu."
+      );
+      e.target.value = "";
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      window.alert(
+        "Attēls ir pārāk liels. Maksimālais izmērs ir 2 MB."
+      );
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setTempAvatar(reader.result);
+      } else {
+        window.alert(
+          "Neizdevās nolasīt attēla failu."
         );
-
-      if (player) {
-        setter(player);
       }
     };
 
-  const openAccount =
-    () => {
-      setTempUsername(
-        username
-      );
-
-      setTempAvatar(
-        avatarUrl
-      );
-
-      setIsAccountOpen(
-        true
+    reader.onerror = () => {
+      window.alert(
+        "Neizdevās nolasīt attēla failu."
       );
     };
 
-  const handleFileChange =
-    event => {
-      const file =
-        event.target.files?.[0];
+    reader.readAsDataURL(file);
+  };
 
-      if (
-        !file?.type.startsWith(
-          "image/"
-        )
-      ) {
-        return;
-      }
+  const saveAccount = e => {
+    e.preventDefault();
 
-      const reader =
-        new FileReader();
+    const name = tempUsername.trim();
 
-      reader.onloadend =
-        () => {
-          if (
-            typeof reader.result ===
-            "string"
-          ) {
-            setTempAvatar(
-              reader.result
-            );
+    if (!name) {
+      window.alert(
+        "Lūdzu, ievadi lietotājvārdu."
+      );
+      return;
+    }
+
+    if (name.length < 2) {
+      window.alert(
+        "Lietotājvārdam jābūt vismaz 2 rakstzīmes garam."
+      );
+      return;
+    }
+
+    if (name.length > 30) {
+      window.alert(
+        "Lietotājvārds nedrīkst būt garāks par 30 rakstzīmēm."
+      );
+      return;
+    }
+
+    setUsername(name);
+    setAvatarUrl(
+      tempAvatar || DEFAULT_AVATAR
+    );
+
+    localStorage.setItem(
+      "radars_username",
+      name
+    );
+
+    localStorage.setItem(
+      "radars_avatar",
+      tempAvatar || DEFAULT_AVATAR
+    );
+
+    setIsAccountOpen(false);
+  };
+
+  const takeScreenshot = async () => {
+    if (!captureRef.current) return;
+
+    if (!player1 || !player2) {
+      setSelectionError(
+        "Lai saglabātu salīdzinājumu, jāizvēlas abi spēlētāji."
+      );
+      return;
+    }
+
+    try {
+      const canvas =
+        await html2canvas(
+          captureRef.current,
+          {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#f1f5f9",
+            logging: false,
           }
-        };
-
-      reader.readAsDataURL(
-        file
-      );
-    };
-
-  const saveAccount =
-    event => {
-      event.preventDefault();
-
-      const name =
-        tempUsername.trim() ||
-        "Matīss";
-
-      setUsername(name);
-
-      setAvatarUrl(
-        tempAvatar
-      );
-
-      localStorage.setItem(
-        "radars_username",
-        name
-      );
-
-      localStorage.setItem(
-        "radars_avatar",
-        tempAvatar
-      );
-
-      setIsAccountOpen(
-        false
-      );
-    };
-
-  const takeScreenshot =
-    async () => {
-      if (
-        !captureRef.current
-      ) {
-        return;
-      }
-
-      try {
-        const canvas =
-          await html2canvas(
-            captureRef.current,
-            {
-              scale: 2,
-
-              useCORS: true,
-
-              allowTaint: false,
-
-              backgroundColor:
-                "#f1f5f9",
-
-              logging: false,
-            }
-          );
-
-        const clean =
-          name =>
-            (
-              name ||
-              "player"
-            ).replace(
-              /[^a-z0-9āčēģīķļņōŗšūž-]/gi,
-              "-"
-            );
-
-        const link =
-          document.createElement(
-            "a"
-          );
-
-        link.href =
-          canvas.toDataURL(
-            "image/png"
-          );
-
-        link.download =
-          `flow-comparison-${clean(
-            player1?.name
-          )}-vs-${clean(
-            player2?.name
-          )}.png`;
-
-        link.click();
-      } catch (err) {
-        console.error(
-          "Kļūda veidojot ekrānuzņēmumu:",
-          err
         );
-      }
-    };
 
-  const refreshData =
-    async () => {
-      clearFootballDataCache();
+      const clean = name =>
+        (name || "player").replace(
+          /[^a-z0-9āčēģīķļņōŗšūž-]/gi,
+          "-"
+        );
 
-      await loadPlayers(
-        true
+      const link =
+        document.createElement("a");
+
+      link.href =
+        canvas.toDataURL("image/png");
+
+      link.download =
+        `flow-comparison-${clean(
+          player1?.name
+        )}-vs-${clean(
+          player2?.name
+        )}.png`;
+
+      link.click();
+    } catch (err) {
+      console.error(
+        "Kļūda veidojot ekrānuzņēmumu:",
+        err
       );
-    };
+
+      setSelectionError(
+        "Neizdevās izveidot ekrānuzņēmumu. Mēģini vēlreiz."
+      );
+    }
+  };
+
+  const refreshData = async () => {
+    clearFootballDataCache();
+    await loadPlayers(true);
+  };
 
   return (
     <div className="min-h-screen bg-[#f5f7fa] font-sans text-slate-800">
@@ -1161,9 +1114,7 @@ export default function App() {
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-6">
           <button
             type="button"
-            onClick={
-              resetPlayers
-            }
+            onClick={resetPlayers}
             className="flex items-center gap-3"
           >
             <Logo className="h-9 w-9" />
@@ -1182,9 +1133,7 @@ export default function App() {
           <nav className="hidden items-center gap-1 md:flex">
             <button
               type="button"
-              onClick={
-                resetPlayers
-              }
+              onClick={resetPlayers}
               className={`rounded-lg px-4 py-2 text-sm font-semibold ${
                 !selectedCategory
                   ? "bg-slate-100 text-slate-900"
@@ -1196,11 +1145,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() =>
-                setIsGuideOpen(
-                  true
-                )
-              }
+              onClick={() => setIsGuideOpen(true)}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900"
             >
               Guide
@@ -1209,9 +1154,7 @@ export default function App() {
 
           <button
             type="button"
-            onClick={
-              openAccount
-            }
+            onClick={openAccount}
             className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm hover:border-slate-300"
           >
             <img
@@ -1233,57 +1176,31 @@ export default function App() {
 
       {detailsPlayer && (
         <PlayerDetailsModal
-          player={
-            detailsPlayer
-          }
-          favorite={isFavorite(
-            detailsPlayer
-          )}
-          onToggleFavorite={
-            toggleFavorite
-          }
-          onCompare={
-            addToComparison
-          }
+          player={detailsPlayer}
+          favorite={isFavorite(detailsPlayer)}
+          onToggleFavorite={toggleFavorite}
+          onCompare={addToComparison}
           onClose={() =>
-            setDetailsPlayer(
-              null
-            )
+            setDetailsPlayer(null)
           }
         />
       )}
 
       {isGuideOpen && (
         <GuideModal
-          onClose={() =>
-            setIsGuideOpen(
-              false
-            )
-          }
+          onClose={() => setIsGuideOpen(false)}
         />
       )}
 
       {isAccountOpen && (
         <AccountModal
-          username={
-            tempUsername
-          }
-          avatar={
-            tempAvatar
-          }
-          onUsernameChange={
-            setTempUsername
-          }
-          onFileChange={
-            handleFileChange
-          }
-          onSave={
-            saveAccount
-          }
+          username={tempUsername}
+          avatar={tempAvatar}
+          onUsernameChange={setTempUsername}
+          onFileChange={handleFileChange}
+          onSave={saveAccount}
           onClose={() =>
-            setIsAccountOpen(
-              false
-            )
+            setIsAccountOpen(false)
           }
         />
       )}
@@ -1297,23 +1214,31 @@ export default function App() {
               </span>
 
               <select
-                value={
-                  selectedSeason
-                }
-                onChange={e =>
+                value={selectedSeason}
+                onChange={e => {
+                  const nextSeason =
+                    e.target.value;
+
+                  if (
+                    !/^\d{4}\/\d{4}$/.test(
+                      nextSeason
+                    )
+                  ) {
+                    setError(
+                      "Izvēlētā sezona nav derīga."
+                    );
+                    return;
+                  }
+
+                  setError("");
                   setSelectedSeason(
-                    e.target.value
-                  )
-                }
+                    nextSeason
+                  );
+                }}
                 className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-emerald-400"
               >
-                <option>
-                  2026/2027
-                </option>
-
-                <option>
-                  2025/2026
-                </option>
+                <option>2026/2027</option>
+                <option>2025/2026</option>
               </select>
             </label>
 
@@ -1325,23 +1250,33 @@ export default function App() {
               </span>
 
               <select
-                value={
-                  selectedLeague
-                }
+                value={selectedLeague}
                 onChange={e => {
-                  setSelectedLeague(
-                    e.target.value
-                  );
+                  const nextLeague =
+                    e.target.value;
 
+                  if (
+                    !LEAGUES.some(
+                      ([code]) =>
+                        code === nextLeague
+                    )
+                  ) {
+                    setError(
+                      "Izvēlētā līga nav pieejama."
+                    );
+                    return;
+                  }
+
+                  setError("");
+                  setSelectedLeague(
+                    nextLeague
+                  );
                   resetPlayers();
                 }}
                 className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-emerald-400"
               >
                 {LEAGUES.map(
-                  ([
-                    code,
-                    name,
-                  ]) => (
+                  ([code, name]) => (
                     <option
                       key={code}
                       value={code}
@@ -1356,9 +1291,7 @@ export default function App() {
 
           <button
             type="button"
-            onClick={
-              refreshData
-            }
+            onClick={refreshData}
             disabled={loading}
             className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 shadow-sm hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-50"
           >
@@ -1378,36 +1311,32 @@ export default function App() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              {leagueName} ·{" "}
-              {selectedSeason}
+              {leagueName} · {selectedSeason}
             </p>
           </div>
         )}
 
-        {error &&
-          !loading && (
-            <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-6">
-              <h2 className="font-bold text-red-700">
-                API kļūda
-              </h2>
+        {error && !loading && (
+          <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-6">
+            <h2 className="font-bold text-red-700">
+              API kļūda
+            </h2>
 
-              <p className="mt-1 text-sm text-red-600">
-                {error}
-              </p>
+            <p className="mt-1 text-sm text-red-600">
+              {error}
+            </p>
 
-              <button
-                type="button"
-                onClick={() =>
-                  loadPlayers(
-                    true
-                  )
-                }
-                className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500"
-              >
-                Mēģināt vēlreiz
-              </button>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() =>
+                loadPlayers(true)
+              }
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500"
+            >
+              Mēģināt vēlreiz
+            </button>
+          </div>
+        )}
 
         {!loading &&
           !error &&
@@ -1452,6 +1381,13 @@ export default function App() {
                         {selectedSeason}
                       </b>
                     </span>
+
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-400">
+                      API dati{" "}
+                      <b className="ml-1 text-white">
+                        {leaguePlayers.length}
+                      </b>
+                    </span>
                   </div>
                 </div>
               </section>
@@ -1460,9 +1396,7 @@ export default function App() {
                 <Stat
                   icon="♟"
                   title="Datubāze"
-                  value={
-                    leaguePlayers.length
-                  }
+                  value={leaguePlayers.length}
                   text="pieejami spēlētāji"
                   color="emerald"
                 />
@@ -1470,9 +1404,7 @@ export default function App() {
                 <Stat
                   icon="★"
                   title="Favorīti"
-                  value={
-                    favorites.length
-                  }
+                  value={favorites.length}
                   text="saglabāti spēlētāji"
                   color="blue"
                 />
@@ -1486,8 +1418,7 @@ export default function App() {
                 />
               </section>
 
-              {favorites.length >
-                0 && (
+              {favorites.length > 0 && (
                 <section className="mb-10">
                   <div className="mb-5 flex items-end justify-between">
                     <div>
@@ -1506,31 +1437,21 @@ export default function App() {
                     </div>
 
                     <span className="text-xs font-bold text-slate-400">
-                      {
-                        favorites.length
-                      }
+                      {favorites.length}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {favorites.map(
-                      player => (
-                        <FavoriteCard
-                          key={
-                            player.id
-                          }
-                          player={
-                            player
-                          }
-                          onOpen={
-                            openPlayer
-                          }
-                          onToggleFavorite={
-                            toggleFavorite
-                          }
-                        />
-                      )
-                    )}
+                    {favorites.map(player => (
+                      <FavoriteCard
+                        key={player.id}
+                        player={player}
+                        onOpen={openPlayer}
+                        onToggleFavorite={
+                          toggleFavorite
+                        }
+                      />
+                    ))}
                   </div>
                 </section>
               )}
@@ -1552,30 +1473,24 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {categories.map(
-                    category => (
-                      <CategoryCard
-                        key={
-                          category
-                        }
-                        category={
-                          category
-                        }
-                        count={
-                          leaguePlayers.filter(
-                            p =>
-                              p.category ===
-                              category
-                          ).length
-                        }
-                        onClick={() =>
-                          selectCategory(
+                  {categories.map(category => (
+                    <CategoryCard
+                      key={category}
+                      category={category}
+                      count={
+                        leaguePlayers.filter(
+                          p =>
+                            p.category ===
                             category
-                          )
-                        }
-                      />
-                    )
-                  )}
+                        ).length
+                      }
+                      onClick={() =>
+                        selectCategory(
+                          category
+                        )
+                      }
+                    />
+                  ))}
                 </div>
               </section>
 
@@ -1618,50 +1533,32 @@ export default function App() {
                       "Apskati statistiku un salīdzini.",
                     ],
                   ].map(
-                    (
-                      [
-                        number,
-                        title,
-                        text,
-                      ],
-                      index
-                    ) => (
+                    ([number, title, text], index) => (
                       <div
-                        key={
-                          number
-                        }
+                        key={number}
                         className="flex gap-4"
                       >
                         <div
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white ${
-                            index ===
-                            0
+                            index === 0
                               ? "bg-slate-900"
-                              : index ===
-                                1
+                              : index === 1
                               ? "bg-emerald-500"
-                              : index ===
-                                2
+                              : index === 2
                               ? "bg-amber-500"
                               : "bg-blue-500"
                           }`}
                         >
-                          {
-                            number
-                          }
+                          {number}
                         </div>
 
                         <div>
                           <h3 className="text-sm font-bold">
-                            {
-                              title
-                            }
+                            {title}
                           </h3>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {
-                              text
-                            }
+                            {text}
                           </p>
                         </div>
                       </div>
@@ -1679,9 +1576,7 @@ export default function App() {
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <button
                   type="button"
-                  onClick={
-                    resetPlayers
-                  }
+                  onClick={resetPlayers}
                   className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-emerald-600"
                 >
                   ← Atpakaļ
@@ -1689,30 +1584,24 @@ export default function App() {
 
                 <div className="flex gap-3">
                   <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
-                    {
-                      CATEGORIES[
-                        selectedCategory
-                      ]?.name
-                    }
+                    {CATEGORIES[
+                      selectedCategory
+                    ]?.name}
                   </span>
 
-                  {player1 &&
-                    player2 && (
-                      <button
-                        type="button"
-                        onClick={
-                          takeScreenshot
-                        }
-                        className="rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800"
-                      >
-                        📷 Saglabāt attēlu
-                      </button>
-                    )}
+                  {player1 && player2 && (
+                    <button
+                      type="button"
+                      onClick={takeScreenshot}
+                      className="rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                    >
+                      📷 Saglabāt attēlu
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {!player1 ||
-              !player2 ? (
+              {!player1 || !player2 ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                   <p className="text-sm text-slate-500">
                     Šajā kategorijā nav pietiekami daudz
@@ -1721,9 +1610,7 @@ export default function App() {
                 </div>
               ) : (
                 <div
-                  ref={
-                    captureRef
-                  }
+                  ref={captureRef}
                   className="rounded-2xl bg-slate-100 p-2"
                 >
                   <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1732,41 +1619,23 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player1
-                            )
+                            openPlayer(player1)
                           }
                           className="text-xs font-bold text-rose-500 hover:underline"
                         >
-                          🔴{" "}
-                          {
-                            player1.name
-                          }{" "}
-                          (
-                          {
-                            player1.team
-                          }
-                          )
+                          🔴 {player1.name} (
+                          {player1.team})
                         </button>
 
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player2
-                            )
+                            openPlayer(player2)
                           }
                           className="text-xs font-bold text-emerald-600 hover:underline"
                         >
-                          🟢{" "}
-                          {
-                            player2.name
-                          }{" "}
-                          (
-                          {
-                            player2.team
-                          }
-                          )
+                          🟢 {player2.name} (
+                          {player2.team})
                         </button>
                       </div>
 
@@ -1784,47 +1653,24 @@ export default function App() {
                   </div>
 
                   <ComparisonSummary
-                    player1={
-                      player1
-                    }
-                    player2={
-                      player2
-                    }
+                    player1={player1}
+                    player2={player2}
                   />
+
+                  {selectionError && (
+                    <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                      ⚠️ {selectionError}
+                    </div>
+                  )}
 
                   <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div>
                       <SearchBox
-                        value={
-                          playerSearch1
-                        }
-                        onChange={
-                          setPlayerSearch1
-                        }
-                        players={
-                          categoryPlayers
-                        }
-                        selected={
-                          player1
-                        }
-                        onSelect={player => {
-                          setPlayer1(
-                            player
-                          );
-
-                          setPlayerSearch1(
-                            ""
-                          );
-                        }}
-                        onOpen={
-                          openPlayer
-                        }
-                        isFavorite={
-                          isFavorite
-                        }
-                        onToggleFavorite={
-                          toggleFavorite
-                        }
+                        players={categoryPlayers}
+                        selected={player1}
+                        onSelect={selectPlayer1}
+                        isFavorite={isFavorite}
+                        onToggleFavorite={toggleFavorite}
                         color="rose"
                         label="Meklēt pirmo spēlētāju"
                       />
@@ -1833,9 +1679,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player1
-                            )
+                            openPlayer(player1)
                           }
                           className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500"
                         >
@@ -1844,51 +1688,22 @@ export default function App() {
                       </div>
 
                       <PlayerCard
-                        player={
-                          player1
-                        }
+                        player={player1}
                         players={
                           categoryPlayers
                         }
-                        onChange={handlePlayerChange(
-                          setPlayer1
-                        )}
+                        onChange={handlePlayer1Change}
                         color="rose"
                       />
                     </div>
 
                     <div>
                       <SearchBox
-                        value={
-                          playerSearch2
-                        }
-                        onChange={
-                          setPlayerSearch2
-                        }
-                        players={
-                          categoryPlayers
-                        }
-                        selected={
-                          player2
-                        }
-                        onSelect={player => {
-                          setPlayer2(
-                            player
-                          );
-
-                          setPlayerSearch2(
-                            ""
-                          );
-                        }}
-                        onOpen={
-                          openPlayer
-                        }
-                        isFavorite={
-                          isFavorite
-                        }
-                        onToggleFavorite={
-                          toggleFavorite
-                        }
+                        players={categoryPlayers}
+                        selected={player2}
+                        onSelect={selectPlayer2}
+                        isFavorite={isFavorite}
+                        onToggleFavorite={toggleFavorite}
                         color="emerald"
                         label="Meklēt otro spēlētāju"
                       />
@@ -1897,9 +1712,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player2
-                            )
+                            openPlayer(player2)
                           }
                           className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-500"
                         >
@@ -1908,36 +1721,22 @@ export default function App() {
                       </div>
 
                       <PlayerCard
-                        player={
-                          player2
-                        }
+                        player={player2}
                         players={
                           categoryPlayers
                         }
-                        onChange={handlePlayerChange(
-                          setPlayer2
-                        )}
+                        onChange={handlePlayer2Change}
                         color="emerald"
                       />
                     </div>
                   </div>
 
                   <CaptaincySimulator
-                    player1={
-                      player1
-                    }
-                    player2={
-                      player2
-                    }
-                    fdr1={
-                      fdr1
-                    }
-                    fdr2={
-                      fdr2
-                    }
-                    loading={
-                      fdrLoading
-                    }
+                    player1={player1}
+                    player2={player2}
+                    fdr1={fdr1}
+                    fdr2={fdr2}
+                    loading={fdrLoading}
                   />
                 </div>
               )}
