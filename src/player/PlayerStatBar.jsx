@@ -1,5 +1,14 @@
 import React from "react";
 
+const COLORS = {
+  emerald: "bg-emerald-500",
+  rose: "bg-rose-500",
+  blue: "bg-blue-500",
+  amber: "bg-amber-500",
+  violet: "bg-violet-500",
+  slate: "bg-slate-500",
+};
+
 export default function PlayerStatBar({
   label,
   value = 0,
@@ -8,55 +17,28 @@ export default function PlayerStatBar({
   color = "emerald",
   description,
 }) {
-  const numericValue =
-    Number(value);
+  const numericValue = Number(value);
+  const numericMax = Number(max);
 
-  const numericMax =
-    Number(max);
-
-  const safeValue =
-    Number.isFinite(
-      numericValue
-    )
-      ? numericValue
-      : 0;
+  const safeValue = Number.isFinite(
+    numericValue
+  )
+    ? numericValue
+    : 0;
 
   const safeMax =
-    Number.isFinite(
-      numericMax
-    ) && numericMax > 0
+    Number.isFinite(numericMax) &&
+    numericMax > 0
       ? numericMax
       : 100;
 
-  const percentage =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        (safeValue /
-          safeMax) *
-          100
-      )
-    );
-
-  const barColors = {
-    emerald:
-      "bg-emerald-500",
-    rose:
-      "bg-rose-500",
-    blue:
-      "bg-blue-500",
-    amber:
-      "bg-amber-500",
-    violet:
-      "bg-violet-500",
-    slate:
-      "bg-slate-500",
-  };
-
-  const selectedColor =
-    barColors[color] ||
-    barColors.emerald;
+  const percentage = Math.max(
+    0,
+    Math.min(
+      100,
+      (safeValue / safeMax) * 100
+    )
+  );
 
   return (
     <div className="w-full">
@@ -74,14 +56,15 @@ export default function PlayerStatBar({
         </div>
 
         <span className="shrink-0 text-xs font-black text-slate-900">
-          {displayValue ??
-            safeValue}
+          {displayValue ?? safeValue}
         </span>
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${selectedColor}`}
+          className={`h-full rounded-full transition-all duration-500 ${
+            COLORS[color] || COLORS.emerald
+          }`}
           style={{
             width: `${percentage}%`,
           }}

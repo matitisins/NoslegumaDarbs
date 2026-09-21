@@ -37,16 +37,9 @@ export default function Logo({
         <path
           d="m15.5 16.5 4.5 2.3 4.5-2.3"
           stroke="#10b981"
-          strokeWidth="2.4"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-        />
-
-        <circle
-          cx="20"
-          cy="24"
-          r="2.2"
-          fill="#10b981"
         />
       </svg>
     </div>

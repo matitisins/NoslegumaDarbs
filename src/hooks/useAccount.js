@@ -4,27 +4,31 @@ const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
 
 export default function useAccount() {
-  const [username, setUsername] = useState(() => {
-    try {
-      return (
-        localStorage.getItem("radars_username") ||
-        "Matīss"
-      );
-    } catch {
-      return "Matīss";
-    }
-  });
+  const [username, setUsername] =
+    useState(() => {
+      try {
+        return (
+          localStorage.getItem(
+            "radars_username"
+          ) || "Matīss"
+        );
+      } catch {
+        return "Matīss";
+      }
+    });
 
-  const [avatarUrl, setAvatarUrl] = useState(() => {
-    try {
-      return (
-        localStorage.getItem("radars_avatar") ||
-        DEFAULT_AVATAR
-      );
-    } catch {
-      return DEFAULT_AVATAR;
-    }
-  });
+  const [avatarUrl, setAvatarUrl] =
+    useState(() => {
+      try {
+        return (
+          localStorage.getItem(
+            "radars_avatar"
+          ) || DEFAULT_AVATAR
+        );
+      } catch {
+        return DEFAULT_AVATAR;
+      }
+    });
 
   const [isAccountOpen, setIsAccountOpen] =
     useState(false);
@@ -48,11 +52,10 @@ export default function useAccount() {
   };
 
   const handleFileChange = event => {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (!file.type.startsWith("image/")) {
       return;
@@ -61,8 +64,13 @@ export default function useAccount() {
     const reader = new FileReader();
 
     reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        setTempAvatar(reader.result);
+      if (
+        typeof reader.result ===
+        "string"
+      ) {
+        setTempAvatar(
+          reader.result
+        );
       }
     };
 
@@ -70,15 +78,16 @@ export default function useAccount() {
   };
 
   const saveAccount = event => {
-    if (event?.preventDefault) {
-      event.preventDefault();
-    }
+    event?.preventDefault?.();
 
     const name =
       tempUsername.trim() || "Matīss";
 
+    const avatar =
+      tempAvatar || DEFAULT_AVATAR;
+
     setUsername(name);
-    setAvatarUrl(tempAvatar);
+    setAvatarUrl(avatar);
 
     try {
       localStorage.setItem(
@@ -88,7 +97,7 @@ export default function useAccount() {
 
       localStorage.setItem(
         "radars_avatar",
-        tempAvatar
+        avatar
       );
     } catch (error) {
       console.error(
@@ -102,7 +111,8 @@ export default function useAccount() {
 
   const resetAccount = () => {
     const defaultName = "Matīss";
-    const defaultAvatar = DEFAULT_AVATAR;
+    const defaultAvatar =
+      DEFAULT_AVATAR;
 
     setUsername(defaultName);
     setAvatarUrl(defaultAvatar);

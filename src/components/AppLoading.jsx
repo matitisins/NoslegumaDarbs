@@ -7,9 +7,7 @@ export default function AppLoading({
   selectedSeason = "",
   progress,
 }) {
-  if (!loading) {
-    return null;
-  }
+  if (!loading) return null;
 
   const current =
     Number(progress?.current) || 0;
@@ -17,11 +15,8 @@ export default function AppLoading({
   const total =
     Number(progress?.total) || 0;
 
-  const hasProgress =
-    total > 0;
-
   const percentage =
-    hasProgress
+    total > 0
       ? Math.min(
           100,
           Math.round(
@@ -44,12 +39,13 @@ export default function AppLoading({
         {leagueName ||
           selectedLeague ||
           "Līga"}
+
         {selectedSeason
           ? ` · ${selectedSeason}`
           : ""}
       </p>
 
-      {hasProgress && (
+      {total > 0 && (
         <div className="mx-auto mt-6 max-w-md">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">

@@ -6,9 +6,13 @@ export default function AppError({
   title = "API kļūda",
   retryText = "Mēģināt vēlreiz",
 }) {
-  if (!error) {
-    return null;
-  }
+  if (!error) return null;
+
+  const message =
+    typeof error === "string"
+      ? error
+      : error?.message ||
+        "Nezināma API kļūda.";
 
   return (
     <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-6">
@@ -23,10 +27,7 @@ export default function AppError({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-red-600">
-            {typeof error === "string"
-              ? error
-              : error?.message ||
-                "Nezināma API kļūda."}
+            {message}
           </p>
 
           {onRetry && (

@@ -1,17 +1,14 @@
 import React from "react";
 
-function initials(name) {
-  return (
-    String(name || "")
-      .trim()
-      .split(/\s+/)
-      .map(part => part[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "M"
-  );
-}
+const initials = name =>
+  String(name || "")
+    .trim()
+    .split(/\s+/)
+    .map(part => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "M";
 
 export default function AccountModal({
   open = true,
@@ -22,21 +19,19 @@ export default function AccountModal({
   onSave,
   onClose,
 }) {
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) {
+      onMouseDown={e => {
+        if (e.target === e.currentTarget) {
           onClose?.();
         }
       }}
     >
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-        {/* HEADER */}
+        {/* Header */}
         <div className="bg-slate-950 px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -64,12 +59,11 @@ export default function AccountModal({
           </div>
         </div>
 
-        {/* FORM */}
         <form
           onSubmit={onSave}
           className="p-6"
         >
-          {/* AVATAR */}
+          {/* Avatar */}
           <div className="flex flex-col items-center">
             <div className="relative">
               {avatar ? (
@@ -86,8 +80,8 @@ export default function AccountModal({
 
               <label
                 htmlFor="flow-avatar-upload"
-                className="absolute -bottom-2 -right-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-emerald-500 text-sm font-black text-white shadow-md transition hover:bg-emerald-600"
                 title="Mainīt profila attēlu"
+                className="absolute -bottom-2 -right-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-emerald-500 text-sm font-black text-white shadow-md transition hover:bg-emerald-600"
               >
                 +
               </label>
@@ -102,11 +96,12 @@ export default function AccountModal({
             </div>
 
             <p className="mt-3 text-xs text-slate-400">
-              Noklikšķini uz +, lai augšupielādētu attēlu.
+              Noklikšķini uz +, lai
+              augšupielādētu attēlu.
             </p>
           </div>
 
-          {/* USERNAME */}
+          {/* Username */}
           <div className="mt-7">
             <label
               htmlFor="flow-username"
@@ -119,9 +114,9 @@ export default function AccountModal({
               id="flow-username"
               type="text"
               value={username}
-              onChange={event =>
+              onChange={e =>
                 onUsernameChange?.(
-                  event.target.value
+                  e.target.value
                 )
               }
               maxLength={40}
@@ -131,7 +126,7 @@ export default function AccountModal({
             />
           </div>
 
-          {/* ACTIONS */}
+          {/* Actions */}
           <div className="mt-7 flex gap-3">
             <button
               type="button"

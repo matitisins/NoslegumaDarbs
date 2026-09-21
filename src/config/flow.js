@@ -9,13 +9,12 @@ export const LEAGUES = [
   ["FL1", "Ligue 1"],
 ];
 
-export const LEAGUE_OPTIONS =
-  LEAGUES.map(
-    ([code, name]) => ({
-      code,
-      name,
-    })
-  );
+export const LEAGUE_OPTIONS = LEAGUES.map(
+  ([code, name]) => ({
+    code,
+    name,
+  })
+);
 
 export const CATEGORIES = {
   STRIKERS: {
@@ -24,16 +23,11 @@ export const CATEGORIES = {
     icon: "⚡",
     color: "rose",
     accent: "rose",
-
     desc:
       "Finisēšana, vārtu iesaiste un uzbrukuma produktivitāte.",
-
     description:
       "Finisēšana, vārtu iesaiste un uzbrukuma produktivitāte.",
-
-    tag:
-      "Uzbrukuma produktivitāte",
-
+    tag: "Uzbrukuma produktivitāte",
     shortDescription:
       "Uzbrukuma produktivitāte",
   },
@@ -44,18 +38,13 @@ export const CATEGORIES = {
     icon: "◈",
     color: "emerald",
     accent: "emerald",
-
     desc:
       "Radošums, progresija un iesaiste vārtu guvumos.",
-
     description:
       "Radošums, progresija un iesaiste vārtu guvumos.",
-
-    tag:
-      "Radošums un kontrole",
-
+    tag: "Radošums un progresija",
     shortDescription:
-      "Radošums un kontrole",
+      "Radošums un progresija",
   },
 
   DEFENDERS: {
@@ -64,38 +53,28 @@ export const CATEGORIES = {
     icon: "◆",
     color: "blue",
     accent: "blue",
-
     desc:
-      "Uzticamība, vārtu draudi un iespēju veidošana.",
-
+      "Aizsardzības stabilitāte, spēles kontrole un clean sheets.",
     description:
-      "Uzticamība, vārtu draudi un iespēju veidošana.",
-
-    tag:
-      "Aizsardzība un stabilitāte",
-
+      "Aizsardzības stabilitāte, spēles kontrole un clean sheets.",
+    tag: "Aizsardzības stabilitāte",
     shortDescription:
-      "Aizsardzība un stabilitāte",
+      "Aizsardzības stabilitāte",
   },
 
   GOALKEEPERS: {
     name: "Vārtsargi",
     title: "Vārtsargi",
-    icon: "⬢",
+    icon: "◉",
     color: "amber",
     accent: "amber",
-
     desc:
-      "Stabilitāte, pieredze un ietekme uz rezultātu.",
-
+      "Atvairījumi, clean sheets un stabilitāte vārtos.",
     description:
-      "Stabilitāte, pieredze un ietekme uz rezultātu.",
-
-    tag:
-      "Stabilitāte un pieredze",
-
+      "Atvairījumi, clean sheets un stabilitāte vārtos.",
+    tag: "Vārtu drošība",
     shortDescription:
-      "Stabilitāte un pieredze",
+      "Vārtu drošība",
   },
 };
 
@@ -107,31 +86,17 @@ export const CATEGORY_ORDER = [
 ];
 
 export const CATEGORY_NAMES = {
-  GOALKEEPERS:
-    "VĀRTSARGI",
-
-  DEFENDERS:
-    "AIZSARGI",
-
-  MIDFIELDERS:
-    "PUSSARGI",
-
-  STRIKERS:
-    "UZBRUCĒJI",
+  GOALKEEPERS: "VĀRTSARGI",
+  DEFENDERS: "AIZSARGI",
+  MIDFIELDERS: "PUSSARGI",
+  STRIKERS: "UZBRUCĒJI",
 };
 
 export const CATEGORY_LABELS = {
-  GOALKEEPERS:
-    "Vārtsargi",
-
-  DEFENDERS:
-    "Aizsargi",
-
-  MIDFIELDERS:
-    "Pussargi",
-
-  STRIKERS:
-    "Uzbrucēji",
+  GOALKEEPERS: "Vārtsargi",
+  DEFENDERS: "Aizsargi",
+  MIDFIELDERS: "Pussargi",
+  STRIKERS: "Uzbrucēji",
 };
 
 export const RADAR_STATS = [
@@ -139,27 +104,22 @@ export const RADAR_STATS = [
     key: "goals",
     label: "Vārti",
   },
-
   {
     key: "assists",
     label: "Assist",
   },
-
   {
     key: "points",
     label: "Punkti",
   },
-
   {
     key: "appearances",
     label: "Spēles",
   },
-
   {
     key: "cleanSheets",
     label: "Clean sheets",
   },
-
   {
     key: "experience",
     label: "Pieredze",
@@ -167,29 +127,22 @@ export const RADAR_STATS = [
 ];
 
 export const STORAGE_KEYS = {
-  username:
-    "radars_username",
-
-  avatar:
-    "radars_avatar",
-
-  favorites:
-    "flow_favorite_players",
+  username: "radars_username",
+  avatar: "radars_avatar",
+  favorites: "flow_favorite_players",
 };
 
 export const DEFAULT_SEASON =
   "2026/2027";
 
-export const DEFAULT_LEAGUE =
-  "PL";
+export const DEFAULT_LEAGUE = "PL";
 
 export const DEFAULT_FDR = 3;
 
 export const DATA_SOURCE =
   "football-data.org";
 
-export const APP_NAME =
-  "Flow";
+export const APP_NAME = "Flow";
 
 export const APP_DESCRIPTION =
   "Spēlētāju salīdzināšanas platforma";
@@ -199,10 +152,8 @@ export function getLeagueName(
 ) {
   return (
     LEAGUES.find(
-      ([code]) =>
-        code === leagueCode
-    )?.[1] ||
-    leagueCode
+      ([code]) => code === leagueCode
+    )?.[1] || leagueCode
   );
 }
 
@@ -210,9 +161,7 @@ export function getCategoryInfo(
   category
 ) {
   return (
-    CATEGORIES[
-      category
-    ] || null
+    CATEGORIES[category] || null
   );
 }
 
@@ -220,9 +169,7 @@ export function getCategoryName(
   category
 ) {
   return (
-    CATEGORIES[
-      category
-    ]?.name ||
+    CATEGORIES[category]?.name ||
     category
   );
 }
@@ -231,9 +178,7 @@ export function getCategoryColor(
   category
 ) {
   return (
-    CATEGORIES[
-      category
-    ]?.color ||
+    CATEGORIES[category]?.color ||
     "emerald"
   );
 }
@@ -242,8 +187,7 @@ export function isValidLeague(
   league
 ) {
   return LEAGUES.some(
-    ([code]) =>
-      code === league
+    ([code]) => code === league
   );
 }
 

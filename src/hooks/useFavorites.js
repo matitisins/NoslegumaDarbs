@@ -1,4 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 
 const STORAGE_KEY =
   "flow_favorite_players";
@@ -34,8 +38,8 @@ export default function useFavorites(
       }
     });
 
-  const persistFavorites = useCallback(
-    ids => {
+  const persistFavorites =
+    useCallback(ids => {
       try {
         localStorage.setItem(
           STORAGE_KEY,
@@ -47,88 +51,89 @@ export default function useFavorites(
           error
         );
       }
-    },
-    []
-  );
+    }, []);
 
-  const isFavorite = useCallback(
-    player => {
-      if (!player?.id) {
-        return false;
-      }
-
-      return favoriteIds.some(
-        id =>
-          String(id) ===
-          String(player.id)
-      );
-    },
-    [favoriteIds]
-  );
-
-  const toggleFavorite = useCallback(
-    player => {
-      if (!player?.id) {
-        return;
-      }
-
-      setFavoriteIds(current => {
-        const exists =
-          current.some(
-            id =>
-              String(id) ===
-              String(player.id)
-          );
-
-        const next = exists
-          ? current.filter(
-              id =>
-                String(id) !==
-                String(player.id)
-            )
-          : [
-              ...current,
-              player.id,
-            ];
-
-        persistFavorites(next);
-
-        return next;
-      });
-    },
-    [persistFavorites]
-  );
-
-  const addFavorite = useCallback(
-    player => {
-      if (!player?.id) {
-        return;
-      }
-
-      setFavoriteIds(current => {
-        const exists =
-          current.some(
-            id =>
-              String(id) ===
-              String(player.id)
-          );
-
-        if (exists) {
-          return current;
+  const isFavorite =
+    useCallback(
+      player => {
+        if (!player?.id) {
+          return false;
         }
 
-        const next = [
-          ...current,
-          player.id,
-        ];
+        return favoriteIds.some(
+          id =>
+            String(id) ===
+            String(player.id)
+        );
+      },
+      [favoriteIds]
+    );
 
-        persistFavorites(next);
+  const toggleFavorite =
+    useCallback(
+      player => {
+        if (!player?.id) {
+          return;
+        }
 
-        return next;
-      });
-    },
-    [persistFavorites]
-  );
+        setFavoriteIds(current => {
+          const exists =
+            current.some(
+              id =>
+                String(id) ===
+                String(player.id)
+            );
+
+          const next = exists
+            ? current.filter(
+                id =>
+                  String(id) !==
+                  String(player.id)
+              )
+            : [
+                ...current,
+                player.id,
+              ];
+
+          persistFavorites(next);
+
+          return next;
+        });
+      },
+      [persistFavorites]
+    );
+
+  const addFavorite =
+    useCallback(
+      player => {
+        if (!player?.id) {
+          return;
+        }
+
+        setFavoriteIds(current => {
+          const exists =
+            current.some(
+              id =>
+                String(id) ===
+                String(player.id)
+            );
+
+          if (exists) {
+            return current;
+          }
+
+          const next = [
+            ...current,
+            player.id,
+          ];
+
+          persistFavorites(next);
+
+          return next;
+        });
+      },
+      [persistFavorites]
+    );
 
   const removeFavorite =
     useCallback(
@@ -181,10 +186,7 @@ export default function useFavorites(
           String(player.id)
       )
     );
-  }, [
-    players,
-    favoriteIds,
-  ]);
+  }, [players, favoriteIds]);
 
   return {
     favoriteIds,
@@ -194,7 +196,6 @@ export default function useFavorites(
 
     isFavorite,
     toggleFavorite,
-
     addFavorite,
     removeFavorite,
     clearFavorites,

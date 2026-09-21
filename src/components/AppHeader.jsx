@@ -1,5 +1,4 @@
 import React from "react";
-
 import Logo from "./Logo";
 
 const DEFAULT_AVATAR =
@@ -15,12 +14,12 @@ export default function AppHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 md:px-8">
-        {/* LOGO */}
+        {/* Logo */}
         <button
           type="button"
           onClick={onHome}
-          className="group flex items-center gap-3 text-left"
           title="Sākumlapa"
+          className="group flex items-center gap-3 text-left"
         >
           <Logo className="h-9 w-9 transition group-hover:scale-105" />
 
@@ -35,9 +34,8 @@ export default function AppHeader({
           </div>
         </button>
 
-        {/* RIGHT SIDE */}
+        {/* Navigation */}
         <div className="flex items-center gap-2">
-          {/* HOME */}
           <button
             type="button"
             onClick={onHome}
@@ -46,7 +44,6 @@ export default function AppHeader({
             Sākums
           </button>
 
-          {/* GUIDE */}
           <button
             type="button"
             onClick={onGuide}
@@ -61,7 +58,6 @@ export default function AppHeader({
             </span>
           </button>
 
-          {/* ACCOUNT */}
           <button
             type="button"
             onClick={onAccount}

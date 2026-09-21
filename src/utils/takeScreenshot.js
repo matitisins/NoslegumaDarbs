@@ -1,5 +1,12 @@
 import html2canvas from "html2canvas";
 
+const cleanName = name =>
+  String(name || "player")
+    .replace(
+      /[^a-z0-9āčēģīķļņōŗšūž-]/gi,
+      "-"
+    );
+
 export default async function takeScreenshot(
   element,
   player1,
@@ -8,20 +15,16 @@ export default async function takeScreenshot(
   if (!element) return;
 
   try {
-    const canvas =
-      await html2canvas(element, {
+    const canvas = await html2canvas(
+      element,
+      {
         scale: 2,
         useCORS: true,
         allowTaint: false,
         backgroundColor: "#f1f5f9",
         logging: false,
-      });
-
-    const cleanName = name =>
-      (name || "player").replace(
-        /[^a-z0-9āčēģīķļņōŗšūž-]/gi,
-        "-"
-      );
+      }
+    );
 
     const link =
       document.createElement("a");
@@ -37,10 +40,10 @@ export default async function takeScreenshot(
       )}.png`;
 
     link.click();
-  } catch (err) {
+  } catch (error) {
     console.error(
       "Kļūda veidojot ekrānuzņēmumu:",
-      err
+      error
     );
   }
 }

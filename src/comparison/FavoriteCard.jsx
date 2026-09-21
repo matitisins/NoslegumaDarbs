@@ -4,10 +4,8 @@ function Star() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-5 w-5"
+      className="h-4 w-4"
       fill="currentColor"
-      stroke="currentColor"
-      strokeWidth="1.5"
     >
       <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
     </svg>
@@ -17,7 +15,7 @@ function Star() {
 function initials(name) {
   return (
     String(name || "")
-      .split(" ")
+      .split(/\s+/)
       .map(part => part[0])
       .filter(Boolean)
       .slice(0, 2)
@@ -31,15 +29,15 @@ export default function FavoriteCard({
   onOpen,
   onToggleFavorite,
 }) {
-  if (!player) {
-    return null;
-  }
+  if (!player) return null;
 
   return (
     <div className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
       <button
         type="button"
-        onClick={() => onOpen?.(player)}
+        onClick={() =>
+          onOpen?.(player)
+        }
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-500">
@@ -52,7 +50,8 @@ export default function FavoriteCard({
           </p>
 
           <p className="truncate text-xs text-slate-400">
-            {player.team || "Nezināms klubs"}
+            {player.team ||
+              "Nezināms klubs"}
           </p>
         </div>
       </button>

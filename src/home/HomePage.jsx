@@ -1,6 +1,6 @@
 import React from "react";
 
-import FavoriteCard from "./FavoriteCard";
+import FavoriteCard from "../comparison/FavoriteCard";
 
 import {
   LEAGUES,
@@ -43,8 +43,11 @@ function StatIcon({ type }) {
         strokeWidth="1.8"
       >
         <path d="M4 5h16v14H4z" />
+
         <path d="M8 9h8" />
+
         <path d="M8 13h5" />
+
         <path d="M8 17h8" />
       </svg>
     );
@@ -69,9 +72,11 @@ function StatIcon({ type }) {
   );
 }
 
-function CategoryIcon({ category }) {
+function CategoryIcon({
+  category,
+}) {
   const info =
-    CATEGORIES[category];
+    CATEGORIES?.[category];
 
   const iconClass =
     info?.color === "rose"
@@ -93,7 +98,7 @@ function CategoryIcon({ category }) {
 
 function getAccent(category) {
   const color =
-    CATEGORIES[category]?.color;
+    CATEGORIES?.[category]?.color;
 
   if (color === "rose") {
     return "bg-rose-400";
@@ -110,7 +115,7 @@ function getAccent(category) {
   return "bg-emerald-500";
 }
 
-function getCurrentLeagueName(
+function getLeagueName(
   selectedLeague
 ) {
   return (
@@ -125,17 +130,24 @@ function getCurrentLeagueName(
 export default function HomePage({
   selectedSeason = "2026/2027",
   selectedLeague = "PL",
+
   setSelectedSeason,
   setSelectedLeague,
+
   leaguePlayers = [],
+
   loading = false,
   error = "",
+
   progress = {
     current: 0,
     total: 1,
   },
+
   categories = [],
+
   favorites = [],
+
   onCategorySelect,
   onFavoriteOpen,
   onToggleFavorite,
@@ -157,29 +169,26 @@ export default function HomePage({
     leaguePlayers.length;
 
   const leagueName =
-    getCurrentLeagueName(
+    getLeagueName(
       selectedLeague
     );
 
-  const progressTotal =
+  const total =
     progress?.total || 1;
 
-  const progressCurrent =
+  const current =
     progress?.current || 0;
 
-  const progressPercentage =
+  const progressPercent =
     Math.min(
       100,
       Math.round(
-        (progressCurrent /
-          progressTotal) *
-          100
+        (current / total) * 100
       )
     );
 
   return (
     <>
-      {/* HERO */}
       <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-white shadow-sm md:px-9 md:py-10">
         <div className="relative z-10 max-w-3xl">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300">
@@ -193,8 +202,9 @@ export default function HomePage({
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">
-            Izvēlies līgu, sezonu un spēlētāju
-            pozīciju, lai salīdzinātu futbolistu
+            Izvēlies līgu, sezonu un
+            spēlētāju pozīciju, lai
+            salīdzinātu futbolistu
             statistiku vienā vietā.
           </p>
         </div>
@@ -204,7 +214,6 @@ export default function HomePage({
         <div className="pointer-events-none absolute -bottom-24 right-24 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
       </section>
 
-      {/* FILTERS */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>
@@ -296,16 +305,16 @@ export default function HomePage({
           </label>
         </div>
 
-        {/* LOADING */}
         {loading && (
           <div className="mt-5 rounded-xl bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs font-bold text-slate-600">
-                Ielādē {leagueName} datus...
+                Ielādē {leagueName}{" "}
+                datus...
               </p>
 
               <span className="text-xs font-black text-emerald-600">
-                {progressPercentage}%
+                {progressPercent}%
               </span>
             </div>
 
@@ -313,14 +322,13 @@ export default function HomePage({
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all duration-300"
                 style={{
-                  width: `${progressPercentage}%`,
+                  width: `${progressPercent}%`,
                 }}
               />
             </div>
           </div>
         )}
 
-        {/* ERROR */}
         {error && !loading && (
           <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4">
             <p className="text-xs font-extrabold text-rose-700">
@@ -334,7 +342,6 @@ export default function HomePage({
         )}
       </section>
 
-      {/* STATS */}
       {!error && (
         <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -399,7 +406,6 @@ export default function HomePage({
         </section>
       )}
 
-      {/* FAVORITES */}
       {!loading &&
         !error &&
         favorites.length > 0 && (
@@ -421,21 +427,24 @@ export default function HomePage({
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              {favorites.map(player => (
-                <FavoriteCard
-                  key={player.id}
-                  player={player}
-                  onOpen={onFavoriteOpen}
-                  onToggleFavorite={
-                    onToggleFavorite
-                  }
-                />
-              ))}
+              {favorites.map(
+                player => (
+                  <FavoriteCard
+                    key={player.id}
+                    player={player}
+                    onOpen={
+                      onFavoriteOpen
+                    }
+                    onToggleFavorite={
+                      onToggleFavorite
+                    }
+                  />
+                )
+              )}
             </div>
           </section>
         )}
 
-      {/* CATEGORIES */}
       <section className="mt-8">
         <div className="mb-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">
@@ -447,17 +456,19 @@ export default function HomePage({
           </h2>
 
           <p className="mt-2 text-sm text-slate-500">
-            Izvēlies pozīciju, lai sāktu salīdzināšanu.
+            Izvēlies pozīciju, lai sāktu
+            salīdzināšanu.
           </p>
         </div>
 
         {!loading &&
         !error &&
-        visibleCategories.length === 0 ? (
+        visibleCategories.length ===
+          0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
             <p className="text-sm font-bold text-slate-600">
-              Šajā turnīrā pašlaik nav pieejamu spēlētāju
-              datu.
+              Šajā turnīrā pašlaik nav
+              pieejamu spēlētāju datu.
             </p>
           </div>
         ) : (
@@ -465,7 +476,7 @@ export default function HomePage({
             {visibleCategories.map(
               category => {
                 const info =
-                  CATEGORIES[
+                  CATEGORIES?.[
                     category
                   ];
 
@@ -504,35 +515,29 @@ export default function HomePage({
                         }
                       />
 
-                      <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
-                        <span className="text-[10px] font-bold text-slate-500">
-                          {count} spēlētāji
-                        </span>
-                      </div>
+                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                        ● {count}{" "}
+                        spēlētāji
+                      </span>
                     </div>
 
-                    <div className="mt-5">
-                      <h3 className="text-xl font-extrabold tracking-tight text-slate-900">
-                        {info?.title ||
-                          info?.name ||
-                          category}
-                      </h3>
+                    <h3 className="mt-5 text-xl font-extrabold text-slate-900">
+                      {info?.name ||
+                        category}
+                    </h3>
 
-                      <p className="mt-2 max-w-md text-sm leading-5 text-slate-500">
-                        {info?.description ||
-                          info?.desc}
-                      </p>
-                    </div>
+                    <p className="mt-2 text-sm leading-5 text-slate-500">
+                      {info?.desc ||
+                        ""}
+                    </p>
 
                     <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        {info?.shortDescription ||
-                          info?.tag}
+                        {info?.tag ||
+                          ""}
                       </span>
 
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition group-hover:translate-x-0.5">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition group-hover:translate-x-1">
                         →
                       </span>
                     </div>
@@ -544,7 +549,6 @@ export default function HomePage({
         )}
       </section>
 
-      {/* HOW IT WORKS */}
       <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
         <div className="mb-6">
           <div className="flex items-center gap-2">
@@ -556,8 +560,8 @@ export default function HomePage({
           </div>
 
           <p className="mt-1.5 text-sm text-slate-500">
-            Četri vienkārši soļi līdz spēlētāju
-            salīdzinājumam.
+            Četri vienkārši soļi līdz
+            spēlētāju salīdzinājumam.
           </p>
         </div>
 
@@ -607,11 +611,13 @@ export default function HomePage({
 
         <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Data provided by football-data.org
+            Data provided by
+            football-data.org
           </p>
 
           <p className="text-[10px] text-slate-400">
-            {leagueName} · {selectedSeason}
+            {leagueName} ·{" "}
+            {selectedSeason}
           </p>
         </div>
       </section>

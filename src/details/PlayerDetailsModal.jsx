@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
+import PlayerDetailsStats from "./PlayerDetailsStats";
 
 function Star({ active = false }) {
   return (
     <svg
       viewBox="0 0 24 24"
       className="h-5 w-5"
-      fill={active ? "currentColor" : "none"}
+      fill={
+        active
+          ? "currentColor"
+          : "none"
+      }
       stroke="currentColor"
       strokeWidth="1.8"
     >
@@ -17,25 +22,13 @@ function Star({ active = false }) {
 function getInitials(name) {
   return (
     String(name || "")
-      .split(" ")
+      .split(/\s+/)
       .map(part => part[0])
       .filter(Boolean)
       .slice(0, 2)
       .join("")
       .toUpperCase() || "PL"
   );
-}
-
-function displayValue(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return "—";
-  }
-
-  return value;
 }
 
 export default function PlayerDetailsModal({
@@ -45,29 +38,40 @@ export default function PlayerDetailsModal({
   onCompare,
   onClose,
 }) {
+  useEffect(() => {
+    if (!player) return;
+
+    const previous =
+      document.body.style.overflow;
+
+    document.body.style.overflow =
+      "hidden";
+
+    const handleKeyDown = event => {
+      if (event.key === "Escape") {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
+
+    return () => {
+      document.body.style.overflow =
+        previous;
+
+      document.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+    };
+  }, [player, onClose]);
+
   if (!player) {
     return null;
   }
-
-  const availableStats = [
-    ["Spēles", player.appearances],
-    ["Vārti", player.goals],
-    ["Assist", player.assists],
-    ["Pen. vārti", player.penalties],
-    ["Fantasy", player.points],
-  ];
-
-  const handleToggleFavorite = () => {
-    if (onToggleFavorite) {
-      onToggleFavorite(player);
-    }
-  };
-
-  const handleCompare = () => {
-    if (onCompare) {
-      onCompare(player);
-    }
-  };
 
   return (
     <div
@@ -87,7 +91,9 @@ export default function PlayerDetailsModal({
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-2xl font-black">
-                {getInitials(player.name)}
+                {getInitials(
+                  player.name
+                )}
               </div>
 
               <div className="min-w-0">
@@ -99,8 +105,9 @@ export default function PlayerDetailsModal({
                   {player.name}
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-400">
-                  {player.team || "Nezināms klubs"}
+                <p className="mt-1 truncate text-sm text-slate-400">
+                  {player.team ||
+                    "Nezināms klubs"}
                   {" · "}
                   {player.positionLabel ||
                     player.position ||
@@ -123,19 +130,22 @@ export default function PlayerDetailsModal({
         {/* CONTENT */}
         <div className="p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900">
-                Individuālā statistika
-              </h3>
-
-              <p className="mt-1 text-xs text-slate-400">
-                Pieejamie dati no pašreizējās sezonas API.
-              </p>
-            </div>
+            <PlayerDetailsStats
+              player={player}
+            />
 
             <button
               type="button"
-              onClick={handleToggleFavorite}
+              onClick={() =>
+                onToggleFavorite?.(
+                  player
+                )
+              }
+              title={
+                favorite
+                  ? "Noņemt no favorītiem"
+                  : "Pievienot favorītiem"
+              }
               className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition ${
                 favorite
                   ? "border-amber-200 bg-amber-50 text-amber-600"
@@ -150,72 +160,7 @@ export default function PlayerDetailsModal({
             </button>
           </div>
 
-          {/* MAIN STATS */}
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {availableStats.map(
-              ([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center"
-                >
-                  <p className="text-2xl font-black text-slate-900">
-                    {displayValue(value)}
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {label}
-                  </p>
-                </div>
-              )
-            )}
-          </div>
-
-          {/* EXTRA INFO */}
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Pozīcija
-              </p>
-
-              <p className="mt-1 font-bold text-slate-800">
-                {player.positionLabel ||
-                  player.position ||
-                  "—"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Klubs
-              </p>
-
-              <p className="mt-1 font-bold text-slate-800">
-                {player.team || "—"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Sezona
-              </p>
-
-              <p className="mt-1 font-bold text-slate-800">
-                {player.season || "—"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Spēlētāja ID
-              </p>
-
-              <p className="mt-1 font-bold text-slate-800">
-                {player.id ?? "—"}
-              </p>
-            </div>
-          </div>
-
-          {/* COMPARISON */}
+          {/* COMPARE */}
           <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -224,22 +169,30 @@ export default function PlayerDetailsModal({
                 </p>
 
                 <p className="mt-1 text-xs text-emerald-700">
-                  Pievieno {player.name} Flow spēlētāju salīdzinājumam.
+                  Pievieno{" "}
+                  {player.name} Flow
+                  spēlētāju
+                  salīdzinājumam.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={handleCompare}
+                onClick={() =>
+                  onCompare?.(player)
+                }
                 className="rounded-xl bg-emerald-500 px-5 py-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600"
               >
-                + Pievienot salīdzināšanai
+                + Pievienot
+                salīdzināšanai
               </button>
             </div>
           </div>
 
-          <p className="mt-5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Data provided by football-data.org
+          <p className="mt-5 text-[9px] leading-5 text-slate-400">
+            Šī statistika tiek izmantota
+            Flow spēlētāju salīdzināšanai.
+            Datu avots: football-data.org.
           </p>
         </div>
       </div>

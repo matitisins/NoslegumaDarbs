@@ -10,7 +10,8 @@ export default function AppFooter() {
           </p>
 
           <p className="mt-0.5 text-[10px] text-slate-400">
-            Spēlētāju salīdzināšanas platforma
+            Spēlētāju salīdzināšanas
+            platforma
           </p>
         </div>
 

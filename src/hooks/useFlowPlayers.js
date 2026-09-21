@@ -13,15 +13,12 @@ import {
   clearFootballDataCache,
 } from "../services/apiSports";
 
-const DEFAULT_LEAGUE = "PL";
-const DEFAULT_SEASON = "2026/2027";
-
-const CATEGORY_ORDER = [
-  "STRIKERS",
-  "MIDFIELDERS",
-  "DEFENDERS",
-  "GOALKEEPERS",
-];
+import {
+  DEFAULT_LEAGUE,
+  DEFAULT_SEASON,
+  DEFAULT_FDR,
+  CATEGORY_ORDER,
+} from "../config/flow";
 
 const normalizeSearch = value =>
   String(value || "")
@@ -65,10 +62,10 @@ export default function useFlowPlayers({
     useState("");
 
   const [fdr1, setFdr1] =
-    useState(3);
+    useState(DEFAULT_FDR);
 
   const [fdr2, setFdr2] =
-    useState(3);
+    useState(DEFAULT_FDR);
 
   const [fdrLoading, setFdrLoading] =
     useState(false);
@@ -78,6 +75,9 @@ export default function useFlowPlayers({
       selectedSeason
     );
 
+  /*
+   * Players in the selected category.
+   */
   const categoryPlayers =
     useMemo(() => {
       if (!selectedCategory) {
@@ -94,6 +94,9 @@ export default function useFlowPlayers({
       selectedCategory,
     ]);
 
+  /*
+   * Categories that actually have players.
+   */
   const categories =
     useMemo(() => {
       return CATEGORY_ORDER.filter(
@@ -109,38 +112,42 @@ export default function useFlowPlayers({
   const totalPlayers =
     leaguePlayers.length;
 
-  const searchPlayers = useCallback(
-    (players, searchText) => {
-      const query =
-        normalizeSearch(
-          searchText
-        );
-
-      if (!query) {
-        return [];
-      }
-
-      return players.filter(
-        player => {
-          const name =
-            normalizeSearch(
-              player.name
-            );
-
-          const team =
-            normalizeSearch(
-              player.team
-            );
-
-          return (
-            name.includes(query) ||
-            team.includes(query)
+  /*
+   * Search.
+   */
+  const searchPlayers =
+    useCallback(
+      (players, searchText) => {
+        const query =
+          normalizeSearch(
+            searchText
           );
+
+        if (!query) {
+          return [];
         }
-      );
-    },
-    []
-  );
+
+        return players.filter(
+          player => {
+            const name =
+              normalizeSearch(
+                player.name
+              );
+
+            const team =
+              normalizeSearch(
+                player.team
+              );
+
+            return (
+              name.includes(query) ||
+              team.includes(query)
+            );
+          }
+        );
+      },
+      []
+    );
 
   const filteredPlayers1 =
     useMemo(
@@ -170,11 +177,12 @@ export default function useFlowPlayers({
       ]
     );
 
+  /*
+   * Reset comparison.
+   */
   const resetPlayers =
     useCallback(() => {
-      setSelectedCategory(
-        null
-      );
+      setSelectedCategory(null);
 
       setPlayer1(null);
       setPlayer2(null);
@@ -182,10 +190,13 @@ export default function useFlowPlayers({
       setPlayerSearch1("");
       setPlayerSearch2("");
 
-      setFdr1(3);
-      setFdr2(3);
+      setFdr1(DEFAULT_FDR);
+      setFdr2(DEFAULT_FDR);
     }, []);
 
+  /*
+   * Load API data.
+   */
   const loadPlayers =
     useCallback(
       async (
@@ -206,6 +217,14 @@ export default function useFlowPlayers({
             ] ||
             selectedLeague;
 
+          console.log(
+            "Flow: loading players",
+            {
+              competition,
+              season: apiSeason,
+            }
+          );
+
           const players =
             await fetchApiSportsPlayers(
               competition,
@@ -219,14 +238,16 @@ export default function useFlowPlayers({
             );
 
           if (
-            !Array.isArray(
-              players
-            )
+            !Array.isArray(players)
           ) {
             throw new Error(
               "API neatgrieza derīgu spēlētāju sarakstu."
             );
           }
+
+          console.log(
+            `Flow: received ${players.length} players`
+          );
 
           setLeaguePlayers(
             players
@@ -240,6 +261,7 @@ export default function useFlowPlayers({
           return players;
         } catch (loadError) {
           console.error(
+            "Flow player loading error:",
             loadError
           );
 
@@ -261,41 +283,33 @@ export default function useFlowPlayers({
       ]
     );
 
+  /*
+   * Force API refresh.
+   */
   const refreshPlayers =
     useCallback(async () => {
       clearFootballDataCache();
 
-      return loadPlayers(
-        true
-      );
+      return loadPlayers(true);
     }, [loadPlayers]);
 
   /*
-   * Load players whenever the
-   * league or season changes.
+   * IMPORTANT:
+   * This effect is what starts the API request.
    */
   useEffect(() => {
-    setSelectedCategory(null);
-
-    setPlayer1(null);
-    setPlayer2(null);
-
-    setPlayerSearch1("");
-    setPlayerSearch2("");
-
-    setFdr1(3);
-    setFdr2(3);
-
+    resetPlayers();
     loadPlayers(false);
   }, [
     selectedLeague,
     apiSeason,
+    loadPlayers,
+    resetPlayers,
   ]);
 
   /*
-   * Automatically select the
-   * first two players from the
-   * selected category.
+   * Automatically select the first
+   * two players after category change.
    */
   useEffect(() => {
     if (!selectedCategory) {
@@ -320,17 +334,14 @@ export default function useFlowPlayers({
         current &&
         players.some(
           player =>
-            player.id ===
-            current.id
+            String(player.id) ===
+            String(current.id)
         )
       ) {
         return current;
       }
 
-      return (
-        players[0] ||
-        null
-      );
+      return players[0] || null;
     });
 
     setPlayer2(current => {
@@ -338,8 +349,8 @@ export default function useFlowPlayers({
         current &&
         players.some(
           player =>
-            player.id ===
-            current.id
+            String(player.id) ===
+            String(current.id)
         )
       ) {
         return current;
@@ -357,78 +368,74 @@ export default function useFlowPlayers({
   ]);
 
   /*
-   * Load FDR whenever either
-   * selected player's team changes.
+   * FDR.
    */
   useEffect(() => {
     if (!player1 || !player2) {
-      setFdr1(3);
-      setFdr2(3);
+      setFdr1(DEFAULT_FDR);
+      setFdr2(DEFAULT_FDR);
       setFdrLoading(false);
-
       return;
     }
 
     let cancelled = false;
 
-    const loadFdr =
-      async () => {
-        setFdrLoading(true);
+    const loadFdr = async () => {
+      setFdrLoading(true);
 
-        try {
-          const [
-            firstFdr,
-            secondFdr,
-          ] =
-            await Promise.all([
-              getTeamFdr(
-                player1.teamId,
-                selectedLeague,
-                apiSeason
-              ),
+      try {
+        const [
+          firstFdr,
+          secondFdr,
+        ] = await Promise.all([
+          getTeamFdr(
+            player1.teamId,
+            selectedLeague,
+            apiSeason
+          ),
 
-              getTeamFdr(
-                player2.teamId,
-                selectedLeague,
-                apiSeason
-              ),
-            ]);
+          getTeamFdr(
+            player2.teamId,
+            selectedLeague,
+            apiSeason
+          ),
+        ]);
 
-          if (cancelled) {
-            return;
-          }
-
-          setFdr1(
-            Number.isFinite(
-              Number(firstFdr)
-            )
-              ? Number(firstFdr)
-              : 3
-          );
-
-          setFdr2(
-            Number.isFinite(
-              Number(secondFdr)
-            )
-              ? Number(secondFdr)
-              : 3
-          );
-        } catch (fdrError) {
-          console.error(
-            "FDR kļūda:",
-            fdrError
-          );
-
-          if (!cancelled) {
-            setFdr1(3);
-            setFdr2(3);
-          }
-        } finally {
-          if (!cancelled) {
-            setFdrLoading(false);
-          }
+        if (cancelled) {
+          return;
         }
-      };
+
+        setFdr1(
+          Number.isFinite(
+            Number(firstFdr)
+          )
+            ? Number(firstFdr)
+            : DEFAULT_FDR
+        );
+
+        setFdr2(
+          Number.isFinite(
+            Number(secondFdr)
+          )
+            ? Number(secondFdr)
+            : DEFAULT_FDR
+        );
+      } catch (fdrError) {
+        console.error(
+          "FDR error:",
+          fdrError
+        );
+
+        if (!cancelled) {
+          setFdr1(DEFAULT_FDR);
+          setFdr2(DEFAULT_FDR);
+        }
+      } finally {
+        if (!cancelled) {
+          setFdrLoading(false);
+        }
+      }
+    };
 
     loadFdr();
 
@@ -442,6 +449,9 @@ export default function useFlowPlayers({
     apiSeason,
   ]);
 
+  /*
+   * Category selection.
+   */
   const selectCategory =
     useCallback(
       category => {
@@ -457,8 +467,7 @@ export default function useFlowPlayers({
         );
 
         setPlayer1(
-          players[0] ||
-            null
+          players[0] || null
         );
 
         setPlayer2(
@@ -473,35 +482,35 @@ export default function useFlowPlayers({
       [leaguePlayers]
     );
 
-  const handleCategorySelect =
-    selectCategory;
-
+  /*
+   * Player 1.
+   */
   const selectPlayer1 =
-    useCallback(
-      player => {
-        if (!player) {
-          return;
-        }
+    useCallback(player => {
+      if (!player) {
+        return;
+      }
 
-        setPlayer1(player);
-        setPlayerSearch1("");
-      },
-      []
-    );
+      setPlayer1(player);
+      setPlayerSearch1("");
+    }, []);
 
+  /*
+   * Player 2.
+   */
   const selectPlayer2 =
-    useCallback(
-      player => {
-        if (!player) {
-          return;
-        }
+    useCallback(player => {
+      if (!player) {
+        return;
+      }
 
-        setPlayer2(player);
-        setPlayerSearch2("");
-      },
-      []
-    );
+      setPlayer2(player);
+      setPlayerSearch2("");
+    }, []);
 
+  /*
+   * Select from <select>.
+   */
   const handlePlayer1Change =
     useCallback(
       event => {
@@ -559,6 +568,9 @@ export default function useFlowPlayers({
       [categoryPlayers]
     );
 
+  /*
+   * Add player to comparison.
+   */
   const addToComparison =
     useCallback(
       player => {
@@ -570,49 +582,21 @@ export default function useFlowPlayers({
           player.category
         );
 
-        /*
-         * If there is no first player,
-         * put the new player there.
-         */
         if (!player1) {
           setPlayer1(player);
-        }
-
-        /*
-         * If the first slot already
-         * contains this player, don't
-         * duplicate it.
-         */
-        else if (
-          player1.id ===
-          player.id
+        } else if (
+          String(player1.id) ===
+          String(player.id)
         ) {
           return;
-        }
-
-        /*
-         * If there is no second player,
-         * use the second slot.
-         */
-        else if (!player2) {
+        } else if (!player2) {
           setPlayer2(player);
-        }
-
-        /*
-         * If it is already the second
-         * player, don't duplicate it.
-         */
-        else if (
-          player2.id ===
-          player.id
+        } else if (
+          String(player2.id) ===
+          String(player.id)
         ) {
           return;
-        }
-
-        /*
-         * Otherwise replace player 2.
-         */
-        else {
+        } else {
           setPlayer2(player);
         }
 
@@ -622,6 +606,9 @@ export default function useFlowPlayers({
       [player1, player2]
     );
 
+  /*
+   * Swap players.
+   */
   const swapPlayers =
     useCallback(() => {
       setPlayer1(player2);
@@ -632,9 +619,6 @@ export default function useFlowPlayers({
     ]);
 
   return {
-    /*
-     * Data
-     */
     leaguePlayers,
     setLeaguePlayers,
 
@@ -642,16 +626,10 @@ export default function useFlowPlayers({
     categoryPlayers,
     totalPlayers,
 
-    /*
-     * Loading
-     */
     loading,
     error,
     progress,
 
-    /*
-     * Selection
-     */
     selectedCategory,
     setSelectedCategory,
 
@@ -661,9 +639,6 @@ export default function useFlowPlayers({
     player2,
     setPlayer2,
 
-    /*
-     * Search
-     */
     playerSearch1,
     setPlayerSearch1,
 
@@ -675,28 +650,19 @@ export default function useFlowPlayers({
 
     searchPlayers,
 
-    /*
-     * API season
-     */
     apiSeason,
 
-    /*
-     * FDR
-     */
     fdr1,
     fdr2,
     fdrLoading,
 
-    /*
-     * Actions
-     */
     loadPlayers,
     refreshPlayers,
-
     resetPlayers,
 
     selectCategory,
-    handleCategorySelect,
+    handleCategorySelect:
+      selectCategory,
 
     selectPlayer1,
     selectPlayer2,
