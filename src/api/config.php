@@ -7,7 +7,7 @@ $token = getenv(
 );
 
 if (!$token) {
-    $token = "7099d187caea448e85c936be9ade7f1e";
+    $token = "" . ($_ENV["FOOTBALL_DATA_API_TOKEN"] ?? "");
 }
 
 define(
