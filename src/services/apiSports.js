@@ -1,16 +1,28 @@
-// src/services/apiSports.js
-
 const BASE_URL =
   "http://localhost/Nosleguma_Darbs/Nosleguma_Darbs/backend/api";
 
-const CACHE_PREFIX = "flow_api_football_v11_";
-const CACHE_TTL = 30 * 60 * 1000;
-
-// ============================================================
-// COMPETITION IDS
-// ============================================================
-
 export const COMPETITION_IDS = {
+  PL: "PL",
+  PD: "PD",
+  SA: "SA",
+  BL1: "BL1",
+  FL1: "FL1",
+  PREMIER_LEAGUE: "PL",
+  LA_LIGA: "PD",
+  SERIE_A: "SA",
+  BUNDESLIGA: "BL1",
+  LIGUE_1: "FL1",
+};
+
+export const LEAGUE_NAMES = {
+  PL: "Premier League",
+  PD: "La Liga",
+  SA: "Serie A",
+  BL1: "Bundesliga",
+  FL1: "Ligue 1",
+};
+
+const API_FOOTBALL_LEAGUES = {
   PL: 39,
   PD: 140,
   SA: 135,
@@ -18,38 +30,195 @@ export const COMPETITION_IDS = {
   FL1: 61,
 };
 
-const COMPETITION_CODES_BY_ID = {
-  39: "PL",
-  140: "PD",
-  135: "SA",
-  78: "BL1",
-  61: "FL1",
+const CACHE_PREFIX = "flow_api_football_v8_";
+const CACHE_TIME = 1000 * 60 * 60;
+
+const POSITION_LABELS = {
+  GOALKEEPERS: "Vārtsargi",
+  DEFENDERS: "Aizsargi",
+  MIDFIELDERS: "Pussargi",
+  STRIKERS: "Uzbrucēji",
 };
 
-// ============================================================
-// HELPERS
-// ============================================================
+const toNumber = value => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
 
-function isNumber(value) {
-  return (
-    value !== null &&
-    value !== undefined &&
-    value !== "" &&
-    Number.isFinite(Number(value))
+const nullableNumber = value => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const normalizePercentage = value => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(String(value).replace("%", ""));
+  return Number.isFinite(number) ? number : null;
+};
+
+const normalize = value =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const getCache = key => {
+  try {
+    const raw = localStorage.getItem(`${CACHE_PREFIX}${key}`);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!parsed?.timestamp || !Array.isArray(parsed.data)) {
+      return null;
+    }
+
+    if (Date.now() - parsed.timestamp > CACHE_TIME) {
+      localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+      return null;
+    }
+
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const getAnyCache = key => {
+  try {
+    const raw = localStorage.getItem(`${CACHE_PREFIX}${key}`);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!parsed?.timestamp || parsed.data === undefined) {
+      return null;
+    }
+
+    if (Date.now() - parsed.timestamp > CACHE_TIME) {
+      localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+      return null;
+    }
+
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const setCache = (key, data) => {
+  try {
+    localStorage.setItem(
+      `${CACHE_PREFIX}${key}`,
+      JSON.stringify({
+        timestamp: Date.now(),
+        data,
+      })
+    );
+  } catch {
+    // Ignore browser storage limits.
+  }
+};
+
+const getPositionCategory = position => {
+  const p = String(position || "").toLowerCase().trim();
+
+  if (
+    p.includes("goalkeeper") ||
+    p.includes("keeper") ||
+    p === "gk" ||
+    p === "g"
+  ) {
+    return "GOALKEEPERS";
+  }
+
+  if (
+    p.includes("defence") ||
+    p.includes("defender") ||
+    p.includes("back") ||
+    p.includes("centre-back") ||
+    p.includes("center-back") ||
+    p === "d"
+  ) {
+    return "DEFENDERS";
+  }
+
+  if (
+    p.includes("midfield") ||
+    p.includes("midfielder") ||
+    p === "m"
+  ) {
+    return "MIDFIELDERS";
+  }
+
+  if (
+    p.includes("offence") ||
+    p.includes("offense") ||
+    p.includes("forward") ||
+    p.includes("striker") ||
+    p.includes("attacker") ||
+    p.includes("winger") ||
+    p === "f"
+  ) {
+    return "STRIKERS";
+  }
+
+  return null;
+};
+
+const getPositionLabel = category =>
+  POSITION_LABELS[category] || "Spēlētājs";
+
+const calculateFantasyPoints = ({
+  category,
+  goals,
+  assists,
+  penalties,
+}) => {
+  const goalPoints = {
+    GOALKEEPERS: 10,
+    DEFENDERS: 6,
+    MIDFIELDERS: 5,
+    STRIKERS: 4,
+  };
+
+  const penaltyPoints =
+    category === "MIDFIELDERS" || category === "STRIKERS"
+      ? toNumber(penalties) * 2
+      : 0;
+
+  return Math.max(
+    0,
+    Math.round(
+      toNumber(goals) * (goalPoints[category] || 4) +
+        toNumber(assists) * 3 +
+        penaltyPoints
+    )
   );
-}
+};
 
-function numberOrNull(value) {
-  return isNumber(value) ? Number(value) : null;
-}
+const sumField = (stats, selector) =>
+  stats.reduce((total, item) => {
+    const value = selector(item);
 
-function numberOrZero(value) {
-  const result = numberOrNull(value);
-  return result === null ? 0 : result;
-}
+    return value === null || value === undefined
+      ? total
+      : total + toNumber(value);
+  }, 0);
 
-function firstDefined(...values) {
-  for (const value of values) {
+const firstNonNull = (stats, selector) => {
+  for (const item of stats) {
+    const value = selector(item);
+
     if (
       value !== null &&
       value !== undefined &&
@@ -60,1986 +229,1286 @@ function firstDefined(...values) {
   }
 
   return null;
-}
-
-function stringOrFallback(value, fallback = "") {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return fallback;
-  }
-
-  const result = String(value).trim();
-
-  return result || fallback;
-}
-
-// ============================================================
-// COMPETITION
-// ============================================================
-
-function normalizeCompetition(competition) {
-  if (
-    competition === null ||
-    competition === undefined
-  ) {
-    return null;
-  }
-
-  const value = String(
-    competition
-  )
-    .trim()
-    .toUpperCase();
-
-  if (
-    Object.prototype.hasOwnProperty.call(
-      COMPETITION_IDS,
-      value
-    )
-  ) {
-    return value;
-  }
-
-  const numericId = Number(value);
-
-  if (
-    Object.prototype.hasOwnProperty.call(
-      COMPETITION_CODES_BY_ID,
-      numericId
-    )
-  ) {
-    return COMPETITION_CODES_BY_ID[numericId];
-  }
-
-  return null;
-}
-
-// ============================================================
-// SEASON
-// ============================================================
-
-export function seasonToApiSeason(season) {
-  if (typeof season === "number") {
-    return season;
-  }
-
-  const value = String(
-    season ?? ""
-  ).trim();
-
-  const match = value.match(
-    /^(\d{4})/
-  );
-
-  if (match) {
-    return Number(match[1]);
-  }
-
-  const numeric = Number(value);
-
-  if (
-    Number.isFinite(numeric) &&
-    numeric >= 2000
-  ) {
-    return numeric;
-  }
-
-  return new Date().getFullYear();
-}
-
-// ============================================================
-// POSITION NORMALIZATION
-// ============================================================
-
-function normalizePosition(position) {
-  if (
-    position === null ||
-    position === undefined
-  ) {
-    return null;
-  }
-
-  const value = String(position)
-    .trim()
-    .toLowerCase();
-
-  // --------------------------
-  // GOALKEEPER
-  // --------------------------
-
-  if (
-    value === "gk" ||
-    value === "g" ||
-    value === "goalkeeper" ||
-    value === "goalkeepers" ||
-    value.includes("goalkeeper") ||
-    value.includes("keeper")
-  ) {
-    return "GK";
-  }
-
-  // --------------------------
-  // DEFENDER
-  // --------------------------
-
-  if (
-    value === "df" ||
-    value === "d" ||
-    value === "def" ||
-    value === "defender" ||
-    value === "defenders" ||
-    value === "centre-back" ||
-    value === "center-back" ||
-    value === "centre back" ||
-    value === "center back" ||
-    value === "cb" ||
-    value === "lb" ||
-    value === "rb" ||
-    value === "lwb" ||
-    value === "rwb" ||
-    value.includes("defender") ||
-    value.includes("defence") ||
-    value.includes("defense") ||
-    value.includes("back")
-  ) {
-    return "DEF";
-  }
-
-  // --------------------------
-  // MIDFIELDER
-  // --------------------------
-
-  if (
-    value === "mf" ||
-    value === "m" ||
-    value === "mid" ||
-    value === "midfielder" ||
-    value === "midfielders" ||
-    value === "cm" ||
-    value === "dm" ||
-    value === "am" ||
-    value === "lm" ||
-    value === "rm" ||
-    value === "cdm" ||
-    value === "cam" ||
-    value.includes("midfielder") ||
-    value.includes("midfield")
-  ) {
-    return "MID";
-  }
-
-  // --------------------------
-  // ATTACKER
-  // --------------------------
-
-  if (
-    value === "fw" ||
-    value === "f" ||
-    value === "attacker" ||
-    value === "attackers" ||
-    value === "forward" ||
-    value === "forwards" ||
-    value === "striker" ||
-    value === "strikers" ||
-    value === "st" ||
-    value === "cf" ||
-    value === "lw" ||
-    value === "rw" ||
-    value.includes("attacker") ||
-    value.includes("forward") ||
-    value.includes("striker")
-  ) {
-    return "STR";
-  }
-
-  return null;
-}
-
-// ============================================================
-// FLOW CATEGORY
-// ============================================================
-
-function positionToCategory(position) {
-  switch (position) {
-    case "GK":
-      return "GOALKEEPERS";
-
-    case "DEF":
-      return "DEFENDERS";
-
-    case "MID":
-      return "MIDFIELDERS";
-
-    case "STR":
-      return "STRIKERS";
-
-    default:
-      return null;
-  }
-}
-
-// ============================================================
-// GET STATISTICS
-// ============================================================
-
-function getStatisticsArray(item) {
-  if (!item) {
-    return [];
-  }
-
-  if (
-    Array.isArray(item.statistics)
-  ) {
-    return item.statistics;
-  }
-
-  if (
-    Array.isArray(item.stats)
-  ) {
-    return item.stats;
-  }
-
-  if (
-    Array.isArray(item.statistic)
-  ) {
-    return item.statistic;
-  }
-
-  if (
-    item.statistics &&
-    typeof item.statistics === "object"
-  ) {
-    return [item.statistics];
-  }
-
-  if (
-    item.stats &&
-    typeof item.stats === "object"
-  ) {
-    return [item.stats];
-  }
-
-  if (
-    item.games ||
-    item.goals ||
-    item.passes ||
-    item.shots
-  ) {
-    return [item];
-  }
-
-  return [];
-}
-
-// ============================================================
-// EMPTY STATS
-// ============================================================
-
-function createEmptyStats() {
-  return {
-    appearances: 0,
-    lineups: 0,
-    minutes: 0,
-
-    goals: 0,
-    assists: 0,
-
-    shots: 0,
-    shotsOnTarget: 0,
-
-    passes: 0,
-    keyPasses: 0,
-
-    passAccuracyTotal: 0,
-    passAccuracyCount: 0,
-
-    tackles: 0,
-    blocks: 0,
-    interceptions: 0,
-
-    duels: 0,
-    duelsWon: 0,
-
-    dribbles: 0,
-    successfulDribbles: 0,
-
-    foulsDrawn: 0,
-    foulsCommitted: 0,
-
-    yellowCards: 0,
-    yellowRedCards: 0,
-    redCards: 0,
-
-    penaltyWon: 0,
-    penaltyCommitted: 0,
-    penaltyGoals: 0,
-    penaltyMissed: 0,
-    penaltySaved: 0,
-
-    saves: 0,
-    goalsConceded: 0,
-
-    ratings: [],
-
-    position: null,
-
-    team: null,
-  };
-}
-
-// ============================================================
-// ADD STATISTIC
-// ============================================================
-
-function addStatistic(
-  aggregate,
-  statistic
-) {
-  if (
-    !statistic ||
-    typeof statistic !== "object"
-  ) {
-    return;
-  }
-
-  // ----------------------------------------------------------
-  // GAMES
-  // ----------------------------------------------------------
-
-  const games =
-    statistic.games || {};
-
-  aggregate.appearances +=
-    numberOrZero(
-      firstDefined(
-        games.appearences,
-        games.appearances,
-        statistic.appearences,
-        statistic.appearances
-      )
-    );
-
-  aggregate.lineups +=
-    numberOrZero(
-      firstDefined(
-        games.lineups,
-        statistic.lineups
-      )
-    );
-
-  aggregate.minutes +=
-    numberOrZero(
-      firstDefined(
-        games.minutes,
-        statistic.minutes
-      )
-    );
-
-  const detectedPosition =
-    firstDefined(
-      games.position,
-      statistic.position
-    );
-
-  if (
-    detectedPosition !== null &&
-    detectedPosition !== undefined
-  ) {
-    aggregate.position =
-      detectedPosition;
-  }
-
-  // ----------------------------------------------------------
-  // TEAM
-  // ----------------------------------------------------------
-
-  if (
-    !aggregate.team &&
-    statistic.team
-  ) {
-    aggregate.team =
-      statistic.team;
-  }
-
-  // ----------------------------------------------------------
-  // GOALS
-  // ----------------------------------------------------------
-
-  const goals =
-    statistic.goals || {};
-
-  aggregate.goals +=
-    numberOrZero(
-      firstDefined(
-        goals.total,
-        statistic.goals_total
-      )
-    );
-
-  aggregate.assists +=
-    numberOrZero(
-      firstDefined(
-        goals.assists,
-        statistic.assists
-      )
-    );
-
-  aggregate.saves +=
-    numberOrZero(
-      firstDefined(
-        goals.saves,
-        statistic.saves
-      )
-    );
-
-  aggregate.goalsConceded +=
-    numberOrZero(
-      firstDefined(
-        goals.conceded,
-        statistic.goals_conceded
-      )
-    );
-
-  // ----------------------------------------------------------
-  // SHOTS
-  // ----------------------------------------------------------
-
-  const shots =
-    statistic.shots || {};
-
-  aggregate.shots +=
-    numberOrZero(
-      firstDefined(
-        shots.total,
-        statistic.shots_total
-      )
-    );
-
-  aggregate.shotsOnTarget +=
-    numberOrZero(
-      firstDefined(
-        shots.on,
-        statistic.shots_on
-      )
-    );
-
-  // ----------------------------------------------------------
-  // PASSES
-  // ----------------------------------------------------------
-
-  const passes =
-    statistic.passes || {};
-
-  const totalPasses =
-    numberOrNull(
-      firstDefined(
-        passes.total,
-        statistic.passes_total
-      )
-    );
-
-  const keyPasses =
-    numberOrNull(
-      firstDefined(
-        passes.key,
-        statistic.key_passes
-      )
-    );
-
-  const accuracy =
-    numberOrNull(
-      firstDefined(
-        passes.accuracy,
-        statistic.pass_accuracy
-      )
-    );
-
-  if (
-    totalPasses !== null
-  ) {
-    aggregate.passes +=
-      totalPasses;
-  }
-
-  if (
-    keyPasses !== null
-  ) {
-    aggregate.keyPasses +=
-      keyPasses;
-  }
-
-  if (
-    accuracy !== null
-  ) {
-    aggregate.passAccuracyTotal +=
-      accuracy;
-
-    aggregate.passAccuracyCount +=
-      1;
-  }
-
-  // ----------------------------------------------------------
-  // TACKLES
-  // ----------------------------------------------------------
-
-  const tackles =
-    statistic.tackles || {};
-
-  aggregate.tackles +=
-    numberOrZero(
-      firstDefined(
-        tackles.total,
-        statistic.tackles_total
-      )
-    );
-
-  aggregate.blocks +=
-    numberOrZero(
-      firstDefined(
-        tackles.blocks,
-        statistic.blocks
-      )
-    );
-
-  aggregate.interceptions +=
-    numberOrZero(
-      firstDefined(
-        tackles.interceptions,
-        statistic.interceptions
-      )
-    );
-
-  // ----------------------------------------------------------
-  // DUELS
-  // ----------------------------------------------------------
-
-  const duels =
-    statistic.duels || {};
-
-  aggregate.duels +=
-    numberOrZero(
-      firstDefined(
-        duels.total,
-        statistic.duels_total
-      )
-    );
-
-  aggregate.duelsWon +=
-    numberOrZero(
-      firstDefined(
-        duels.won,
-        statistic.duels_won
-      )
-    );
-
-  // ----------------------------------------------------------
-  // DRIBBLES
-  // ----------------------------------------------------------
-
-  const dribbles =
-    statistic.dribbles || {};
-
-  aggregate.dribbles +=
-    numberOrZero(
-      firstDefined(
-        dribbles.attempts,
-        statistic.dribbles_attempts
-      )
-    );
-
-  aggregate.successfulDribbles +=
-    numberOrZero(
-      firstDefined(
-        dribbles.success,
-        statistic.dribbles_success
-      )
-    );
-
-  // ----------------------------------------------------------
-  // FOULS
-  // ----------------------------------------------------------
-
-  const fouls =
-    statistic.fouls || {};
-
-  aggregate.foulsDrawn +=
-    numberOrZero(
-      firstDefined(
-        fouls.drawn,
-        statistic.fouls_drawn
-      )
-    );
-
-  aggregate.foulsCommitted +=
-    numberOrZero(
-      firstDefined(
-        fouls.committed,
-        statistic.fouls_committed
-      )
-    );
-
-  // ----------------------------------------------------------
-  // CARDS
-  // ----------------------------------------------------------
-
-  const cards =
-    statistic.cards || {};
-
-  aggregate.yellowCards +=
-    numberOrZero(
-      firstDefined(
-        cards.yellow,
-        statistic.yellow
-      )
-    );
-
-  aggregate.yellowRedCards +=
-    numberOrZero(
-      firstDefined(
-        cards.yellowred,
-        statistic.yellowred
-      )
-    );
-
-  aggregate.redCards +=
-    numberOrZero(
-      firstDefined(
-        cards.red,
-        statistic.red
-      )
-    );
-
-  // ----------------------------------------------------------
-  // PENALTIES
-  // ----------------------------------------------------------
-
-  const penalty =
-    statistic.penalty || {};
-
-  aggregate.penaltyWon +=
-    numberOrZero(
-      firstDefined(
-        penalty.won,
-        statistic.penalty_won
-      )
-    );
-
-  aggregate.penaltyCommitted +=
-    numberOrZero(
-      firstDefined(
-        penalty.committed,
-        statistic.penalty_committed
-      )
-    );
-
-  aggregate.penaltyGoals +=
-    numberOrZero(
-      firstDefined(
-        penalty.scored,
-        statistic.penalty_scored
-      )
-    );
-
-  aggregate.penaltyMissed +=
-    numberOrZero(
-      firstDefined(
-        penalty.missed,
-        statistic.penalty_missed
-      )
-    );
-
-  aggregate.penaltySaved +=
-    numberOrZero(
-      firstDefined(
-        penalty.saved,
-        statistic.penalty_saved
-      )
-    );
-
-  // ----------------------------------------------------------
-  // RATING
-  // ----------------------------------------------------------
-
-  const rating =
-    numberOrNull(
-      firstDefined(
-        games.rating,
-        statistic.rating
-      )
-    );
-
-  if (
-    rating !== null
-  ) {
-    aggregate.ratings.push(
-      rating
-    );
-  }
-}
-
-// ============================================================
-// AGGREGATE
-// ============================================================
-
-function aggregateStatistics(
-  statistics
-) {
-  const aggregate =
-    createEmptyStats();
-
-  statistics.forEach(
-    statistic => {
-      addStatistic(
-        aggregate,
-        statistic
-      );
+};
+
+const weightedAverage = (
+  stats,
+  valueSelector,
+  weightSelector
+) => {
+  let weightedTotal = 0;
+  let weightTotal = 0;
+
+  for (const item of stats) {
+    const value = nullableNumber(valueSelector(item));
+    const weight = toNumber(weightSelector(item));
+
+    if (value === null) continue;
+
+    if (weight > 0) {
+      weightedTotal += value * weight;
+      weightTotal += weight;
     }
+  }
+
+  if (weightTotal > 0) {
+    return (
+      Math.round(
+        (weightedTotal / weightTotal) * 10
+      ) / 10
+    );
+  }
+
+  const values = stats
+    .map(item => nullableNumber(valueSelector(item)))
+    .filter(value => value !== null);
+
+  if (!values.length) return null;
+
+  return (
+    Math.round(
+      (values.reduce(
+        (sum, value) => sum + value,
+        0
+      ) /
+        values.length) *
+        10
+    ) / 10
+  );
+};
+
+const aggregatePlayerStats = statistics => {
+  const stats = Array.isArray(statistics)
+    ? statistics.filter(Boolean)
+    : [];
+
+  if (!stats.length) {
+    return {
+      teamId: null,
+      team: null,
+      teamLogo: null,
+      position: null,
+      appearances: 0,
+      minutes: 0,
+      goals: 0,
+      assists: 0,
+      penaltyGoals: 0,
+      shots: 0,
+      shotsOnTarget: 0,
+      passes: 0,
+      keyPasses: 0,
+      passAccuracy: null,
+      tackles: 0,
+      blocks: 0,
+      interceptions: 0,
+      duels: 0,
+      duelsWon: 0,
+      dribbleAttempts: 0,
+      successfulDribbles: 0,
+      foulsDrawn: 0,
+      foulsCommitted: 0,
+      yellowCards: 0,
+      yellowRedCards: 0,
+      redCards: 0,
+      penaltiesMissed: 0,
+      penaltiesWon: 0,
+      saves: 0,
+      goalsConceded: 0,
+      rating: null,
+      starts: 0,
+      substituteIn: 0,
+      substituteOut: 0,
+      bench: 0,
+    };
+  }
+
+  const appearances = sumField(
+    stats,
+    item => item.games?.appearences
   );
 
-  return aggregate;
-}
+  const minutes = sumField(
+    stats,
+    item => item.games?.minutes
+  );
 
-// ============================================================
-// FLOW POINTS
-// ============================================================
+  const passes = sumField(
+    stats,
+    item => item.passes?.total
+  );
 
-function calculateFlowPoints(
-  position,
-  goals,
-  assists,
-  penaltyGoals
-) {
-  let goalPoints = 4;
-
-  if (position === "GK") {
-    goalPoints = 10;
-  }
-
-  if (position === "DEF") {
-    goalPoints = 6;
-  }
-
-  if (position === "MID") {
-    goalPoints = 5;
-  }
-
-  if (position === "STR") {
-    goalPoints = 4;
-  }
-
-  let points =
-    numberOrZero(goals) *
-    goalPoints;
-
-  points +=
-    numberOrZero(assists) *
-    3;
-
-  if (
-    position === "MID" ||
-    position === "STR"
-  ) {
-    points +=
-      numberOrZero(
-        penaltyGoals
-      ) *
-      2;
-  }
-
-  return points;
-}
-
-// ============================================================
-// RADAR
-// ============================================================
-
-function createRadarStats(
-  position,
-  stats
-) {
-  if (position === "GK") {
-    return {
-      labels: [
-        "SAVES",
-        "PASSING",
-        "PASS ACCURACY",
-        "RATING",
-      ],
-
-      values: [
-        stats.saves,
-        stats.passes,
-        stats.passAccuracy,
-        stats.rating,
-      ],
-    };
-  }
-
-  if (position === "DEF") {
-    return {
-      labels: [
-        "TACKLES",
-        "BLOCKS",
-        "INTERCEPTIONS",
-        "DUELS WON",
-        "PASSING",
-        "PASS ACCURACY",
-      ],
-
-      values: [
-        stats.tackles,
-        stats.blocks,
-        stats.interceptions,
-        stats.duelsWon,
-        stats.passes,
-        stats.passAccuracy,
-      ],
-    };
-  }
-
-  if (position === "MID") {
-    return {
-      labels: [
-        "GOALS",
-        "ASSISTS",
-        "KEY PASSES",
-        "PASSING",
-        "DRIBBLES",
-        "DUELS WON",
-      ],
-
-      values: [
-        stats.goals,
-        stats.assists,
-        stats.keyPasses,
-        stats.passes,
-        stats.successfulDribbles,
-        stats.duelsWon,
-      ],
-    };
-  }
-
-  if (position === "STR") {
-    return {
-      labels: [
-        "GOALS",
-        "ASSISTS",
-        "SHOTS",
-        "SHOTS ON TARGET",
-        "DRIBBLES",
-        "DUELS WON",
-      ],
-
-      values: [
-        stats.goals,
-        stats.assists,
-        stats.shots,
-        stats.shotsOnTarget,
-        stats.successfulDribbles,
-        stats.duelsWon,
-      ],
-    };
-  }
-
-  return {
-    labels: [],
-    values: [],
-  };
-}
-
-// ============================================================
-// PLAYER CONVERSION
-// ============================================================
-
-function convertPlayer(
-  item,
-  index
-) {
-  if (!item) {
-    return null;
-  }
-
-  const player =
-    item.player ||
-    item.person ||
-    item.profile ||
-    item;
-
-  const statistics =
-    getStatisticsArray(item);
-
-  const aggregate =
-    aggregateStatistics(
-      statistics
+  const accuratePasses = sumField(stats, item => {
+    const total = nullableNumber(item.passes?.total);
+    const accuracy = normalizePercentage(
+      item.passes?.accuracy
     );
 
-  // ----------------------------------------------------------
-  // PLAYER ID
-  // ----------------------------------------------------------
+    if (total === null || accuracy === null) {
+      return null;
+    }
 
-  const playerId =
-    firstDefined(
-      player.id,
-      item.player_id,
-      item.id
-    );
+    return (total * accuracy) / 100;
+  });
 
-  if (!playerId) {
-    return null;
-  }
+  const duels = sumField(
+    stats,
+    item => item.duels?.total
+  );
 
-  // ----------------------------------------------------------
-  // POSITION
-  // ----------------------------------------------------------
+  const duelsWon = sumField(
+    stats,
+    item => item.duels?.won
+  );
 
-  const rawPosition =
-    firstDefined(
-      aggregate.position,
-      player.position,
-      item.position,
-      item.games?.position
-    );
+  const dribbleAttempts = sumField(
+    stats,
+    item => item.dribbles?.attempts
+  );
 
-  const position =
-    normalizePosition(
-      rawPosition
-    );
-
-  const category =
-    positionToCategory(
-      position
-    );
-
-  /*
-   * IMPORTANT:
-   *
-   * We do NOT assign a random/default position.
-   * If API-Football does not give us a position,
-   * the player is ignored instead of being incorrectly
-   * placed into another position.
-   */
-
-  if (
-    !position ||
-    !category
-  ) {
-    console.warn(
-      "Flow: player has no recognized position:",
-      {
-        id: playerId,
-        name: player.name,
-        rawPosition,
-        statistics,
-      }
-    );
-
-    return null;
-  }
-
-  // ----------------------------------------------------------
-  // TEAM
-  // ----------------------------------------------------------
-
-  const team =
-    aggregate.team ||
-    item.team ||
-    player.team ||
-    {};
-
-  const teamId =
-    firstDefined(
-      team.id,
-      item.team_id
-    );
-
-  const teamName =
-    stringOrFallback(
-      firstDefined(
-        team.name,
-        item.team_name
-      ),
-      "Unknown Team"
-    );
-
-  const teamLogo =
-    stringOrFallback(
-      firstDefined(
-        team.logo,
-        item.team_logo
-      )
-    );
-
-  // ----------------------------------------------------------
-  // COMMON STATS
-  // ----------------------------------------------------------
-
-  const games =
-    numberOrZero(
-      aggregate.appearances
-    );
-
-  const minutes =
-    numberOrZero(
-      aggregate.minutes
-    );
-
-  const goals =
-    numberOrZero(
-      aggregate.goals
-    );
-
-  const assists =
-    numberOrZero(
-      aggregate.assists
-    );
-
-  const penaltyGoals =
-    numberOrZero(
-      aggregate.penaltyGoals
-    );
+  const successfulDribbles = sumField(
+    stats,
+    item => item.dribbles?.success
+  );
 
   const passAccuracy =
-    aggregate.passAccuracyCount > 0
+    passes > 0 && accuratePasses >= 0
       ? Math.round(
-          aggregate.passAccuracyTotal /
-            aggregate.passAccuracyCount
-        )
-      : null;
+          (accuratePasses / passes) * 10
+        ) / 10
+      : weightedAverage(
+          stats,
+          item =>
+            normalizePercentage(
+              item.passes?.accuracy
+            ),
+          item => item.passes?.total
+        );
 
   const duelsWonPercentage =
-    aggregate.duels > 0
+    duels > 0
       ? Math.round(
-          (
-            aggregate.duelsWon /
-            aggregate.duels
-          ) *
-            100
-        )
+          (duelsWon / duels) * 1000
+        ) / 10
       : null;
 
-  const savePercentage =
-    aggregate.saves +
-      aggregate.goalsConceded >
-    0
+  const dribbleSuccess =
+    dribbleAttempts > 0
       ? Math.round(
-          (
-            aggregate.saves /
-            (
-              aggregate.saves +
-              aggregate.goalsConceded
-            )
-          ) *
-            100
-        )
+          (successfulDribbles /
+            dribbleAttempts) *
+            1000
+        ) / 10
       : null;
-
-  const rating =
-    aggregate.ratings.length > 0
-      ? Number(
-          (
-            aggregate.ratings.reduce(
-              (total, value) =>
-                total + value,
-              0
-            ) /
-            aggregate.ratings.length
-          ).toFixed(2)
-        )
-      : null;
-
-  // ----------------------------------------------------------
-  // FLOW
-  // ----------------------------------------------------------
-
-  const flow =
-    calculateFlowPoints(
-      position,
-      goals,
-      assists,
-      penaltyGoals
-    );
-
-  // ----------------------------------------------------------
-  // RADAR
-  // ----------------------------------------------------------
-
-  const radarStats =
-    createRadarStats(
-      position,
-      {
-        goals,
-
-        assists,
-
-        shots:
-          aggregate.shots,
-
-        shotsOnTarget:
-          aggregate.shotsOnTarget,
-
-        passes:
-          aggregate.passes,
-
-        keyPasses:
-          aggregate.keyPasses,
-
-        passAccuracy,
-
-        tackles:
-          aggregate.tackles,
-
-        blocks:
-          aggregate.blocks,
-
-        interceptions:
-          aggregate.interceptions,
-
-        duelsWon:
-          aggregate.duelsWon,
-
-        successfulDribbles:
-          aggregate.successfulDribbles,
-
-        saves:
-          aggregate.saves,
-
-        rating,
-      }
-    );
-
-  // ----------------------------------------------------------
-  // PLAYER OBJECT
-  // ----------------------------------------------------------
 
   return {
-    id: Number(playerId),
+    teamId: firstNonNull(
+      stats,
+      item => item.team?.id
+    ),
 
-    playerId: Number(playerId),
+    team: firstNonNull(
+      stats,
+      item => item.team?.name
+    ),
 
-    name:
-      stringOrFallback(
-        firstDefined(
-          player.name,
-          item.name
-        ),
-        `Player ${index + 1}`
-      ),
+    teamLogo: firstNonNull(
+      stats,
+      item => item.team?.logo
+    ),
 
-    firstname:
-      stringOrFallback(
-        player.firstname
-      ),
+    position: firstNonNull(
+      stats,
+      item => item.games?.position
+    ),
 
-    lastname:
-      stringOrFallback(
-        player.lastname
-      ),
-
-    photo:
-      stringOrFallback(
-        firstDefined(
-          player.photo,
-          player.image,
-          item.photo,
-          item.image
-        )
-      ),
-
-    age:
-      numberOrNull(
-        player.age
-      ),
-
-    nationality:
-      stringOrFallback(
-        player.nationality
-      ),
-
-    height:
-      stringOrFallback(
-        player.height
-      ),
-
-    weight:
-      stringOrFallback(
-        player.weight
-      ),
-
-    // IMPORTANT:
-    // Keep category compatible with existing Flow UI.
-    category,
-
-    position,
-
-    positionLabel:
-      position === "GK"
-        ? "Goalkeeper"
-        : position === "DEF"
-        ? "Defender"
-        : position === "MID"
-        ? "Midfielder"
-        : "Attacker",
-
-    team: teamName,
-
-    teamName,
-
-    teamId:
-      teamId !== null
-        ? Number(teamId)
-        : null,
-
-    teamLogo,
-
-    league: null,
-
-    season: null,
-
-    // --------------------------------------------------------
-    // COMMON
-    // --------------------------------------------------------
-
-    games,
-
-    appearances: games,
-
+    appearances,
     minutes,
 
-    goals,
+    goals: sumField(
+      stats,
+      item => item.goals?.total
+    ),
 
-    assists,
+    assists: sumField(
+      stats,
+      item => item.goals?.assists
+    ),
 
-    flow,
+    penaltyGoals: sumField(
+      stats,
+      item => item.penalty?.scored
+    ),
 
-    flowPoints: flow,
+    shots: sumField(
+      stats,
+      item => item.shots?.total
+    ),
 
-    points: flow,
+    shotsOnTarget: sumField(
+      stats,
+      item => item.shots?.on
+    ),
 
-    // --------------------------------------------------------
-    // ADVANCED
-    // --------------------------------------------------------
+    passes,
 
-    penaltyGoals:
-      position === "MID" ||
-      position === "STR"
-        ? penaltyGoals
-        : null,
-
-    // API-Football does not provide a standard
-    // player-season clean sheet field.
-    cleanSheets: null,
-
-    yellowCards:
-      aggregate.yellowCards,
-
-    yellow:
-      aggregate.yellowCards,
-
-    yellowRedCards:
-      aggregate.yellowRedCards,
-
-    redCards:
-      aggregate.redCards,
-
-    red:
-      aggregate.redCards,
-
-    shots:
-      aggregate.shots,
-
-    shotsOnTarget:
-      aggregate.shotsOnTarget,
-
-    passes:
-      aggregate.passes,
-
-    keyPasses:
-      aggregate.keyPasses,
+    keyPasses: sumField(
+      stats,
+      item => item.passes?.key
+    ),
 
     passAccuracy,
 
-    tackles:
-      aggregate.tackles,
+    tackles: sumField(
+      stats,
+      item => item.tackles?.total
+    ),
 
-    blocks:
-      aggregate.blocks,
+    blocks: sumField(
+      stats,
+      item => item.tackles?.blocks
+    ),
 
-    interceptions:
-      aggregate.interceptions,
+    interceptions: sumField(
+      stats,
+      item => item.tackles?.interceptions
+    ),
 
-    duels:
-      aggregate.duels,
-
-    duelsWon:
-      aggregate.duelsWon,
-
+    duels,
+    duelsWon,
     duelsWonPercentage,
 
-    dribbles:
-      aggregate.dribbles,
+    dribbleAttempts,
+    successfulDribbles,
+    dribbleSuccess,
 
-    successfulDribbles:
-      aggregate.successfulDribbles,
+    foulsDrawn: sumField(
+      stats,
+      item => item.fouls?.drawn
+    ),
 
-    foulsDrawn:
-      aggregate.foulsDrawn,
+    foulsCommitted: sumField(
+      stats,
+      item => item.fouls?.committed
+    ),
 
-    foulsCommitted:
-      aggregate.foulsCommitted,
+    yellowCards: sumField(
+      stats,
+      item => item.cards?.yellow
+    ),
 
-    saves:
-      position === "GK"
-        ? aggregate.saves
-        : null,
+    yellowRedCards: sumField(
+      stats,
+      item => item.cards?.yellowred
+    ),
 
-    savePercentage:
-      position === "GK"
-        ? savePercentage
-        : null,
+    redCards: sumField(
+      stats,
+      item => item.cards?.red
+    ),
 
-    goalsConceded:
-      position === "GK"
-        ? aggregate.goalsConceded
-        : null,
+    penaltiesMissed: sumField(
+      stats,
+      item => item.penalty?.missed
+    ),
 
-    rating,
+    penaltiesWon: sumField(
+      stats,
+      item => item.penalty?.won
+    ),
 
-    penaltyWon:
-      aggregate.penaltyWon,
+    saves: sumField(
+      stats,
+      item => item.goals?.saves
+    ),
 
-    penaltyCommitted:
-      aggregate.penaltyCommitted,
+    goalsConceded: sumField(
+      stats,
+      item => item.goals?.conceded
+    ),
 
-    penaltyMissed:
-      aggregate.penaltyMissed,
+    rating: weightedAverage(
+      stats,
+      item => item.games?.rating,
+      item => item.games?.minutes
+    ),
 
-    penaltySaved:
-      aggregate.penaltySaved,
+    starts: sumField(
+      stats,
+      item => item.games?.lineups
+    ),
 
-    // --------------------------------------------------------
-    // RADAR
-    // --------------------------------------------------------
+    substituteIn: sumField(
+      stats,
+      item => item.substitutes?.in
+    ),
 
-    customStats:
-      radarStats,
+    substituteOut: sumField(
+      stats,
+      item => item.substitutes?.out
+    ),
 
-    radarStats,
-
-    // --------------------------------------------------------
-    // NESTED STATS
-    // --------------------------------------------------------
-
-    stats: {
-      games,
-
-      appearances: games,
-
-      minutes,
-
-      goals,
-
-      assists,
-
-      flow,
-
-      points: flow,
-
-      penaltyGoals:
-        position === "MID" ||
-        position === "STR"
-          ? penaltyGoals
-          : null,
-
-      cleanSheets: null,
-
-      yellowCards:
-        aggregate.yellowCards,
-
-      redCards:
-        aggregate.redCards,
-
-      shots:
-        aggregate.shots,
-
-      shotsOnTarget:
-        aggregate.shotsOnTarget,
-
-      passes:
-        aggregate.passes,
-
-      keyPasses:
-        aggregate.keyPasses,
-
-      passAccuracy,
-
-      tackles:
-        aggregate.tackles,
-
-      blocks:
-        aggregate.blocks,
-
-      interceptions:
-        aggregate.interceptions,
-
-      duels:
-        aggregate.duels,
-
-      duelsWon:
-        aggregate.duelsWon,
-
-      duelsWonPercentage,
-
-      dribbles:
-        aggregate.dribbles,
-
-      successfulDribbles:
-        aggregate.successfulDribbles,
-
-      saves:
-        position === "GK"
-          ? aggregate.saves
-          : null,
-
-      savePercentage:
-        position === "GK"
-          ? savePercentage
-          : null,
-
-      goalsConceded:
-        position === "GK"
-          ? aggregate.goalsConceded
-          : null,
-
-      rating,
-    },
-
-    realStats: {
-      appearances: games,
-
-      games,
-
-      minutes,
-
-      goals,
-
-      assists,
-
-      penaltyGoals:
-        position === "MID" ||
-        position === "STR"
-          ? penaltyGoals
-          : null,
-
-      cleanSheets: null,
-
-      yellowCards:
-        aggregate.yellowCards,
-
-      redCards:
-        aggregate.redCards,
-    },
-
-    source: "api-football",
+    bench: sumField(
+      stats,
+      item => item.substitutes?.bench
+    ),
   };
-}
+};
 
-// ============================================================
-// CACHE
-// ============================================================
-
-function getCacheKey(
-  competition,
-  season
-) {
-  return (
-    `${CACHE_PREFIX}` +
-    `${competition}_${season}`
+const calculateSavePercentage = stats => {
+  const saves = nullableNumber(stats.saves);
+  const conceded = nullableNumber(
+    stats.goalsConceded
   );
-}
 
-function readCache(
-  competition,
-  season
-) {
-  try {
-    const key =
-      getCacheKey(
-        competition,
-        season
+  if (
+    saves === null ||
+    conceded === null ||
+    saves + conceded <= 0
+  ) {
+    return null;
+  }
+
+  return (
+    Math.round(
+      (saves / (saves + conceded)) * 1000
+    ) / 10
+  );
+};
+
+const buildAdvancedStats = aggregated => ({
+  ...aggregated,
+  savePercentage:
+    calculateSavePercentage(aggregated),
+});
+
+const radarDefinitions = {
+  GOALKEEPERS: [
+    { label: "Saves", key: "saves" },
+    {
+      label: "Save %",
+      key: "savePercentage",
+    },
+    {
+      label: "Pass accuracy",
+      key: "passAccuracy",
+    },
+    { label: "Rating", key: "rating" },
+    { label: "Minutes", key: "minutes" },
+    {
+      label: "Appearances",
+      key: "appearances",
+    },
+  ],
+
+  DEFENDERS: [
+    { label: "Tackles", key: "tackles" },
+    {
+      label: "Interceptions",
+      key: "interceptions",
+    },
+    { label: "Blocks", key: "blocks" },
+    {
+      label: "Duels won %",
+      key: "duelsWonPercentage",
+    },
+    {
+      label: "Pass accuracy",
+      key: "passAccuracy",
+    },
+    { label: "Minutes", key: "minutes" },
+  ],
+
+  MIDFIELDERS: [
+    {
+      label: "Key passes",
+      key: "keyPasses",
+    },
+    { label: "Passes", key: "passes" },
+    {
+      label: "Pass accuracy",
+      key: "passAccuracy",
+    },
+    {
+      label: "Dribbles",
+      key: "successfulDribbles",
+    },
+    {
+      label: "Duels won %",
+      key: "duelsWonPercentage",
+    },
+    {
+      label: "Shots on target",
+      key: "shotsOnTarget",
+    },
+  ],
+
+  STRIKERS: [
+    { label: "Goals", key: "goals" },
+    { label: "Assists", key: "assists" },
+    { label: "Shots", key: "shots" },
+    {
+      label: "Shots on target",
+      key: "shotsOnTarget",
+    },
+    {
+      label: "Key passes",
+      key: "keyPasses",
+    },
+    {
+      label: "Dribbles",
+      key: "successfulDribbles",
+    },
+  ],
+};
+
+const getRadarRawValue = (player, key) => {
+  const value = player?.advancedStats?.[key];
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return toNumber(value);
+};
+
+const percentileRank = (value, values) => {
+  if (
+    value === null ||
+    value === undefined ||
+    !values.length
+  ) {
+    return null;
+  }
+
+  const sorted = [...values].sort(
+    (a, b) => a - b
+  );
+
+  if (sorted.length === 1) {
+    return 50;
+  }
+
+  const lower = sorted.filter(
+    item => item < value
+  ).length;
+
+  const equal = sorted.filter(
+    item => item === value
+  ).length;
+
+  if (
+    lower === 0 &&
+    equal === sorted.length
+  ) {
+    return 50;
+  }
+
+  const percentile =
+    ((lower + (equal - 1) / 2) /
+      (sorted.length - 1)) *
+    100;
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(percentile)
+    )
+  );
+};
+
+const buildRadarStats = (
+  player,
+  players
+) => {
+  const definition =
+    radarDefinitions[player.category] ||
+    radarDefinitions.STRIKERS;
+
+  const labels = [];
+  const values = [];
+
+  const positionPlayers = players.filter(
+    candidate =>
+      candidate.category ===
+        player.category &&
+      toNumber(candidate.minutes) > 0
+  );
+
+  const referencePlayers =
+    positionPlayers.length
+      ? positionPlayers
+      : players.filter(
+          candidate =>
+            candidate.category ===
+            player.category
+        );
+
+  for (const item of definition) {
+    const current = getRadarRawValue(
+      player,
+      item.key
+    );
+
+    const available = referencePlayers
+      .map(candidate =>
+        getRadarRawValue(
+          candidate,
+          item.key
+        )
+      )
+      .filter(value => value !== null);
+
+    if (
+      current === null ||
+      !available.length
+    ) {
+      continue;
+    }
+
+    const percentile =
+      percentileRank(
+        current,
+        available
       );
 
-    const raw =
-      localStorage.getItem(
+    if (percentile === null) {
+      continue;
+    }
+
+    labels.push(item.label);
+    values.push(percentile);
+  }
+
+  return {
+    labels,
+    values,
+  };
+};
+
+const buildRadarPercentiles = (
+  player,
+  players
+) => {
+  const positionPlayers = players.filter(
+    candidate =>
+      candidate.category ===
+        player.category &&
+      toNumber(candidate.minutes) > 0
+  );
+
+  const referencePlayers =
+    positionPlayers.length
+      ? positionPlayers
+      : players.filter(
+          candidate =>
+            candidate.category ===
+            player.category
+        );
+
+  const keys = [
+    ...new Set(
+      Object.values(radarDefinitions)
+        .flat()
+        .map(item => item.key)
+    ),
+  ];
+
+  const result = {};
+
+  for (const key of keys) {
+    const current =
+      getRadarRawValue(
+        player,
         key
       );
 
-    if (!raw) {
-      return null;
+    if (current === null) {
+      continue;
     }
 
-    const parsed =
-      JSON.parse(raw);
+    const available =
+      referencePlayers
+        .map(candidate =>
+          getRadarRawValue(
+            candidate,
+            key
+          )
+        )
+        .filter(
+          value => value !== null
+        );
 
-    if (
-      !parsed ||
-      !Array.isArray(
-        parsed.players
-      )
-    ) {
-      return null;
+    if (!available.length) {
+      continue;
     }
 
-    if (
-      Date.now() -
-        parsed.timestamp >
-      CACHE_TTL
-    ) {
-      return null;
-    }
+    result[key] =
+      percentileRank(
+        current,
+        available
+      );
+  }
 
-    return parsed.players;
-  } catch {
+  return result;
+};
+
+const buildFormMetrics = player => [
+  {
+    label: "Punkti",
+    value: toNumber(player.points),
+  },
+  {
+    label: "Vārti",
+    value: toNumber(player.goals),
+  },
+  {
+    label: "Assist",
+    value: toNumber(player.assists),
+  },
+  {
+    label: "Spēles",
+    value: toNumber(player.appearances),
+  },
+];
+
+const createPlayer = (
+  item,
+  season,
+  competition
+) => {
+  const player = item?.player || {};
+
+  const aggregated =
+    aggregatePlayerStats(
+      item?.statistics
+    );
+
+  const category =
+    getPositionCategory(
+      aggregated.position ||
+        player.position
+    );
+
+  if (
+    !category ||
+    player.id === null ||
+    player.id === undefined
+  ) {
     return null;
   }
-}
 
-function writeCache(
+  const penaltyGoals =
+    category === "MIDFIELDERS" ||
+    category === "STRIKERS"
+      ? aggregated.penaltyGoals
+      : null;
+
+  const points =
+    calculateFantasyPoints({
+      category,
+      goals: aggregated.goals,
+      assists: aggregated.assists,
+      penalties:
+        penaltyGoals || 0,
+    });
+
+  const advancedStats =
+    buildAdvancedStats(
+      aggregated
+    );
+
+  return {
+    id: player.id,
+
+    name:
+      player.name ||
+      "Nezināms spēlētājs",
+
+    teamId:
+      aggregated.teamId,
+
+    team:
+      aggregated.team ||
+      "Nezināms klubs",
+
+    position:
+      aggregated.position ||
+      player.position ||
+      "Unknown",
+
+    positionLabel:
+      getPositionLabel(category),
+
+    category,
+
+    appearances:
+      aggregated.appearances,
+
+    minutes:
+      aggregated.minutes,
+
+    goals:
+      aggregated.goals,
+
+    assists:
+      aggregated.assists,
+
+    penalties:
+      penaltyGoals,
+
+    points,
+
+    photo:
+      player.photo || null,
+
+    nationality:
+      player.nationality || null,
+
+    injured:
+      Boolean(player.injured),
+
+    age:
+      player.age ?? null,
+
+    height:
+      player.height || null,
+
+    weight:
+      player.weight || null,
+
+    birthDate:
+      player.birth?.date || null,
+
+    birthPlace:
+      player.birth?.place || null,
+
+    birthCountry:
+      player.birth?.country || null,
+
+    number:
+      player.number ?? null,
+
+    teamLogo:
+      aggregated.teamLogo || null,
+
+    advancedStats: {
+      ...advancedStats,
+      penaltyGoals,
+    },
+
+    realStats: {
+      appearances:
+        aggregated.appearances,
+
+      minutes:
+        aggregated.minutes,
+
+      goals:
+        aggregated.goals,
+
+      assists:
+        aggregated.assists,
+
+      penalties:
+        penaltyGoals,
+
+      yellowCards:
+        aggregated.yellowCards,
+
+      redCards:
+        aggregated.redCards,
+    },
+
+    customStats: {},
+    formMetrics: [],
+    recentForm: [],
+    league: competition,
+    season: String(season),
+  };
+};
+
+const requestApiFootball = async (
   competition,
-  season,
-  players
-) {
-  try {
-    const key =
-      getCacheKey(
-        competition,
-        season
-      );
-
-    localStorage.setItem(
-      key,
-      JSON.stringify({
-        timestamp:
-          Date.now(),
-
-        players,
-      })
-    );
-  } catch (error) {
-    console.warn(
-      "Flow cache write error:",
-      error
-    );
-  }
-}
-
-// ============================================================
-// FETCH PLAYERS
-// ============================================================
-
-export async function fetchApiSportsPlayers(
-  competition = "PL",
-  season = 2026,
-  options = {}
-) {
-  const normalizedCompetition =
-    normalizeCompetition(
+  season
+) => {
+  const leagueId =
+    API_FOOTBALL_LEAGUES[
       competition
-    );
+    ];
 
-  if (!normalizedCompetition) {
+  if (!leagueId) {
     throw new Error(
-      "Neatbalsta līga."
+      "Izvēlētajai līgai nav API-Football ID."
     );
   }
 
-  const apiSeason =
-    seasonToApiSeason(
+  const response = await fetch(
+    `${BASE_URL}/api-football.php?competition=${encodeURIComponent(
+      competition
+    )}&season=${encodeURIComponent(
       season
-    );
-
-  const forceRefresh =
-    options.forceRefresh === true;
-
-  // ----------------------------------------------------------
-  // CACHE
-  // ----------------------------------------------------------
-
-  if (!forceRefresh) {
-    const cached =
-      readCache(
-        normalizedCompetition,
-        apiSeason
-      );
-
-    if (
-      Array.isArray(cached) &&
-      cached.length > 0
-    ) {
-      console.log(
-        "Flow: using cached API-Football data",
-        {
-          competition:
-            normalizedCompetition,
-
-          season:
-            apiSeason,
-
-          count:
-            cached.length,
-        }
-      );
-
-      return cached;
-    }
-  }
-
-  // ----------------------------------------------------------
-  // API URL
-  // ----------------------------------------------------------
-
-  const url =
-    `${BASE_URL}/api-football.php` +
-    `?competition=${encodeURIComponent(
-      normalizedCompetition
-    )}` +
-    `&season=${encodeURIComponent(
-      apiSeason
-    )}`;
-
-  console.log(
-    "Flow API-Football request:",
-    url
-  );
-
-  let response;
-
-  try {
-    response =
-      await fetch(
-        url,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-
-          cache:
-            "no-store",
-        }
-      );
-  } catch (error) {
-    console.error(
-      "Flow API-Football network error:",
-      error
-    );
-
-    throw new Error(
-      "Neizdevās savienoties ar Flow backend."
-    );
-  }
-
-  let data;
-
-  try {
-    data =
-      await response.json();
-  } catch {
-    throw new Error(
-      "Backend neatgrieza derīgu JSON atbildi."
-    );
-  }
-
-  console.log(
-    "Flow API-Football response:",
+    )}`,
     {
-      status:
-        response.status,
-
-      success:
-        data?.success,
-
-      source:
-        data?.source,
-
-      competition:
-        data?.competition,
-
-      season:
-        data?.season,
-
-      count:
-        data?.count,
-
-      players:
-        Array.isArray(
-          data?.players
-        )
-          ? data.players.length
-          : null,
-
-      firstPlayer:
-        data?.players?.[0] ||
-        null,
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
     }
   );
 
-  // ----------------------------------------------------------
-  // ERROR
-  // ----------------------------------------------------------
+  let data = null;
 
-  if (!response.ok) {
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (
+    !response.ok ||
+    data?.success === false
+  ) {
     throw new Error(
-      data?.message ||
-        data?.error ||
+      data?.error ||
         `API-Football kļūda: ${response.status}`
     );
   }
 
   if (
-    data?.success === false
+    !Array.isArray(data?.players)
   ) {
     throw new Error(
-      data?.message ||
-        data?.error ||
-        "API-Football atgrieza kļūdu."
+      "API-Football neatgrieza spēlētāju statistiku."
     );
   }
 
-  // ----------------------------------------------------------
-  // RAW PLAYERS
-  // ----------------------------------------------------------
+  return {
+    ...data,
+    leagueId,
+  };
+};
 
-  let rawPlayers = [];
-
-  if (
-    Array.isArray(
-      data?.players
-    )
-  ) {
-    rawPlayers =
-      data.players;
-  } else if (
-    Array.isArray(
-      data?.response
-    )
-  ) {
-    rawPlayers =
-      data.response;
-  } else if (
-    Array.isArray(data)
-  ) {
-    rawPlayers =
-      data;
-  }
-
-  if (
-    rawPlayers.length === 0
-  ) {
-    throw new Error(
-      "Šai līgai un sezonai nav pieejamu spēlētāju datu."
-    );
-  }
-
-  // ----------------------------------------------------------
-  // CONVERT
-  // ----------------------------------------------------------
-
-  const players =
-    rawPlayers
-      .map(
-        (item, index) =>
-          convertPlayer(
-            item,
-            index
-          )
-      )
-      .filter(Boolean);
-
-  console.log(
-    "Flow converted players:",
-    {
-      raw:
-        rawPlayers.length,
-
-      converted:
-        players.length,
-
-      goalkeepers:
-        players.filter(
-          p =>
-            p.category ===
-            "GOALKEEPERS"
-        ).length,
-
-      defenders:
-        players.filter(
-          p =>
-            p.category ===
-            "DEFENDERS"
-        ).length,
-
-      midfielders:
-        players.filter(
-          p =>
-            p.category ===
-            "MIDFIELDERS"
-        ).length,
-
-      strikers:
-        players.filter(
-          p =>
-            p.category ===
-            "STRIKERS"
-        ).length,
+export const seasonToApiSeason =
+  season => {
+    if (typeof season === "number") {
+      return season;
     }
-  );
 
-  if (
-    players.length === 0
-  ) {
-    throw new Error(
-      "API atgrieza spēlētājus, bet tos nevarēja pārveidot par Flow spēlētājiem."
-    );
-  }
+    const match =
+      String(season).match(
+        /^(\d{4})/
+      );
 
-  // ----------------------------------------------------------
-  // REMOVE DUPLICATES
-  // ----------------------------------------------------------
+    return match
+      ? Number(match[1])
+      : new Date().getFullYear();
+  };
 
-  const uniquePlayers =
-    Array.from(
-      new Map(
-        players.map(
-          player => [
-            player.id,
-            player,
-          ]
-        )
-      ).values()
-    );
+export const fetchApiSportsPlayers =
+  async (
+    leagueId = "PL",
+    season = 2026,
+    options = {}
+  ) => {
+    const competition =
+      COMPETITION_IDS[leagueId] ||
+      leagueId;
 
-  // ----------------------------------------------------------
-  // FINAL DATA
-  // ----------------------------------------------------------
+    const apiSeason =
+      seasonToApiSeason(season);
 
-  const finalPlayers =
-    uniquePlayers.map(
-      player => ({
-        ...player,
+    const cacheKey =
+      `${competition}_${apiSeason}`;
 
-        league:
-          normalizedCompetition,
-
-        season:
-          String(apiSeason),
-      })
-    );
-
-  // ----------------------------------------------------------
-  // CACHE
-  // ----------------------------------------------------------
-
-  writeCache(
-    normalizedCompetition,
-    apiSeason,
-    finalPlayers
-  );
-
-  return finalPlayers;
-}
-
-// ============================================================
-// STANDINGS
-// ============================================================
-
-export async function fetchCompetitionStandings(
-  competition = "PL",
-  season = 2026
-) {
-  return [];
-}
-
-// ============================================================
-// FDR
-// ============================================================
-
-export async function getTeamFdr(
-  teamId,
-  competition,
-  season
-) {
-  return 3;
-}
-
-// ============================================================
-// CLEAR CACHE
-// ============================================================
-
-export function clearFootballDataCache() {
-  try {
-    const keys = [];
-
-    for (
-      let i = 0;
-      i < localStorage.length;
-      i++
-    ) {
-      const key =
-        localStorage.key(i);
-
-      if (!key) {
-        continue;
-      }
+    if (!options.forceRefresh) {
+      const cached =
+        getCache(cacheKey);
 
       if (
-        key.startsWith(
-          "flow_api_football_"
-        ) ||
-        key.startsWith(
-          "flow_api_football_v"
-        ) ||
-        key.startsWith(
-          "players_"
-        ) ||
-        key.startsWith(
-          "flow_football_data_"
-        )
+        Array.isArray(cached) &&
+        cached.length
       ) {
-        keys.push(key);
+        options.onProgress?.({
+          current: 1,
+          total: 1,
+          cached: true,
+        });
+
+        return cached;
       }
     }
 
-    keys.forEach(
-      key =>
-        localStorage.removeItem(
-          key
+    options.onProgress?.({
+      current: 0,
+      total: 1,
+    });
+
+    const data =
+      await requestApiFootball(
+        competition,
+        apiSeason
+      );
+
+    const players =
+      (data.players || [])
+        .map(item =>
+          createPlayer(
+            item,
+            apiSeason,
+            competition
+          )
         )
+        .filter(Boolean);
+
+    if (!players.length) {
+      throw new Error(
+        "Šai līgai un sezonai nav pieejamu spēlētāju datu."
+      );
+    }
+
+    const enriched =
+      players.map(player => ({
+        ...player,
+
+        customStats:
+          buildRadarStats(
+            player,
+            players
+          ),
+
+        radarPercentiles:
+          buildRadarPercentiles(
+            player,
+            players
+          ),
+
+        formMetrics:
+          buildFormMetrics(
+            player
+          ),
+      }));
+
+    setCache(
+      cacheKey,
+      enriched
     );
 
-    console.log(
-      `Flow: cleared ${keys.length} cache entries.`
-    );
-  } catch (error) {
-    console.warn(
-      "Flow cache clear error:",
-      error
-    );
-  }
-}
+    options.onProgress?.({
+      current: 1,
+      total: 1,
+      cached: false,
+    });
 
-// ============================================================
-// DEFAULT EXPORT
-// ============================================================
+    return enriched;
+  };
 
-export default {
-  COMPETITION_IDS,
-  seasonToApiSeason,
-  fetchApiSportsPlayers,
-  fetchCompetitionStandings,
-  getTeamFdr,
-  clearFootballDataCache,
-};
+export const fetchPlayerProfile =
+  async (
+    playerId,
+    season = 2026
+  ) => {
+    const id = Number(playerId);
+
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      throw new Error(
+        "Nederīgs spēlētāja ID."
+      );
+    }
+
+    const apiSeason =
+      seasonToApiSeason(season);
+
+    const cacheKey =
+      `profile_${id}_${apiSeason}`;
+
+    if (
+      typeof localStorage !==
+      "undefined"
+    ) {
+      const cached =
+        getAnyCache(cacheKey);
+
+      if (
+        cached &&
+        !Array.isArray(cached)
+      ) {
+        return cached;
+      }
+    }
+
+    const response =
+      await fetch(
+        `${BASE_URL}/player-details.php?player=${encodeURIComponent(
+          id
+        )}&season=${encodeURIComponent(
+          apiSeason
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+    let data = null;
+
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (
+      !response.ok ||
+      data?.success === false
+    ) {
+      throw new Error(
+        data?.error ||
+          `Spēlētāja profila API kļūda: ${response.status}`
+      );
+    }
+
+    try {
+      localStorage.setItem(
+        `${CACHE_PREFIX}${cacheKey}`,
+        JSON.stringify({
+          timestamp:
+            Date.now(),
+          data,
+        })
+      );
+    } catch {
+      // Ignore cache errors.
+    }
+
+    return data;
+  };
+
+const fetchFootballData =
+  async (
+    competition,
+    season
+  ) => {
+    const response =
+      await fetch(
+        `${BASE_URL}/football.php?competition=${encodeURIComponent(
+          competition
+        )}&season=${encodeURIComponent(
+          season
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+    let data = null;
+
+    try {
+      data =
+        await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (
+      !response.ok ||
+      data?.success === false
+    ) {
+      throw new Error(
+        data?.error ||
+          `football-data.org kļūda: ${response.status}`
+      );
+    }
+
+    return data;
+  };
+
+export const fetchCompetitionStandings =
+  async (
+    competition = "PL",
+    season = 2026
+  ) => {
+    const apiSeason =
+      seasonToApiSeason(season);
+
+    const cacheKey =
+      `standings_${competition}_${apiSeason}`;
+
+    if (
+      typeof localStorage !==
+      "undefined"
+    ) {
+      const cached =
+        getAnyCache(cacheKey);
+
+      if (
+        cached &&
+        Array.isArray(cached)
+      ) {
+        return cached;
+      }
+    }
+
+    const data =
+      await fetchFootballData(
+        COMPETITION_IDS[
+          competition
+        ] || competition,
+        apiSeason
+      );
+
+    const standings =
+      Array.isArray(
+        data?.standings
+      )
+        ? data.standings
+        : [];
+
+    setCache(
+      cacheKey,
+      standings
+    );
+
+    return standings;
+  };
+
+export const getTeamFdr =
+  async (
+    teamId,
+    competition = "PL",
+    season = 2026
+  ) => {
+    const numericTeamId =
+      Number(teamId);
+
+    if (
+      !Number.isInteger(
+        numericTeamId
+      ) ||
+      numericTeamId <= 0
+    ) {
+      return 3;
+    }
+
+    const apiSeason =
+      seasonToApiSeason(season);
+
+    const normalizedCompetition =
+      COMPETITION_IDS[
+        competition
+      ] || competition;
+
+    const cacheKey =
+      `fdr_${normalizedCompetition}_${apiSeason}_${numericTeamId}`;
+
+    if (
+      typeof localStorage !==
+      "undefined"
+    ) {
+      const cached =
+        getAnyCache(cacheKey);
+
+      if (
+        cached &&
+        Number.isFinite(
+          Number(cached.fdr)
+        )
+      ) {
+        return Number(
+          cached.fdr
+        );
+      }
+    }
+
+    const response =
+      await fetch(
+        `${BASE_URL}/api-football.php?mode=fdr&competition=${encodeURIComponent(
+          normalizedCompetition
+        )}&season=${encodeURIComponent(
+          apiSeason
+        )}&team=${encodeURIComponent(
+          numericTeamId
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+    let data = null;
+
+    try {
+      data =
+        await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (
+      !response.ok ||
+      data?.success === false
+    ) {
+      throw new Error(
+        data?.error ||
+          `FDR API kļūda: ${response.status}`
+      );
+    }
+
+    const fdr =
+      Number(data?.fdr);
+
+    const safeFdr =
+      Number.isFinite(fdr)
+        ? Math.max(
+            1,
+            Math.min(5, fdr)
+          )
+        : 3;
+
+    setCache(cacheKey, {
+      fdr: safeFdr,
+      fixtures:
+        data?.fixtures || [],
+    });
+
+    return safeFdr;
+  };
+
+export const clearFootballDataCache =
+  () => {
+    try {
+      Object.keys(
+        localStorage
+      )
+        .filter(key =>
+          key.startsWith(
+            CACHE_PREFIX
+          )
+        )
+        .forEach(key =>
+          localStorage.removeItem(
+            key
+          )
+        );
+    } catch {
+      // Ignore cache errors.
+    }
+  };
+
+export const getPositionName =
+  category =>
+    POSITION_LABELS[category] ||
+    category;

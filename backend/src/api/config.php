@@ -2,37 +2,29 @@
 
 declare(strict_types=1);
 
-/*
-|--------------------------------------------------------------------------
-| Environment loader
-|--------------------------------------------------------------------------
-*/
+/**
+ * Backend configuration.
+ *
+ * API keys are loaded from environment variables.
+ * Never place real API keys directly in this file.
+ */
 
-function loadEnvFile(string $file): array
+function loadEnvFile(string $file): void
 {
-    if (!file_exists($file)) {
-        return [];
+    if (!is_file($file)) {
+        return;
     }
 
-    $lines = file(
-        $file,
-        FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES
-    );
+    $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-    if (!is_array($lines)) {
-        return [];
+    if ($lines === false) {
+        return;
     }
-
-    $values = [];
 
     foreach ($lines as $line) {
         $line = trim($line);
 
-        if ($line === '') {
-            continue;
-        }
-
-        if (str_starts_with($line, '#')) {
+        if ($line === '' || str_starts_with($line, '#')) {
             continue;
         }
 
@@ -40,98 +32,45 @@ function loadEnvFile(string $file): array
             continue;
         }
 
-        [$key, $value] = explode('=', $line, 2);
+        [$name, $value] = explode('=', $line, 2);
 
-        $key = trim($key);
+        $name = trim($name);
         $value = trim($value);
 
-        /*
-         * Remove surrounding quotes if present.
-         */
         if (
             strlen($value) >= 2 &&
             (
-                (
-                    $value[0] === '"' &&
-                    $value[strlen($value) - 1] === '"'
-                ) ||
-                (
-                    $value[0] === "'" &&
-                    $value[strlen($value) - 1] === "'"
-                )
+                ($value[0] === '"' && $value[strlen($value) - 1] === '"') ||
+                ($value[0] === "'" && $value[strlen($value) - 1] === "'")
             )
         ) {
-            $value = substr(
-                $value,
-                1,
-                -1
-            );
+            $value = substr($value, 1, -1);
         }
 
-        $values[$key] = $value;
+        if ($name !== '' && getenv($name) === false) {
+            putenv($name . '=' . $value);
+        }
     }
-
-    return $values;
 }
 
+$projectRoot = dirname(__DIR__, 2);
+$envFile = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 
-/*
-|--------------------------------------------------------------------------
-| Find backend/.env
-|--------------------------------------------------------------------------
-*/
-
-$envPath = dirname(
-    __DIR__,
-    2
-) . DIRECTORY_SEPARATOR . '.env';
-
-$env = loadEnvFile($envPath);
-
-
-/*
-|--------------------------------------------------------------------------
-| Football-data.org
-|--------------------------------------------------------------------------
-*/
-
-$footballDataToken =
-    $env['FOOTBALL_DATA_API_TOKEN']
-    ?? getenv('FOOTBALL_DATA_API_TOKEN')
-    ?? '';
-
-
-/*
-|--------------------------------------------------------------------------
-| API-Football
-|--------------------------------------------------------------------------
-*/
-
-$apiFootballKey =
-    $env['API_FOOTBALL_KEY']
-    ?? getenv('API_FOOTBALL_KEY')
-    ?? '';
-
-
-/*
-|--------------------------------------------------------------------------
-| Constants
-|--------------------------------------------------------------------------
-*/
+loadEnvFile($envFile);
 
 define(
     'FOOTBALL_DATA_API_TOKEN',
-    trim((string) $footballDataToken)
-);
-
-define(
-    'FOOTBALL_DATA_API_BASE_URL',
-    'https://api.football-data.org/v4'
+    (string) (getenv('FOOTBALL_DATA_API_TOKEN') ?: '')
 );
 
 define(
     'API_FOOTBALL_KEY',
-    trim((string) $apiFootballKey)
+    (string) (getenv('API_FOOTBALL_KEY') ?: '')
+);
+
+define(
+    'FOOTBALL_DATA_BASE_URL',
+    'https://api.football-data.org/v4'
 );
 
 define(

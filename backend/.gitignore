@@ -1,15 +1,27 @@
 # Environment variables
 .env
-.env.local
-.env.*.local
+backend/.env
 
-# PHP
-vendor/
+# Dependencies
+node_modules/
 
-# Operating system
-.DS_Store
-Thumbs.db
+# Production/build files
+dist/
+build/
 
-# IDE
+# Backend cache
+backend/cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE settings
 .vscode/
 .idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db

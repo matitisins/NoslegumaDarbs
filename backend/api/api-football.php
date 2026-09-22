@@ -2,522 +2,338 @@
 
 declare(strict_types=1);
 
-header("Content-Type: application/json; charset=utf-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, X-Requested-With");
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-if ($_SERVER["REQUEST_METHOD"] !== "GET") {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     http_response_code(405);
-
-    echo json_encode([
-        "success" => false,
-        "error" => "Atļauts tikai GET pieprasījums.",
-    ], JSON_UNESCAPED_UNICODE);
-
+    echo json_encode(['success' => false, 'error' => 'Only GET requests are allowed.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-require_once __DIR__ . "/../src/api/config.php";
+require_once __DIR__ . '/../src/api/config.php';
 
-if (
-    !defined("API_FOOTBALL_KEY") ||
-    trim((string) API_FOOTBALL_KEY) === ""
-) {
+if (API_FOOTBALL_KEY === '') {
     http_response_code(500);
-
-    echo json_encode([
-        "success" => false,
-        "error" => "API_FOOTBALL_KEY nav ievietots backend/.env.",
-    ], JSON_UNESCAPED_UNICODE);
-
+    echo json_encode(['success' => false, 'error' => 'API-Football API key is missing from backend/.env.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-$leagueMap = [
-    "PL" => 39,
-    "PD" => 140,
-    "SA" => 135,
-    "BL1" => 78,
-    "FL1" => 61,
+$competition = strtoupper(trim((string)($_GET['competition'] ?? 'PL')));
+$season = (int)($_GET['season'] ?? 2026);
+$mode = strtolower(trim((string)($_GET['mode'] ?? 'players')));
+$teamId = (int)($_GET['team'] ?? 0);
+
+$competitions = [
+    'PL' => ['id' => 39, 'name' => 'Premier League'],
+    'PD' => ['id' => 140, 'name' => 'La Liga'],
+    'SA' => ['id' => 135, 'name' => 'Serie A'],
+    'BL1' => ['id' => 78, 'name' => 'Bundesliga'],
+    'FL1' => ['id' => 61, 'name' => 'Ligue 1'],
 ];
 
-$competition = strtoupper(
-    trim($_GET["competition"] ?? "PL")
-);
-
-$season = trim(
-    $_GET["season"] ?? "2026"
-);
-
-if (!isset($leagueMap[$competition])) {
+if (!isset($competitions[$competition])) {
     http_response_code(400);
-
-    echo json_encode([
-        "success" => false,
-        "error" => "Neatbalstīta līga.",
-    ], JSON_UNESCAPED_UNICODE);
-
+    echo json_encode(['success' => false, 'error' => 'Unsupported league.', 'competition' => $competition], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-if (!preg_match("/^\d{4}$/", $season)) {
+if ($season < 2000 || $season > 2100) {
     http_response_code(400);
-
-    echo json_encode([
-        "success" => false,
-        "error" => "Sezonai jābūt četrciparu gadam.",
-    ], JSON_UNESCAPED_UNICODE);
-
+    echo json_encode(['success' => false, 'error' => 'Invalid season.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-$leagueId = $leagueMap[$competition];
+$leagueId = $competitions[$competition]['id'];
+$leagueName = $competitions[$competition]['name'];
+$cacheDirectory = __DIR__ . '/../cache';
 
-$baseUrl = defined("API_FOOTBALL_BASE_URL")
-    ? rtrim(API_FOOTBALL_BASE_URL, "/")
-    : "https://v3.football.api-sports.io";
-
-$cacheDir = __DIR__ . "/../cache";
-
-if (!is_dir($cacheDir)) {
-    @mkdir($cacheDir, 0775, true);
+if (!is_dir($cacheDirectory)) {
+    @mkdir($cacheDirectory, 0775, true);
 }
 
-$cacheFile = $cacheDir .
-    "/api_football_" .
-    strtolower($competition) .
-    "_" .
-    $season .
-    ".json";
+function apiFootballRequest(string $endpoint, array $params): array
+{
+    $baseUrl = rtrim(API_FOOTBALL_BASE_URL, '/');
+    $url = $baseUrl . '/' . ltrim($endpoint, '/') . '?' . http_build_query($params);
 
-$cacheLifetime = 6 * 60 * 60;
+    $curl = curl_init($url);
 
-function apiFootballRequest(
-    string $url
-): array {
-    $ch = curl_init($url);
+    if ($curl === false) {
+        return ['success' => false, 'httpCode' => 0, 'error' => 'Unable to initialize cURL.', 'response' => null];
+    }
 
-    curl_setopt_array($ch, [
+    curl_setopt_array($curl, [
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 60,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_HTTPHEADER => [
-            "x-apisports-key: " . API_FOOTBALL_KEY,
-            "Accept: application/json",
+            'x-apisports-key: ' . API_FOOTBALL_KEY,
+            'Accept: application/json',
         ],
-        CURLOPT_USERAGENT => "Flow Football Analytics",
     ]);
 
-    $body = curl_exec($ch);
-    $error = curl_error($ch);
-    $status = (int) curl_getinfo(
-        $ch,
-        CURLINFO_HTTP_CODE
-    );
-
-    curl_close($ch);
+    $body = curl_exec($curl);
+    $curlError = curl_error($curl);
+    $httpCode = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
 
     if ($body === false) {
-        throw new RuntimeException(
-            $error ?: "Nezināma API-Football cURL kļūda."
-        );
+        return ['success' => false, 'httpCode' => $httpCode, 'error' => $curlError ?: 'Unknown cURL error.', 'response' => null];
     }
 
-    return [
-        "status" => $status,
-        "body" => $body,
-    ];
+    $json = json_decode($body, true);
+
+    if (!is_array($json)) {
+        return ['success' => false, 'httpCode' => $httpCode, 'error' => 'API-Football returned invalid JSON.', 'response' => null];
+    }
+
+    $errors = $json['errors'] ?? [];
+    $hasErrors = is_array($errors) && count($errors) > 0;
+
+    if ($httpCode < 200 || $httpCode >= 300 || $hasErrors) {
+        $errorText = '';
+        if (is_array($errors)) {
+            $parts = [];
+            foreach ($errors as $value) {
+                $parts[] = is_scalar($value) ? (string)$value : json_encode($value, JSON_UNESCAPED_UNICODE);
+            }
+            $errorText = implode(' | ', $parts);
+        } else {
+            $errorText = (string)$errors;
+        }
+
+        return [
+            'success' => false,
+            'httpCode' => $httpCode,
+            'error' => $errorText !== '' ? $errorText : 'API-Football HTTP ' . $httpCode,
+            'response' => $json,
+        ];
+    }
+
+    return ['success' => true, 'httpCode' => $httpCode, 'error' => null, 'response' => $json];
 }
 
-function apiError(
-    int $status,
-    string $message
-): never {
+function sendApiError(int $status, string $message): never
+{
     http_response_code($status);
-
-    echo json_encode([
-        "success" => false,
-        "error" => $message,
-    ], JSON_UNESCAPED_UNICODE);
-
+    echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-function getNumber(
-    mixed $value
-): ?float {
-    if ($value === null || $value === "") {
-        return null;
+/*
+|--------------------------------------------------------------------------
+| Real fixture difficulty mode
+|--------------------------------------------------------------------------
+|
+| Uses API-Football standings + the team's next five fixtures.
+| Each opponent receives a difficulty from its league position:
+| 1-4 = 5, 5-8 = 4, 9-12 = 3, 13-16 = 2, 17-20 = 1.
+| The returned FDR is the average of the available opponent ratings.
+|--------------------------------------------------------------------------
+*/
+if ($mode === 'fdr') {
+    if ($teamId <= 0) {
+        sendApiError(400, 'A team ID is required for FDR calculation.');
     }
 
-    if (!is_numeric($value)) {
-        return null;
-    }
+    $cacheFile = $cacheDirectory . '/fdr-' . $competition . '-' . $season . '-' . $teamId . '.json';
+    $cacheLifetime = 15 * 60;
 
-    return (float) $value;
-}
-
-function getInt(
-    mixed $value
-): ?int {
-    $number = getNumber($value);
-
-    if ($number === null) {
-        return null;
-    }
-
-    return (int) round($number);
-}
-
-function cleanPlayerStats(
-    array $player
-): array {
-    $stats = $player["statistics"] ?? [];
-
-    if (!is_array($stats)) {
-        $stats = [];
-    }
-
-    return [
-        "id" => $player["player"]["id"] ?? null,
-
-        "name" =>
-            $player["player"]["name"] ??
-            null,
-
-        "age" =>
-            $player["player"]["age"] ??
-            null,
-
-        "nationality" =>
-            $player["player"]["nationality"] ??
-            null,
-
-        "photo" =>
-            $player["player"]["photo"] ??
-            null,
-
-        "injured" =>
-            $player["player"]["injured"] ??
-            false,
-
-        "statistics" => $stats,
-    ];
-}
-
-try {
-    /*
-     * Check that the league and season exist
-     * and that player data is available.
-     */
-    $leagueUrl =
-        $baseUrl .
-        "/leagues?id=" .
-        rawurlencode((string) $leagueId) .
-        "&season=" .
-        rawurlencode($season);
-
-    $leagueResult =
-        apiFootballRequest($leagueUrl);
-
-    if ($leagueResult["status"] === 401) {
-        apiError(
-            401,
-            "API-Football noraidīja API atslēgu (401). Pārbaudi API_FOOTBALL_KEY."
-        );
-    }
-
-    if ($leagueResult["status"] === 403) {
-        apiError(
-            403,
-            "API-Football neatļauj šo pieprasījumu (403)."
-        );
-    }
-
-    if ($leagueResult["status"] === 429) {
-        apiError(
-            429,
-            "API-Football request limits ir sasniegts (429)."
-        );
-    }
-
-    if (
-        $leagueResult["status"] < 200 ||
-        $leagueResult["status"] >= 300
-    ) {
-        apiError(
-            502,
-            "API-Football atgrieza HTTP " .
-            $leagueResult["status"] .
-            "."
-        );
-    }
-
-    $leagueData = json_decode(
-        $leagueResult["body"],
-        true
-    );
-
-    if (!is_array($leagueData)) {
-        apiError(
-            502,
-            "API-Football atgrieza nederīgu league JSON."
-        );
-    }
-
-    if (
-        !empty($leagueData["errors"])
-    ) {
-        apiError(
-            502,
-            "API-Football: " .
-            json_encode(
-                $leagueData["errors"],
-                JSON_UNESCAPED_UNICODE
-            )
-        );
-    }
-
-    $leagueResponse =
-        $leagueData["response"] ?? [];
-
-    if (!is_array($leagueResponse) || !$leagueResponse) {
-        apiError(
-            404,
-            "API-Football neatrada izvēlēto līgu/sezonu."
-        );
-    }
-
-    $seasonInfo =
-        $leagueResponse[0]["seasons"] ?? [];
-
-    $requestedSeason = null;
-
-    foreach ($seasonInfo as $item) {
-        if (
-            (int) ($item["year"] ?? 0) ===
-            (int) $season
-        ) {
-            $requestedSeason = $item;
-            break;
+    if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
+        $cached = json_decode((string)file_get_contents($cacheFile), true);
+        if (is_array($cached)) {
+            $cached['cached'] = true;
+            echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
         }
     }
 
-    if (!$requestedSeason) {
-        apiError(
-            404,
-            "API-Football neatrada sezonu " .
-            $season .
-            " šai līgai."
-        );
+    $standingsResult = apiFootballRequest('standings', [
+        'league' => $leagueId,
+        'season' => $season,
+    ]);
+
+    if (!$standingsResult['success']) {
+        sendApiError($standingsResult['httpCode'] >= 400 ? $standingsResult['httpCode'] : 502, 'Unable to load league standings for FDR.');
     }
 
-    $coverage =
-        $requestedSeason["coverage"] ??
-        [];
-
-    if (
-        isset($coverage["players"]) &&
-        !$coverage["players"]
-    ) {
-        apiError(
-            404,
-            "API-Football šai līgai un sezonai vēl nav pieejami spēlētāju dati."
-        );
+    $table = [];
+    foreach (($standingsResult['response']['response'][0]['league']['standings'][0] ?? []) as $row) {
+        if (!is_array($row)) continue;
+        $id = (int)($row['team']['id'] ?? 0);
+        $position = (int)($row['rank'] ?? 0);
+        if ($id > 0 && $position > 0) {
+            $table[$id] = $position;
+        }
     }
 
-    /*
-     * Return cache if available.
-     */
-    if (
-        file_exists($cacheFile) &&
-        time() -
-            (int) filemtime($cacheFile) <
-            $cacheLifetime
-    ) {
-        $cached =
-            file_get_contents($cacheFile);
+    $fixturesResult = apiFootballRequest('fixtures', [
+        'league' => $leagueId,
+        'season' => $season,
+        'team' => $teamId,
+        'next' => 5,
+    ]);
 
-        if ($cached !== false) {
-            $cachedData =
-                json_decode($cached, true);
+    if (!$fixturesResult['success']) {
+        sendApiError($fixturesResult['httpCode'] >= 400 ? $fixturesResult['httpCode'] : 502, 'Unable to load upcoming fixtures for FDR.');
+    }
 
-            if (
-                is_array($cachedData) &&
-                !empty($cachedData["players"])
-            ) {
-                $cachedData["cached"] = true;
+    $ratings = [];
+    $fixtures = [];
 
-                echo json_encode(
-                    $cachedData,
-                    JSON_UNESCAPED_UNICODE |
-                    JSON_UNESCAPED_SLASHES
-                );
+    foreach (($fixturesResult['response']['response'] ?? []) as $fixture) {
+        if (!is_array($fixture)) continue;
 
+        $homeId = (int)($fixture['teams']['home']['id'] ?? 0);
+        $awayId = (int)($fixture['teams']['away']['id'] ?? 0);
+        $opponentId = $homeId === $teamId ? $awayId : $homeId;
+
+        if ($opponentId <= 0) continue;
+
+        $opponentPosition = $table[$opponentId] ?? null;
+        if ($opponentPosition === null) continue;
+
+        if ($opponentPosition <= 4) {
+            $difficulty = 5;
+        } elseif ($opponentPosition <= 8) {
+            $difficulty = 4;
+        } elseif ($opponentPosition <= 12) {
+            $difficulty = 3;
+        } elseif ($opponentPosition <= 16) {
+            $difficulty = 2;
+        } else {
+            $difficulty = 1;
+        }
+
+        $ratings[] = $difficulty;
+        $fixtures[] = [
+            'opponent' => $homeId === $teamId
+                ? ($fixture['teams']['away']['name'] ?? 'Unknown')
+                : ($fixture['teams']['home']['name'] ?? 'Unknown'),
+            'opponentPosition' => $opponentPosition,
+            'difficulty' => $difficulty,
+            'date' => $fixture['fixture']['date'] ?? null,
+            'home' => $homeId === $teamId,
+        ];
+    }
+
+    $fdr = count($ratings) > 0
+        ? round(array_sum($ratings) / count($ratings), 1)
+        : 3;
+
+    $output = [
+        'success' => true,
+        'source' => 'api-football',
+        'mode' => 'fdr',
+        'competition' => $competition,
+        'season' => $season,
+        'teamId' => $teamId,
+        'fdr' => $fdr,
+        'fixtures' => $fixtures,
+        'cached' => false,
+    ];
+
+    @file_put_contents($cacheFile, json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    echo json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Player data mode
+|--------------------------------------------------------------------------
+*/
+$cacheFile = $cacheDirectory . '/api-football-' . $competition . '-' . $season . '.json';
+$cacheLifetime = 30 * 60;
+
+if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
+    $cached = json_decode((string)file_get_contents($cacheFile), true);
+    if (is_array($cached)) {
+        $cached['cached'] = true;
+        echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+}
+
+$allPlayers = [];
+$maximumPages = 100;
+
+for ($page = 1; $page <= $maximumPages; $page++) {
+    $result = apiFootballRequest('players', [
+        'league' => $leagueId,
+        'season' => $season,
+        'page' => $page,
+    ]);
+
+    if (!$result['success']) {
+        if (is_file($cacheFile)) {
+            $stale = json_decode((string)file_get_contents($cacheFile), true);
+            if (is_array($stale)) {
+                $stale['cached'] = true;
+                $stale['stale'] = true;
+                echo json_encode($stale, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 exit;
             }
         }
+
+        http_response_code($result['httpCode'] >= 400 ? $result['httpCode'] : 502);
+        echo json_encode([
+            'success' => false,
+            'error' => 'API-Football error.',
+            'details' => $result['error'],
+            'httpCode' => $result['httpCode'],
+            'competition' => $competition,
+            'leagueId' => $leagueId,
+            'season' => $season,
+            'endpoint' => 'players',
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
     }
 
-    /*
-     * API-Football returns 20 players per page.
-     * We therefore have to follow pagination.
-     */
-    $allPlayers = [];
+    $data = $result['response'] ?? [];
+    $pagePlayers = $data['response'] ?? [];
 
-    $page = 1;
-
-    $totalPages = 1;
-
-    do {
-        $playersUrl =
-            $baseUrl .
-            "/players?league=" .
-            rawurlencode((string) $leagueId) .
-            "&season=" .
-            rawurlencode($season) .
-            "&page=" .
-            $page;
-
-        $playersResult =
-            apiFootballRequest($playersUrl);
-
-        if ($playersResult["status"] === 401) {
-            apiError(
-                401,
-                "API-Football noraidīja API atslēgu (401)."
-            );
-        }
-
-        if ($playersResult["status"] === 403) {
-            apiError(
-                403,
-                "API-Football neatļauj spēlētāju pieprasījumu (403)."
-            );
-        }
-
-        if ($playersResult["status"] === 429) {
-            apiError(
-                429,
-                "API-Football request limits ir sasniegts (429)."
-            );
-        }
-
-        if (
-            $playersResult["status"] < 200 ||
-            $playersResult["status"] >= 300
-        ) {
-            apiError(
-                502,
-                "API-Football atgrieza HTTP " .
-                $playersResult["status"] .
-                " spēlētāju pieprasījumam."
-            );
-        }
-
-        $playersData =
-            json_decode(
-                $playersResult["body"],
-                true
-            );
-
-        if (!is_array($playersData)) {
-            apiError(
-                502,
-                "API-Football atgrieza nederīgu player JSON."
-            );
-        }
-
-        if (
-            !empty($playersData["errors"])
-        ) {
-            apiError(
-                502,
-                "API-Football: " .
-                json_encode(
-                    $playersData["errors"],
-                    JSON_UNESCAPED_UNICODE
-                )
-            );
-        }
-
-        $pagePlayers =
-            $playersData["response"] ?? [];
-
-        if (is_array($pagePlayers)) {
-            foreach ($pagePlayers as $player) {
-                $allPlayers[] =
-                    cleanPlayerStats($player);
+    if (is_array($pagePlayers)) {
+        foreach ($pagePlayers as $player) {
+            if (is_array($player)) {
+                $allPlayers[] = $player;
             }
         }
-
-        $totalPages =
-            max(
-                1,
-                (int) (
-                    $playersData["paging"]["total"] ??
-                    1
-                )
-            );
-
-        $page++;
-
-        /*
-         * Safety limit.
-         * A normal Premier League season should
-         * stay well below this.
-         */
-        if ($page > 100) {
-            break;
-        }
-
-    } while ($page <= $totalPages);
-
-    if (!$allPlayers) {
-        apiError(
-            404,
-            "API-Football neatgrieza nevienu spēlētāju."
-        );
     }
 
-    $response = [
-        "success" => true,
-        "source" => "api-football",
-        "competition" => $competition,
-        "leagueId" => $leagueId,
-        "season" => (int) $season,
-        "count" => count($allPlayers),
-        "players" => $allPlayers,
-        "coverage" => $coverage,
-        "cached" => false,
-    ];
+    $currentPage = (int)($data['paging']['current'] ?? $page);
+    $totalPages = (int)($data['paging']['total'] ?? $page);
 
-    @file_put_contents(
-        $cacheFile,
-        json_encode(
-            $response,
-            JSON_UNESCAPED_UNICODE |
-            JSON_UNESCAPED_SLASHES
-        )
-    );
-
-    echo json_encode(
-        $response,
-        JSON_UNESCAPED_UNICODE |
-        JSON_UNESCAPED_SLASHES
-    );
-
-} catch (Throwable $e) {
-    apiError(
-        500,
-        "API-Football kļūda: " .
-        $e->getMessage()
-    );
+    if ($currentPage >= $totalPages) {
+        break;
+    }
 }
+
+$output = [
+    'success' => true,
+    'source' => 'api-football',
+    'competition' => $competition,
+    'competitionName' => $leagueName,
+    'leagueId' => $leagueId,
+    'season' => $season,
+    'count' => count($allPlayers),
+    'players' => $allPlayers,
+    'cached' => false,
+];
+
+@file_put_contents($cacheFile, json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+echo json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
