@@ -1,13 +1,12 @@
 <?php
 
-declare(strict_types=1);
-
-/**
- * Backend configuration.
- *
- * API keys are loaded from environment variables.
- * Never place real API keys directly in this file.
+/*
+ * Ielādē projekta vides mainīgos no .env faila un nodrošina API
+ * piekļuves atslēgas un API adrešu konfigurāciju pārējiem backend
+ * failiem.
  */
+
+declare(strict_types=1);
 
 function loadEnvFile(string $file): void
 {

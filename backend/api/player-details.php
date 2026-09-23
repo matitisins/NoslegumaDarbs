@@ -1,5 +1,11 @@
 <?php
 
+/*
+ * Nodrošina konkrēta spēlētāja profila un sezonas statistikas iegūšanu
+ * no API-Football pēc spēlētāja ID un sezonas, kā arī iegūst informāciju
+ * par spēlētāja izcīnītajām trofejām.
+ */
+
 declare(strict_types=1);
 
 header("Content-Type: application/json; charset=utf-8");
@@ -157,7 +163,6 @@ function optionalEndpoint(
                 : [];
         }
     } catch (Throwable $e) {
-        // Optional profile sections must not break the main player profile.
     }
 
     return [];

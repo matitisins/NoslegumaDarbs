@@ -1,3 +1,9 @@
+/*
+ * Nodrošina divu izvēlēto spēlētāju atlasi un attēlošanu salīdzināšanas
+ * sadaļā. Lietotājs var meklēt spēlētājus, izvēlēties tos salīdzināšanai,
+ * atvērt individuālo statistiku un pārvaldīt favorītus.
+ */
+
 import React from "react";
 
 import SearchBox from "../search/SearchBox";

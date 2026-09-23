@@ -1,3 +1,8 @@
+/*
+ * Attēlo kļūdas paziņojumu, ja lietotnē rodas API vai cita datu ielādes
+ * kļūda, un nodrošina iespēju atkārtot pieprasījumu.
+ */
+
 import React from "react";
 
 export default function AppError({

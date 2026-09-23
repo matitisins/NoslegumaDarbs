@@ -1,3 +1,9 @@
+/*
+ * Pārvalda lietotāja favorītu spēlētājus.
+ * Nodrošina favorītu pievienošanu, noņemšanu, pārbaudi un atiestatīšanu,
+ * kā arī saglabā favorītu ID pārlūkprogrammas localStorage.
+ */
+
 import {
   useCallback,
   useMemo,

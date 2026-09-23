@@ -1,3 +1,9 @@
+/*
+ * Attēlo detalizētu spēlētāja profila logu ar galveno un pozīcijai
+ * specifisko statistiku. Nodrošina iespēju pievienot spēlētāju favorītiem,
+ * aizvērt profilu un pievienot spēlētāju salīdzināšanai.
+ */
+
 import React from "react";
 
 function Star({

@@ -2,18 +2,6 @@
 
 declare(strict_types=1);
 
-/**
- * Simple .env loader.
- *
- * Reads:
- *     backend/.env
- *
- * and makes variables available through:
- *     getenv()
- *     $_ENV
- *     $_SERVER
- */
-
 function loadEnvironmentFile(string $filePath): void
 {
     if (!is_file($filePath)) {
@@ -29,17 +17,14 @@ function loadEnvironmentFile(string $filePath): void
     foreach ($lines as $line) {
         $line = trim($line);
 
-        // Ignore empty lines.
         if ($line === '') {
             continue;
         }
 
-        // Ignore comments.
         if (str_starts_with($line, '#')) {
             continue;
         }
 
-        // Find the first "=".
         $separatorPosition = strpos($line, '=');
 
         if ($separatorPosition === false) {
@@ -58,7 +43,6 @@ function loadEnvironmentFile(string $filePath): void
             continue;
         }
 
-        // Remove matching quotes.
         if (
             strlen($value) >= 2 &&
             (
@@ -79,7 +63,6 @@ function loadEnvironmentFile(string $filePath): void
             );
         }
 
-        // Do not overwrite an existing server environment variable.
         if (getenv($name) !== false) {
             continue;
         }
@@ -90,16 +73,6 @@ function loadEnvironmentFile(string $filePath): void
         $_SERVER[$name] = $value;
     }
 }
-
-/**
- * The .env file is two directories above this file:
- *
- * backend/src/api/d.php
- *       ↑
- *       src/api
- *
- * -> backend/.env
- */
 $envFile = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
 
 loadEnvironmentFile($envFile);

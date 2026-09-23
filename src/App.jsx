@@ -1,3 +1,11 @@
+/*
+ * Šis ir Flow lietotnes galvenais komponents, kas pārvalda līgu, sezonu,
+ * spēlētāju kategoriju un divu spēlētāju izvēli. Nodrošina spēlētāju datu
+ * ielādi no API, meklēšanu, favorītus, spēlētāju profilus, FDR, salīdzināšanu,
+ * Captaincy Simulator, konta iestatījumus, ceļvedi un salīdzinājuma
+ * ekrānuzņēmuma saglabāšanu.
+ */
+
 import React, {
   useEffect,
   useRef,

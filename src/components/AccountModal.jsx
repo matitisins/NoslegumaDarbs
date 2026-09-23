@@ -1,3 +1,8 @@
+/*
+ * Nodrošina lietotāja profila logu, kurā var apskatīt un mainīt
+ * lietotājvārdu un profila attēlu, kā arī saglabāt vai atcelt veiktās izmaiņas.
+ */
+
 import React from "react";
 
 const initials = name =>

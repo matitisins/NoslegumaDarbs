@@ -1,3 +1,10 @@
+/*
+ * Attēlo lietotāja ceļvedi par Flow Football Analytics lietošanu,
+ * izskaidrojot galvenos soļus: līgas un spēlētāju kategorijas izvēli,
+ * spēlētāju meklēšanu un statistikas salīdzināšanu, kā arī kapteiņa
+ * simulatora izmantošanu.
+ */
+
 import React, {
   useEffect,
 } from "react";

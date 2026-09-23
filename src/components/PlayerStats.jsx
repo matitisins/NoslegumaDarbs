@@ -1,3 +1,9 @@
+/*
+ * Attēlo spēlētāja galvenos statistikas rādītājus un vizuālās statistikas
+ * joslas, kā arī papildu sezonas informāciju, piemēram, vārtus, rezultatīvās
+ * piespēles, Flow punktus, spēles, soda vārtus un nospēlētās minūtes.
+ */
+
 import React from "react";
 import PlayerStatBar from "./PlayerStatBar";
 

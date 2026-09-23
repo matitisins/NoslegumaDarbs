@@ -1,3 +1,10 @@
+/*
+ * Satur spēlētāju pozīciju klasifikācijas, Flow punktu un statistikas
+ * aprēķināšanas palīgfunkcijas. Normalizē spēlētāju datus no API,
+ * sadala spēlētājus pozīciju kategorijās un sagatavo tos lietotnes
+ * statistikas, formas un salīdzināšanas komponentēm.
+ */
+
 const POSITION_LABELS = {
   GOALKEEPERS: "Vārtsargi",
   DEFENDERS: "Aizsargi",

@@ -1,3 +1,9 @@
+/*
+ * Pārvalda lietotāja konta informāciju, tostarp lietotājvārdu un profila
+ * attēlu. Nodrošina konta atvēršanu, datu saglabāšanu, atiestatīšanu un
+ * profila attēla izvēli, saglabājot informāciju pārlūkprogrammas localStorage.
+ */
+
 import { useState } from "react";
 
 const DEFAULT_AVATAR =

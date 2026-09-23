@@ -1,3 +1,9 @@
+/*
+ * Nodrošina kapteiņa simulatoru diviem izvēlētajiem spēlētājiem,
+ * aprēķinot simulēto fantasy vērtību, ņemot vērā spēlētāja Flow
+ * punktus un FDR, kā arī piemērojot kapteiņa dubulto vērtību.
+ */
+
 import React, { useMemo, useState } from "react";
 
 function number(value) {

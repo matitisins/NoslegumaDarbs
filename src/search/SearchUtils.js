@@ -1,3 +1,9 @@
+/*
+ * Satur palīgfunkcijas spēlētāju meklēšanai un identificēšanai.
+ * Normalizē meklēšanas tekstu, izveido spēlētāju iniciāļus, filtrē spēlētājus
+ * pēc vārda vai kluba un pārbauda, vai divi spēlētāji ir viens un tas pats.
+ */
+
 export const normalizeSearch = value =>
   String(value || "")
     .toLowerCase()

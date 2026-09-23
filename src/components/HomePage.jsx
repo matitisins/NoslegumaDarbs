@@ -1,3 +1,9 @@
+/*
+ * Attēlo Flow lietotnes sākumlapu ar līgas un sezonas izvēli,
+ * pieejamo spēlētāju statistiku, spēlētāju kategorijām un favorītiem.
+ * Nodrošina pāreju uz izvēlētās kategorijas salīdzināšanu un spēlētāju profiliem.
+ */
+
 import React from "react";
 import FavoriteCard from "./FavoriteCard";
 

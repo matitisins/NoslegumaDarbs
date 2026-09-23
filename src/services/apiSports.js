@@ -1,3 +1,12 @@
+/*
+ * Nodrošina Flow lietotnes savienojumu ar backend API un apstrādā
+ * spēlētāju, līgu, sezonu, turnīra tabulas un FDR datus.
+ * Pārveido API-Football statistiku lietotnes spēlētāju datos, aprēķina
+ * Flow punktus un pozīcijām atbilstošus statistikas percentiļus.
+ * Nodrošina datu kešatmiņu, spēlētāju profilu ielādi un API pieprasījumu
+ * apstrādi, lai frontend daļa varētu izmantot iegūtos datus.
+ */
+
 const BASE_URL =
   "http://localhost/Nosleguma_Darbs/Nosleguma_Darbs/backend/api";
 

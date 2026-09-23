@@ -1,3 +1,9 @@
+/*
+ * Pārvalda Flow spēlētāju ielādi, meklēšanu un salīdzināšanu.
+ * Nodrošina spēlētāju kategoriju izvēli, divu spēlētāju atlasi,
+ * API datu ielādi, FDR aprēķina ielādi un salīdzināšanas atiestatīšanu.
+ */
+
 import {
   useCallback,
   useEffect,

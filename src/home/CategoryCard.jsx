@@ -1,3 +1,9 @@
+/*
+ * Attēlo konkrētas spēlētāju kategorijas kartīti sākumlapā.
+ * Parāda kategorijas nosaukumu, aprakstu, spēlētāju skaitu un nodrošina
+ * iespēju atvērt attiecīgās kategorijas spēlētāju salīdzināšanu.
+ */
+
 import React from "react";
 import { CATEGORIES } from "../../config/flow";
 

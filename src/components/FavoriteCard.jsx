@@ -1,3 +1,9 @@
+/*
+ * Attēlo lietotāja saglabāto favorītu spēlētāju.
+ * Parāda spēlētāja vārdu, klubu un Flow punktus, kā arī nodrošina
+ * iespēju atvērt spēlētāja profilu vai noņemt viņu no favorītiem.
+ */
+
 import React from "react";
 
 function Star() {

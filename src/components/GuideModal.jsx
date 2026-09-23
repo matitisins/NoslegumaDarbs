@@ -1,3 +1,9 @@
+/*
+ * Attēlo lietotāja ceļvedi par Flow lietotnes izmantošanu.
+ * Izskaidro līgas, sezonas un spēlētāju kategorijas izvēli,
+ * spēlētāju salīdzināšanu, profilus, favorītus un Captaincy Simulator.
+ */
+
 import React from "react";
 
 export default function GuideModal({ onClose }) {

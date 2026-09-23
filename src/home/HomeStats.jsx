@@ -1,3 +1,9 @@
+/*
+ * Attēlo sākumlapas galveno statistikas kopsavilkumu.
+ * Parāda pieejamo spēlētāju skaitu, platformā pieejamo līgu skaitu
+ * un pašlaik izvēlēto sezonu un līgu.
+ */
+
 import React from "react";
 
 function StatIcon({ type }) {

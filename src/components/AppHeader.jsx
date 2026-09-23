@@ -1,3 +1,9 @@
+/*
+ * Attēlo lietotnes aukšejo daļu ar Flow logotipu, navigācijas pogām,
+ * lietotāja profila informāciju un iespējām atvērt sākumlapu,
+ * lietošanas ceļvedi vai profila iestatījumus.
+ */
+
 import React from "react";
 import Logo from "./Logo";
 

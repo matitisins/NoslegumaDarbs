@@ -1,3 +1,8 @@
+/*
+ * Attēlo lietotnes apakšējo sadaļu ar projekta nosaukumu,
+ * īsu projekta aprakstu un izmantotā datu avota norādi.
+ */
+
 import React from "react";
 
 export default function AppFooter() {

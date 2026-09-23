@@ -1,3 +1,9 @@
+/*
+ * Attēlo divu izvēlēto spēlētāju galveno statistiku tiešai salīdzināšanai,
+ * tostarp spēļu skaitu, vārtus, rezultatīvas piespēles, 11 metru soda sitienu
+ * vārtus, Flow punktus, nospēlētās minūtes un tīrās spēles.
+ */
+
 import React from "react";
 
 function number(value) {

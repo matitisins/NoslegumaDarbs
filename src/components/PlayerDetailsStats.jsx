@@ -1,3 +1,9 @@
+/*
+ * Attēlo spēlētāja individuālās statistikas kopsavilkumu.
+ * Parāda galvenos sezonas statistikas rādītājus, spēlētāja pozīciju,
+ * klubu, sezonu un spēlētāja ID.
+ */
+
 import React from "react";
 
 function value(input) {

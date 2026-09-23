@@ -1,3 +1,9 @@
+/*
+ * Nodrošina divu izvēlēto spēlētāju salīdzināšanas skatu.
+ * Ļauj izvēlēties spēlētājus, apskatīt viņu statistiku, salīdzināt
+ * galvenos rādītājus, aplūkot radara diagrammu un izmantot kapteiņa simulatoru.
+ */
+
 import React from "react";
 
 import SearchBox from "../search/SearchBox";

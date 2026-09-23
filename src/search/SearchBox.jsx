@@ -1,3 +1,9 @@
+/*
+ * Nodrošina spēlētāju meklēšanu pēc vārda vai kluba nosaukuma.
+ * Attēlo meklēšanas rezultātus, ļauj izvēlēties spēlētāju, atvērt tā profilu
+ * un pārvaldīt favorītus.
+ */
+
 import React, {
   useEffect,
   useRef,

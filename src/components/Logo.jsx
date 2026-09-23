@@ -1,3 +1,8 @@
+/*
+ * Attēlo Flow lietotnes logotipu kā atkārtoti izmantojamu React komponenti.
+ * Nodrošina vienotu Flow vizuālo identitāti dažādās lietotnes sadaļās.
+ */
+
 import React from "react";
 
 export default function Logo({

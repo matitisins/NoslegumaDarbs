@@ -1,3 +1,8 @@
+/*
+ * Attēlo spēlētāja kartītes galvenes sadaļu ar spēlētāja identitātes
+ * informāciju un vizuālo krāsu atbilstoši izvēlētajam spēlētājam.
+ */
+
 import React from "react";
 import PlayerIdentity from "./PlayerIdentity";
 

@@ -1,3 +1,9 @@
+/*
+ * Attēlo divu spēlētāju statistikas kopsavilkumu salīdzināšanai.
+ * Parāda kopīgos statistikas rādītājus un pozīcijai atbilstošus
+ * papildu rādītājus, kā arī izceļ labāko rezultātu katrā statistikā.
+ */
+
 import React from "react";
 
 const isNumber = value => {

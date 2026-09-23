@@ -1,5 +1,16 @@
 <?php
 
+/*
+ * Šis fails nodrošina savienojumu ar API-Football un apstrādā futbola
+ * līgu, spēlētāju un komandu datus. Tas iegūst spēlētāju sezonas statistiku
+ * izvēlētajai līgai un sezonai, kā arī aprēķina komandas FDR rādītāju,
+ * izmantojot līgas tabulas pozīcijas un nākamās spēles.
+ *
+ * Fails izmanto kešatmiņu, lai samazinātu API pieprasījumu skaitu un
+ * uzlabotu datu ielādes ātrumu. API atslēga tiek iegūta no backend/.env
+ * faila, nevis glabāta pašā PHP kodā.
+ */
+
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
@@ -133,15 +144,10 @@ function sendApiError(int $status, string $message): never
 }
 
 /*
-|--------------------------------------------------------------------------
-| Real fixture difficulty mode
-|--------------------------------------------------------------------------
-|
-| Uses API-Football standings + the team's next five fixtures.
-| Each opponent receives a difficulty from its league position:
-| 1-4 = 5, 5-8 = 4, 9-12 = 3, 13-16 = 2, 17-20 = 1.
-| The returned FDR is the average of the available opponent ratings.
-|--------------------------------------------------------------------------
+Uses API-Football standings + the team's next five fixtures.
+Each opponent receives a difficulty from its league position:
+1-4 = 5, 5-8 = 4, 9-12 = 3, 13-16 = 2, 17-20 = 1.
+The returned FDR is the average of the available opponent ratings.
 */
 if ($mode === 'fdr') {
     if ($teamId <= 0) {
@@ -251,11 +257,6 @@ if ($mode === 'fdr') {
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Player data mode
-|--------------------------------------------------------------------------
-*/
 $cacheFile = $cacheDirectory . '/api-football-' . $competition . '-' . $season . '.json';
 $cacheLifetime = 30 * 60;
 

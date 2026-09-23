@@ -1,3 +1,9 @@
+/*
+ * Nodrošina salīdzināšanas sadaļas ekrānuzņēmuma izveidi.
+ * Pārveido norādīto HTML elementu PNG attēlā un automātiski lejupielādē
+ * failu ar abu salīdzināto spēlētāju vārdiem.
+ */
+
 import html2canvas from "html2canvas";
 
 const cleanName = name =>

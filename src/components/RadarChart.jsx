@@ -1,3 +1,9 @@
+/*
+ * Attēlo divu spēlētāju statistikas radara diagrammu.
+ * Izmanto pozīcijai atbilstošus percentiļu rādītājus, bet atšķirīgu
+ * pozīciju gadījumā salīdzina tikai abiem spēlētājiem kopīgos statistikas rādītājus.
+ */
+
 import React from "react";
 
 const COLORS = {

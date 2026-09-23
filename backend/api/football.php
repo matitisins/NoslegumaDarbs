@@ -1,5 +1,16 @@
 <?php
 
+/*
+ * Šis fails nodrošina savienojumu ar Football-data.org API un iegūst
+ * izvēlētās futbola līgas spēlētāju rezultātus, komandu informāciju un
+ * turnīra tabulas datus. Tas apstrādā API pieprasījumus, kļūdas un
+ * pieprasījumu ierobežojumus, kā arī izmanto kešatmiņu, lai samazinātu
+ * atkārtotu API pieprasījumu skaitu un uzlabotu lietotnes darbību.
+ *
+ * API piekļuves tokens tiek iegūts no backend/.env faila, tādēļ tas
+ * netiek glabāts tieši PHP pirmkodā.
+ */ 
+
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');

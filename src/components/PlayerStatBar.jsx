@@ -1,3 +1,9 @@
+/*
+ * Attēlo spēlētāja statistikas rādītāju kā vizuālu progresa joslu.
+ * Aprēķina vērtības procentuālo attiecību pret maksimālo vērtību un
+ * ļauj izmantot dažādas krāsas, aprakstu un pielāgotu vērtības attēlojumu.
+ */
+
 import React from "react";
 
 const COLORS = {

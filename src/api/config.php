@@ -1,5 +1,11 @@
 <?php
 
+/*
+ * Ielādē Football-data.org API piekļuves tokenu no vides mainīgajiem
+ * un definē Football-data.org API adresi, lai backend faili varētu
+ * izmantot šo konfigurāciju datu iegūšanai.
+ */
+
 declare(strict_types=1);
 
 $token = getenv(

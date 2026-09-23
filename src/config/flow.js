@@ -1,3 +1,9 @@
+/*
+ * Satur Flow lietotnes pamatkonfigurāciju: pieejamās līgas, spēlētāju
+ * kategorijas, radara statistiku, noklusējuma iestatījumus un lietotnes
+ * informāciju, kā arī palīgfunkcijas līgu un kategoriju datu iegūšanai.
+ */
+
 export const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
 

@@ -1,3 +1,9 @@
+/*
+ * Attēlo vienu spēlētāju meklēšanas rezultātu sarakstā.
+ * Ļauj izvēlēties spēlētāju, apskatīt tā profilu, pievienot vai noņemt
+ * spēlētāju no favorītiem un parāda viņa Flow punktus.
+ */
+
 import React from "react";
 import {
   getInitials,

@@ -1,3 +1,9 @@
+/*
+ * Attēlo spēlētāja pamatinformāciju, tostarp vārdu, pozīciju un klubu.
+ * Parāda spēlētāja iniciāļus un izmanto atšķirīgu vizuālo krāsu atkarībā
+ * no izvēlētā spēlētāja salīdzināšanas kartītes.
+ */
+
 import React from "react";
 
 const initials = name =>

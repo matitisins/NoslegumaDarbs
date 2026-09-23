@@ -1,3 +1,9 @@
+/*
+ * Attēlo spēlētāja pēdējās formas tendenci vizuālā stabiņu grafikā.
+ * Apstrādā formas datus, aprēķina to vērtību diapazonu un parāda
+ * zemāko un augstāko formas rādītāju.
+ */
+
 import React from "react";
 
 function numberValue(item) {

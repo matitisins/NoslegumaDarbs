@@ -1,3 +1,9 @@
+/*
+ * Attēlo izvēlētā spēlētāja kartīti ar pamatinformāciju, galvenajiem
+ * statistikas rādītājiem un Flow punktiem. Parāda arī pozīcijai atbilstošu
+ * papildu statistiku, spēlētāja formas tendenci un sezonas informāciju.
+ */
+
 import React from "react";
 import PlayerStatBar from "./PlayerStatBar";
 import PlayerFormTrend from "./PlayerFormTrend";

@@ -1,3 +1,8 @@
+/*
+ * Attēlo datu ielādes stāvokli, parādot izvēlēto līgu un sezonu,
+ * ielādes animāciju un, ja pieejams, datu ielādes progresu procentos.
+ */
+
 import React from "react";
 
 export default function AppLoading({
