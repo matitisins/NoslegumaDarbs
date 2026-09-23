@@ -6,11 +6,7 @@
  * ekrānuzņēmuma saglabāšanu.
  */
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 
 import {
@@ -29,6 +25,7 @@ import PlayerCard from "./components/PlayerCard";
 import CaptaincySimulator from "./components/CaptaincySimulator";
 import AccountModal from "./components/AccountModal";
 import GuideModal from "./components/GuideModal";
+import TeamPage from "./TeamPage";
 
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
@@ -49,7 +46,6 @@ const CATEGORIES = {
     desc: "Finisēšana, vārtu iesaiste un uzbrukuma produktivitāte.",
     tag: "Uzbrukuma produktivitāte",
   },
-
   MIDFIELDERS: {
     name: "Pussargi",
     icon: "◈",
@@ -57,7 +53,6 @@ const CATEGORIES = {
     desc: "Radošums, progresija un iesaiste vārtu guvumos.",
     tag: "Radošums un kontrole",
   },
-
   DEFENDERS: {
     name: "Aizsargi",
     icon: "◆",
@@ -65,7 +60,6 @@ const CATEGORIES = {
     desc: "Uzticamība, vārtu draudi un iespēju veidošana.",
     tag: "Aizsardzība un stabilitāte",
   },
-
   GOALKEEPERS: {
     name: "Vārtsargi",
     icon: "⬢",
@@ -115,8 +109,7 @@ function SearchBox({
   label,
   target,
 }) {
-  const [value, setValue] =
-    useState("");
+  const [value, setValue] = useState("");
 
   const results = value
     ? players.filter(player => {
@@ -146,9 +139,7 @@ function SearchBox({
   return (
     <div
       className={`mb-3 rounded-xl border ${
-        rose
-          ? "border-rose-200"
-          : "border-emerald-200"
+        rose ? "border-rose-200" : "border-emerald-200"
       } bg-white p-3 shadow-sm`}
     >
       <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -158,9 +149,7 @@ function SearchBox({
       <div className="relative">
         <input
           value={value}
-          onChange={e =>
-            setValue(e.target.value)
-          }
+          onChange={e => setValue(e.target.value)}
           placeholder="Meklē pēc vārda vai kluba..."
           className={`w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 pr-9 text-sm outline-none transition focus:bg-white focus:ring-2 ${
             rose
@@ -172,9 +161,7 @@ function SearchBox({
         {value && (
           <button
             type="button"
-            onClick={() =>
-              setValue("")
-            }
+            onClick={() => setValue("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
           >
             ✕
@@ -189,16 +176,12 @@ function SearchBox({
               <div
                 key={player.id}
                 className={`flex items-center gap-2 border-b border-slate-100 px-2 py-2 last:border-0 ${
-                  rose
-                    ? "hover:bg-rose-50"
-                    : "hover:bg-emerald-50"
+                  rose ? "hover:bg-rose-50" : "hover:bg-emerald-50"
                 }`}
               >
                 <button
                   type="button"
-                  onClick={() =>
-                    handleSelect(player)
-                  }
+                  onClick={() => handleSelect(player)}
                   className="flex min-w-0 flex-1 items-center justify-between px-1 py-1.5 text-left"
                 >
                   <span className="min-w-0">
@@ -223,25 +206,19 @@ function SearchBox({
                       ? "Noņemt no favorītiem"
                       : "Pievienot favorītiem"
                   }
-                  onClick={() =>
-                    onToggleFavorite(player)
-                  }
+                  onClick={() => onToggleFavorite(player)}
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
                     isFavorite(player)
                       ? "bg-amber-50 text-amber-500"
                       : "bg-slate-50 text-slate-300 hover:bg-amber-50 hover:text-amber-500"
                   }`}
                 >
-                  <Star
-                    active={isFavorite(player)}
-                  />
+                  <Star active={isFavorite(player)} />
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    handleSelect(player)
-                  }
+                  onClick={() => handleSelect(player)}
                   className={`rounded-lg px-2.5 py-2 text-[10px] font-bold text-white ${
                     rose
                       ? "bg-rose-500 hover:bg-rose-600"
@@ -271,20 +248,11 @@ function SearchBox({
   );
 }
 
-function Stat({
-  icon,
-  title,
-  value,
-  text,
-  color,
-}) {
+function Stat({ icon, title, value, text, color }) {
   const bg = {
-    emerald:
-      "bg-emerald-50 text-emerald-600",
-    blue:
-      "bg-blue-50 text-blue-600",
-    violet:
-      "bg-violet-50 text-violet-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    blue: "bg-blue-50 text-blue-600",
+    violet: "bg-violet-50 text-violet-600",
   }[color];
 
   return (
@@ -305,18 +273,12 @@ function Stat({
         {value}
       </p>
 
-      <p className="mt-1 text-xs text-slate-500">
-        {text}
-      </p>
+      <p className="mt-1 text-xs text-slate-500">{text}</p>
     </div>
   );
 }
 
-function CategoryCard({
-  category,
-  count,
-  onClick,
-}) {
+function CategoryCard({ category, count, onClick }) {
   const info = CATEGORIES[category];
 
   const accent = {
@@ -327,14 +289,10 @@ function CategoryCard({
   }[info.color];
 
   const iconBg = {
-    rose:
-      "bg-rose-50 text-rose-500",
-    emerald:
-      "bg-emerald-50 text-emerald-600",
-    blue:
-      "bg-blue-50 text-blue-600",
-    amber:
-      "bg-amber-50 text-amber-600",
+    rose: "bg-rose-50 text-rose-500",
+    emerald: "bg-emerald-50 text-emerald-600",
+    blue: "bg-blue-50 text-blue-600",
+    amber: "bg-amber-50 text-amber-600",
   }[info.color];
 
   return (
@@ -382,15 +340,8 @@ function CategoryCard({
   );
 }
 
-function displayProfileValue(
-  value,
-  suffix = ""
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+function displayProfileValue(value, suffix = "") {
+  if (value === null || value === undefined || value === "") {
     return "—";
   }
 
@@ -406,20 +357,14 @@ function formatBirthDate(value) {
     return value;
   }
 
-  return date.toLocaleDateString(
-    "lv-LV",
-    {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }
-  );
+  return date.toLocaleDateString("lv-LV", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
-function PlayerProfileStat({
-  label,
-  value,
-}) {
+function PlayerProfileStat({ label, value }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -445,17 +390,12 @@ function PlayerDetailsModal({
 }) {
   if (!player) return null;
 
-  const profile =
-    profileData?.profile || {};
-
-  const trophies = Array.isArray(
-    profileData?.trophies
-  )
+  const profile = profileData?.profile || {};
+  const trophies = Array.isArray(profileData?.trophies)
     ? profileData.trophies
     : [];
 
-  const advanced =
-    player.advancedStats || {};
+  const advanced = player.advancedStats || {};
 
   const seasonStats = [
     ["Spēles", player.appearances],
@@ -465,10 +405,7 @@ function PlayerDetailsModal({
     ["Passes", advanced.passes],
     ["Key passes", advanced.keyPasses],
     ["Shots", advanced.shots],
-    [
-      "Shots on target",
-      advanced.shotsOnTarget,
-    ],
+    ["Shots on target", advanced.shotsOnTarget],
     ["Rating", advanced.rating],
     ["Dzeltenās", advanced.yellowCards],
     ["Sarkanās", advanced.redCards],
@@ -476,155 +413,60 @@ function PlayerDetailsModal({
   ];
 
   const positionRows =
-    player.category ===
-    "GOALKEEPERS"
+    player.category === "GOALKEEPERS"
       ? [
           ["Saves", advanced.saves],
-          [
-            "Save %",
-            displayProfileValue(
-              advanced.savePercentage,
-              "%"
-            ),
-          ],
-          [
-            "Goals conceded",
-            advanced.goalsConceded,
-          ],
-          [
-            "Pass accuracy",
-            displayProfileValue(
-              advanced.passAccuracy,
-              "%"
-            ),
-          ],
+          ["Save %", displayProfileValue(advanced.savePercentage, "%")],
+          ["Goals conceded", advanced.goalsConceded],
+          ["Pass accuracy", displayProfileValue(advanced.passAccuracy, "%")],
           ["Rating", advanced.rating],
         ]
-      : player.category ===
-        "DEFENDERS"
+      : player.category === "DEFENDERS"
       ? [
           ["Tackles", advanced.tackles],
           ["Blocks", advanced.blocks],
-          [
-            "Interceptions",
-            advanced.interceptions,
-          ],
-          [
-            "Duels won %",
-            displayProfileValue(
-              advanced.duelsWonPercentage,
-              "%"
-            ),
-          ],
-          [
-            "Pass accuracy",
-            displayProfileValue(
-              advanced.passAccuracy,
-              "%"
-            ),
-          ],
+          ["Interceptions", advanced.interceptions],
+          ["Duels won %", displayProfileValue(advanced.duelsWonPercentage, "%")],
+          ["Pass accuracy", displayProfileValue(advanced.passAccuracy, "%")],
         ]
-      : player.category ===
-        "MIDFIELDERS"
+      : player.category === "MIDFIELDERS"
       ? [
-          [
-            "Key passes",
-            advanced.keyPasses,
-          ],
+          ["Key passes", advanced.keyPasses],
           ["Passes", advanced.passes],
-          [
-            "Pass accuracy",
-            displayProfileValue(
-              advanced.passAccuracy,
-              "%"
-            ),
-          ],
-          [
-            "Successful dribbles",
-            advanced.successfulDribbles,
-          ],
-          [
-            "Duels won %",
-            displayProfileValue(
-              advanced.duelsWonPercentage,
-              "%"
-            ),
-          ],
+          ["Pass accuracy", displayProfileValue(advanced.passAccuracy, "%")],
+          ["Successful dribbles", advanced.successfulDribbles],
+          ["Duels won %", displayProfileValue(advanced.duelsWonPercentage, "%")],
         ]
       : [
           ["Shots", advanced.shots],
-          [
-            "Shots on target",
-            advanced.shotsOnTarget,
-          ],
-          [
-            "Key passes",
-            advanced.keyPasses,
-          ],
-          [
-            "Successful dribbles",
-            advanced.successfulDribbles,
-          ],
-          [
-            "Duels won %",
-            displayProfileValue(
-              advanced.duelsWonPercentage,
-              "%"
-            ),
-          ],
+          ["Shots on target", advanced.shotsOnTarget],
+          ["Key passes", advanced.keyPasses],
+          ["Successful dribbles", advanced.successfulDribbles],
+          ["Duels won %", displayProfileValue(advanced.duelsWonPercentage, "%")],
         ];
 
-  const visibleSeasonStats =
-    seasonStats.filter(
-      ([, value]) =>
-        value !== null &&
-        value !== undefined
-    );
+  const visibleSeasonStats = seasonStats.filter(
+    ([, value]) => value !== null && value !== undefined
+  );
 
-  const visiblePositionRows =
-    positionRows.filter(
-      ([, value]) =>
-        value !== null &&
-        value !== undefined
-    );
+  const visiblePositionRows = positionRows.filter(
+    ([, value]) => value !== null && value !== undefined
+  );
 
-  const photo =
-    profile.photo || player.photo;
-
-  const teamName =
-    profile.team?.name ||
-    player.team ||
-    "Nezināms klubs";
-
-  const teamLogo =
-    profile.team?.logo ||
-    player.teamLogo;
-
+  const photo = profile.photo || player.photo;
+  const teamName = profile.team?.name || player.team || "Nezināms klubs";
+  const teamLogo = profile.team?.logo || player.teamLogo;
   const position =
     profile.position ||
     player.positionLabel ||
     player.position ||
     "Nezināma pozīcija";
-
-  const nationality =
-    profile.nationality ||
-    player.nationality;
-
-  const age =
-    profile.age ?? player.age;
-
-  const height =
-    profile.height || player.height;
-
-  const weight =
-    profile.weight || player.weight;
-
-  const birthDate =
-    profile.birth?.date ||
-    player.birthDate;
-
-  const shirtNumber =
-    profile.number ?? player.number;
+  const nationality = profile.nationality || player.nationality;
+  const age = profile.age ?? player.age;
+  const height = profile.height || player.height;
+  const weight = profile.weight || player.weight;
+  const birthDate = profile.birth?.date || player.birthDate;
+  const shirtNumber = profile.number ?? player.number;
 
   const handleCompare = () => {
     onCompare?.(player);
@@ -634,10 +476,7 @@ function PlayerDetailsModal({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-md sm:p-5"
       onMouseDown={event => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
+        if (event.target === event.currentTarget) {
           onClose?.();
         }
       }}
@@ -645,7 +484,6 @@ function PlayerDetailsModal({
       <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-slate-50 shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
         <div className="relative shrink-0 overflow-hidden bg-slate-950 px-5 pb-5 pt-5 text-white sm:px-7 sm:pb-7 sm:pt-6">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" />
-
           <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
 
           <div className="relative flex items-start justify-between gap-4">
@@ -661,10 +499,7 @@ function PlayerDetailsModal({
                   <div className="flex h-20 w-20 items-center justify-center rounded-[22px] bg-emerald-500 text-2xl font-black shadow-xl sm:h-24 sm:w-24">
                     {player.name
                       ?.split(" ")
-                      .map(
-                        part =>
-                          part[0]
-                      )
+                      .map(part => part[0])
                       .slice(0, 2)
                       .join("")
                       .toUpperCase()}
@@ -672,9 +507,7 @@ function PlayerDetailsModal({
                 )}
 
                 <span className="absolute -bottom-2 -right-2 flex h-8 min-w-8 items-center justify-center rounded-full border-4 border-slate-950 bg-emerald-500 px-1.5 text-[10px] font-black text-white shadow-lg">
-                  {shirtNumber
-                    ? `#${shirtNumber}`
-                    : "FLOW"}
+                  {shirtNumber ? `#${shirtNumber}` : "FLOW"}
                 </span>
               </div>
 
@@ -695,28 +528,13 @@ function PlayerDetailsModal({
                       className="h-5 w-5 rounded-full bg-white/10 object-contain"
                     />
                   )}
-
-                  <span>
-                    {teamName}
-                  </span>
-
-                  <span className="text-slate-600">
-                    •
-                  </span>
-
-                  <span>
-                    {position}
-                  </span>
-
+                  <span>{teamName}</span>
+                  <span className="text-slate-600">•</span>
+                  <span>{position}</span>
                   {nationality && (
                     <>
-                      <span className="text-slate-600">
-                        •
-                      </span>
-
-                      <span>
-                        {nationality}
-                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span>{nationality}</span>
                     </>
                   )}
                 </div>
@@ -738,7 +556,6 @@ function PlayerDetailsModal({
           {profileLoading && (
             <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
-
               <p className="text-xs font-bold text-emerald-700">
                 Ielādē spēlētāja profilu...
               </p>
@@ -750,7 +567,6 @@ function PlayerDetailsModal({
               <p className="text-xs font-bold text-amber-700">
                 Papildu profila dati nebija pieejami.
               </p>
-
               <p className="mt-1 text-[11px] text-amber-600">
                 Pamata sezonas statistika joprojām tiek rādīta.
               </p>
@@ -764,7 +580,6 @@ function PlayerDetailsModal({
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">
                     Player overview
                   </p>
-
                   <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
                     Spēlētāja informācija
                   </h3>
@@ -772,88 +587,48 @@ function PlayerDetailsModal({
 
                 <button
                   type="button"
-                  onClick={() =>
-                    onToggleFavorite?.(
-                      player
-                    )
-                  }
+                  onClick={() => onToggleFavorite?.(player)}
                   className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black transition ${
                     favorite
                       ? "border-amber-200 bg-amber-50 text-amber-600"
                       : "border-slate-200 bg-slate-50 text-slate-500 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-500"
                   }`}
                 >
-                  <Star
-                    active={favorite}
-                  />
-
+                  <Star active={favorite} />
                   <span className="hidden sm:inline">
-                    {favorite
-                      ? "Favorītos"
-                      : "Pievienot favorītiem"}
+                    {favorite ? "Favorītos" : "Pievienot favorītiem"}
                   </span>
                 </button>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <PlayerProfileStat
-                  label="Vecums"
-                  value={
-                    age
-                      ? `${age} gadi`
-                      : null
-                  }
-                />
-
-                <PlayerProfileStat
-                  label="Augums"
-                  value={height}
-                />
-
-                <PlayerProfileStat
-                  label="Svars"
-                  value={weight}
-                />
-
-                <PlayerProfileStat
-                  label="Valstspiederība"
-                  value={
-                    nationality
-                  }
-                />
+                <PlayerProfileStat label="Vecums" value={age ? `${age} gadi` : null} />
+                <PlayerProfileStat label="Augums" value={height} />
+                <PlayerProfileStat label="Svars" value={weight} />
+                <PlayerProfileStat label="Valstspiederība" value={nationality} />
               </div>
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <PlayerProfileStat
                   label="Dzimšanas datums"
-                  value={formatBirthDate(
-                    birthDate
-                  )}
+                  value={formatBirthDate(birthDate)}
                 />
-
-                <PlayerProfileStat
-                  label="Pozīcija"
-                  value={position}
-                />
+                <PlayerProfileStat label="Pozīcija" value={position} />
               </div>
             </section>
 
             <section className="relative overflow-hidden rounded-[24px] bg-slate-950 p-5 text-white shadow-sm">
               <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-emerald-500/20 blur-2xl" />
-
               <div className="relative">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">
                       Flow rating
                     </p>
-
                     <p className="mt-1 text-sm font-bold text-slate-300">
-                      {player.season ||
-                        "Sezona"}
+                      {player.season || "Sezona"}
                     </p>
                   </div>
-
                   <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-300">
                     Analytics
                   </span>
@@ -863,7 +638,6 @@ function PlayerDetailsModal({
                   <span className="text-5xl font-black tracking-tighter text-white">
                     {player.points}
                   </span>
-
                   <span className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
                     pts
                   </span>
@@ -873,15 +647,7 @@ function PlayerDetailsModal({
                   <div
                     className="h-full rounded-full bg-emerald-400 transition-all"
                     style={{
-                      width: `${Math.min(
-                        100,
-                        Math.max(
-                          6,
-                          Number(
-                            player.points
-                          ) || 0
-                        )
-                      )}%`,
+                      width: `${Math.min(100, Math.max(6, Number(player.points) || 0))}%`,
                     }}
                   />
                 </div>
@@ -899,11 +665,9 @@ function PlayerDetailsModal({
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">
                   Season performance
                 </p>
-
                 <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
                   Sezonas statistika
                 </h3>
-
                 <p className="mt-1 text-xs text-slate-400">
                   Dati no API-Football par izvēlēto sezonu.
                 </p>
@@ -911,41 +675,27 @@ function PlayerDetailsModal({
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {visibleSeasonStats.map(
-                ([label, value]) => (
-                  <PlayerProfileStat
-                    key={label}
-                    label={label}
-                    value={value}
-                  />
-                )
-              )}
+              {visibleSeasonStats.map(([label, value]) => (
+                <PlayerProfileStat key={label} label={label} value={value} />
+              ))}
             </div>
           </section>
 
-          {visiblePositionRows.length >
-            0 && (
+          {visiblePositionRows.length > 0 && (
             <section className="mt-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">
                   Position metrics
                 </p>
-
                 <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
                   Pozīcijas statistika
                 </h3>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                {visiblePositionRows.map(
-                  ([label, value]) => (
-                    <PlayerProfileStat
-                      key={label}
-                      label={label}
-                      value={value}
-                    />
-                  )
-                )}
+                {visiblePositionRows.map(([label, value]) => (
+                  <PlayerProfileStat key={label} label={label} value={value} />
+                ))}
               </div>
             </section>
           )}
@@ -956,50 +706,35 @@ function PlayerDetailsModal({
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">
                   Achievements
                 </p>
-
                 <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
                   Trofejas
                 </h3>
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {trophies
-                  .slice(0, 12)
-                  .map(
-                    (
-                      trophy,
-                      index
-                    ) => (
-                      <div
-                        key={`${trophy.league || "trophy"}-${trophy.season || index}`}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-amber-200 hover:bg-amber-50/40"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-base">
-                            🏆
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="truncate font-extrabold text-slate-900">
-                              {trophy.league ||
-                                "Nezināma sacensība"}
-                            </p>
-
-                            <p className="mt-1 text-xs text-slate-500">
-                              {trophy.season ||
-                                "—"}
-                            </p>
-
-                            <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-emerald-600">
-                              {trophy.place ||
-                                trophy.result ||
-                                "—"}
-                            </p>
-                          </div>
-                        </div>
+                {trophies.slice(0, 12).map((trophy, index) => (
+                  <div
+                    key={`${trophy.league || "trophy"}-${trophy.season || index}`}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-amber-200 hover:bg-amber-50/40"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-base">
+                        🏆
                       </div>
-                    )
-                  )}
+                      <div className="min-w-0">
+                        <p className="truncate font-extrabold text-slate-900">
+                          {trophy.league || "Nezināma sacensība"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {trophy.season || "—"}
+                        </p>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-emerald-600">
+                          {trophy.place || trophy.result || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           )}
@@ -1020,10 +755,7 @@ function PlayerDetailsModal({
               onClick={handleCompare}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 text-xs font-black text-white shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600 hover:shadow-[0_10px_28px_rgba(16,185,129,0.3)] sm:min-w-[220px] sm:flex-none"
             >
-              <span className="text-base leading-none">
-                ＋
-              </span>
-
+              <span className="text-base leading-none">＋</span>
               Pievienot salīdzināšanai
             </button>
           </div>
@@ -1042,9 +774,7 @@ function FavoriteCard({
     <div className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
       <button
         type="button"
-        onClick={() =>
-          onOpen(player)
-        }
+        onClick={() => onOpen(player)}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-500">
@@ -1079,9 +809,7 @@ function FavoriteCard({
 
       <button
         type="button"
-        onClick={() =>
-          onToggleFavorite(player)
-        }
+        onClick={() => onToggleFavorite(player)}
         title="Noņemt no favorītiem"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-500 hover:bg-amber-100"
       >
@@ -1092,205 +820,130 @@ function FavoriteCard({
 }
 
 export default function App() {
-  const [
-    selectedSeason,
-    setSelectedSeason,
-  ] = useState("2026/2027");
+  const [selectedSeason, setSelectedSeason] =
+    useState("2026/2027");
 
-  const [
-    selectedLeague,
-    setSelectedLeague,
-  ] = useState("PL");
+  const [activeView, setActiveView] =
+    useState("players");
 
-  const [
-    selectedCategory,
-    setSelectedCategory,
-  ] = useState(null);
+  const [selectedLeague, setSelectedLeague] =
+    useState("PL");
 
-  const [
-    leaguePlayers,
-    setLeaguePlayers,
-  ] = useState([]);
+  const [selectedCategory, setSelectedCategory] =
+    useState(null);
 
-  const [loading, setLoading] =
+  const [leaguePlayers, setLeaguePlayers] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [username, setUsername] = useState(
+    () =>
+      localStorage.getItem("radars_username") ||
+      "Matīss"
+  );
+
+  const [avatarUrl, setAvatarUrl] = useState(
+    () =>
+      localStorage.getItem("radars_avatar") ||
+      DEFAULT_AVATAR
+  );
+
+  const [isAccountOpen, setIsAccountOpen] =
     useState(false);
 
-  const [error, setError] =
+  const [isGuideOpen, setIsGuideOpen] =
+    useState(false);
+
+  const [tempUsername, setTempUsername] =
+    useState(username);
+
+  const [tempAvatar, setTempAvatar] =
+    useState(avatarUrl);
+
+  const [player1, setPlayer1] = useState(null);
+  const [player2, setPlayer2] = useState(null);
+
+  const [fdr1, setFdr1] = useState(3);
+  const [fdr2, setFdr2] = useState(3);
+  const [fdrLoading, setFdrLoading] =
+    useState(false);
+
+  const [favoriteIds, setFavoriteIds] =
+    useState(() => {
+      try {
+        return JSON.parse(
+          localStorage.getItem("flow_favorite_players") ||
+            "[]"
+        );
+      } catch {
+        return [];
+      }
+    });
+
+  const [detailsPlayer, setDetailsPlayer] =
+    useState(null);
+
+  const [playerProfileData, setPlayerProfileData] =
+    useState(null);
+
+  const [playerProfileLoading, setPlayerProfileLoading] =
+    useState(false);
+
+  const [playerProfileError, setPlayerProfileError] =
     useState("");
 
-  const [
-    username,
-    setUsername,
-  ] = useState(
-    () =>
-      localStorage.getItem(
-        "radars_username"
-      ) || "Matīss"
-  );
-
-  const [
-    avatarUrl,
-    setAvatarUrl,
-  ] = useState(
-    () =>
-      localStorage.getItem(
-        "radars_avatar"
-      ) || DEFAULT_AVATAR
-  );
-
-  const [
-    isAccountOpen,
-    setIsAccountOpen,
-  ] = useState(false);
-
-  const [
-    isGuideOpen,
-    setIsGuideOpen,
-  ] = useState(false);
-
-  const [
-    tempUsername,
-    setTempUsername,
-  ] = useState(username);
-
-  const [
-    tempAvatar,
-    setTempAvatar,
-  ] = useState(avatarUrl);
-
-  const [player1, setPlayer1] =
-    useState(null);
-
-  const [player2, setPlayer2] =
-    useState(null);
-
-  const [fdr1, setFdr1] =
-    useState(3);
-
-  const [fdr2, setFdr2] =
-    useState(3);
-
-  const [
-    fdrLoading,
-    setFdrLoading,
-  ] = useState(false);
-
-  const [
-    favoriteIds,
-    setFavoriteIds,
-  ] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem(
-          "flow_favorite_players"
-        ) || "[]"
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  const [
-    detailsPlayer,
-    setDetailsPlayer,
-  ] = useState(null);
-
-  const [
-    playerProfileData,
-    setPlayerProfileData,
-  ] = useState(null);
-
-  const [
-    playerProfileLoading,
-    setPlayerProfileLoading,
-  ] = useState(false);
-
-  const [
-    playerProfileError,
-    setPlayerProfileError,
-  ] = useState("");
-
-  const captureRef =
-    useRef(null);
+  const captureRef = useRef(null);
 
   const apiSeason =
-    seasonToApiSeason(
-      selectedSeason
-    );
+    seasonToApiSeason(selectedSeason);
 
   const leagueName =
-    LEAGUES.find(
-      x => x[0] === selectedLeague
-    )?.[1] ||
+    LEAGUES.find(x => x[0] === selectedLeague)?.[1] ||
     selectedLeague;
 
-  const categories =
-    CATEGORY_ORDER.filter(
-      category =>
-        leaguePlayers.some(
-          player =>
-            player.category ===
-            category
-        )
-    );
+  const categories = CATEGORY_ORDER.filter(
+    category =>
+      leaguePlayers.some(
+        player => player.category === category
+      )
+  );
 
-  const categoryPlayers =
-    selectedCategory
-      ? leaguePlayers.filter(
-          player =>
-            player.category ===
-            selectedCategory
-        )
-      : [];
+  const categoryPlayers = selectedCategory
+    ? leaguePlayers.filter(
+        player =>
+          player.category === selectedCategory
+      )
+    : [];
 
-  const favorites =
-    leaguePlayers.filter(
-      player =>
-        favoriteIds.includes(
-          player.id
-        )
-    );
+  const favorites = leaguePlayers.filter(
+    player => favoriteIds.includes(player.id)
+  );
 
   const isFavorite = player =>
-    favoriteIds.includes(
-      player.id
-    );
+    favoriteIds.includes(player.id);
 
-  const toggleFavorite =
-    player => {
-      if (!player?.id) return;
+  const toggleFavorite = player => {
+    if (!player?.id) return;
 
-      setFavoriteIds(current => {
-        const exists =
-          current.includes(
-            player.id
-          );
+    setFavoriteIds(current => {
+      const exists = current.includes(player.id);
 
-        const next = exists
-          ? current.filter(
-              id =>
-                id !==
-                player.id
-            )
-          : [
-              ...current,
-              player.id,
-            ];
+      const next = exists
+        ? current.filter(id => id !== player.id)
+        : [...current, player.id];
 
-        localStorage.setItem(
-          "flow_favorite_players",
-          JSON.stringify(next)
-        );
+      localStorage.setItem(
+        "flow_favorite_players",
+        JSON.stringify(next)
+      );
 
-        return next;
-      });
-    };
+      return next;
+    });
+  };
 
   const resetPlayers = () => {
-    setSelectedCategory(
-      null
-    );
-
+    setSelectedCategory(null);
     setPlayer1(null);
     setPlayer2(null);
   };
@@ -1304,18 +957,12 @@ export default function App() {
     try {
       const players =
         await fetchApiSportsPlayers(
-          COMPETITION_IDS[
-            selectedLeague
-          ],
+          COMPETITION_IDS[selectedLeague],
           apiSeason,
-          {
-            forceRefresh,
-          }
+          { forceRefresh }
         );
 
-      setLeaguePlayers(
-        players
-      );
+      setLeaguePlayers(players);
     } catch (err) {
       console.error(err);
       setLeaguePlayers([]);
@@ -1332,45 +979,31 @@ export default function App() {
   useEffect(() => {
     resetPlayers();
     loadPlayers();
-  }, [
-    selectedLeague,
-    selectedSeason,
-  ]);
+  }, [selectedLeague, selectedSeason]);
 
   useEffect(() => {
-    if (!selectedCategory)
-      return;
+    if (!selectedCategory) return;
 
-    const players =
-      leaguePlayers.filter(
-        p =>
-          p.category ===
-          selectedCategory
-      );
+    const players = leaguePlayers.filter(
+      p => p.category === selectedCategory
+    );
 
     setPlayer1(current =>
       current &&
-      players.some(
-        p => p.id === current.id
-      )
+      players.some(p => p.id === current.id)
         ? current
         : players[0] || null
     );
 
     setPlayer2(current =>
       current &&
-      players.some(
-        p => p.id === current.id
-      )
+      players.some(p => p.id === current.id)
         ? current
         : players[1] ||
           players[0] ||
           null
     );
-  }, [
-    selectedCategory,
-    leaguePlayers,
-  ]);
+  }, [selectedCategory, leaguePlayers]);
 
   useEffect(() => {
     if (!player1 || !player2) {
@@ -1381,21 +1014,17 @@ export default function App() {
 
     let cancelled = false;
 
-    const loadFdr =
-      async () => {
-        setFdrLoading(true);
+    const loadFdr = async () => {
+      setFdrLoading(true);
 
-        try {
-          const [
-            first,
-            second,
-          ] = await Promise.all([
+      try {
+        const [first, second] =
+          await Promise.all([
             getTeamFdr(
               player1.teamId,
               selectedLeague,
               apiSeason
             ),
-
             getTeamFdr(
               player2.teamId,
               selectedLeague,
@@ -1403,23 +1032,21 @@ export default function App() {
             ),
           ]);
 
-          if (!cancelled) {
-            setFdr1(first);
-            setFdr2(second);
-          }
-        } catch {
-          if (!cancelled) {
-            setFdr1(3);
-            setFdr2(3);
-          }
-        } finally {
-          if (!cancelled) {
-            setFdrLoading(
-              false
-            );
-          }
+        if (!cancelled) {
+          setFdr1(first);
+          setFdr2(second);
         }
-      };
+      } catch {
+        if (!cancelled) {
+          setFdr1(3);
+          setFdr2(3);
+        }
+      } finally {
+        if (!cancelled) {
+          setFdrLoading(false);
+        }
+      }
+    };
 
     loadFdr();
 
@@ -1433,146 +1060,97 @@ export default function App() {
     apiSeason,
   ]);
 
-  const selectCategory =
-    category => {
-      const players =
-        leaguePlayers.filter(
-          p =>
-            p.category ===
-            category
-        );
+  const selectCategory = category => {
+    const players = leaguePlayers.filter(
+      p => p.category === category
+    );
 
-      setSelectedCategory(
-        category
-      );
+    setSelectedCategory(category);
+    setPlayer1(players[0] || null);
+    setPlayer2(
+      players[1] ||
+        players[0] ||
+        null
+    );
+  };
 
-      setPlayer1(
-        players[0] || null
-      );
+  const addToComparison = player => {
+    if (!player) return;
 
-      setPlayer2(
-        players[1] ||
-          players[0] ||
-          null
-      );
-    };
+    setSelectedCategory(player.category);
 
-  const addToComparison =
-    player => {
-      if (!player) return;
-
-      setSelectedCategory(
-        player.category
-      );
+    if (
+      !player1 ||
+      player1.id === player.id
+    ) {
+      setPlayer1(player);
 
       if (
-        !player1 ||
-        player1.id === player.id
+        player2?.id === player.id
       ) {
-        setPlayer1(player);
-
-        if (
-          player2?.id ===
-          player.id
-        ) {
-          setPlayer2(null);
-        }
-      } else if (
-        !player2 ||
-        player2.id === player.id
-      ) {
-        setPlayer2(player);
-      } else {
-        setPlayer2(player);
+        setPlayer2(null);
       }
+    } else if (
+      !player2 ||
+      player2.id === player.id
+    ) {
+      setPlayer2(player);
+    } else {
+      setPlayer2(player);
+    }
 
-      setDetailsPlayer(null);
-    };
+    setDetailsPlayer(null);
+  };
 
-  const openPlayer =
-    async player => {
-      if (!player) return;
+  const openPlayer = async player => {
+    if (!player) return;
 
-      setDetailsPlayer(player);
-      setPlayerProfileData(
-        null
+    setDetailsPlayer(player);
+    setPlayerProfileData(null);
+    setPlayerProfileError("");
+    setPlayerProfileLoading(true);
+
+    try {
+      const data = await fetchPlayerProfile(
+        player.id,
+        apiSeason
       );
+
+      setPlayerProfileData(data);
+    } catch (profileError) {
+      console.error("Spēlētāja profila kļūda:", profileError);
       setPlayerProfileError(
-        ""
+        profileError?.message ||
+          "Neizdevās ielādēt papildu profila datus."
       );
-      setPlayerProfileLoading(
-        true
-      );
+    } finally {
+      setPlayerProfileLoading(false);
+    }
+  };
 
-      try {
-        const data =
-          await fetchPlayerProfile(
-            player.id,
-            apiSeason
-          );
+  const handlePlayer1Change = event => {
+    const player = categoryPlayers.find(
+      item => String(item.id) === String(event.target.value)
+    );
 
-        setPlayerProfileData(
-          data
-        );
-      } catch (
-        profileError
-      ) {
-        console.error(
-          "Spēlētāja profila kļūda:",
-          profileError
-        );
+    if (player) setPlayer1(player);
+  };
 
-        setPlayerProfileError(
-          profileError?.message ||
-            "Neizdevās ielādēt papildu profila datus."
-        );
-      } finally {
-        setPlayerProfileLoading(
-          false
-        );
-      }
-    };
+  const handlePlayer2Change = event => {
+    const player = categoryPlayers.find(
+      item => String(item.id) === String(event.target.value)
+    );
 
-  const handlePlayer1Change =
-    event => {
-      const player =
-        categoryPlayers.find(
-          item =>
-            String(item.id) ===
-            String(
-              event.target.value
-            )
-        );
-
-      if (player)
-        setPlayer1(player);
-    };
-
-  const handlePlayer2Change =
-    event => {
-      const player =
-        categoryPlayers.find(
-          item =>
-            String(item.id) ===
-            String(
-              event.target.value
-            )
-        );
-
-      if (player)
-        setPlayer2(player);
-    };
+    if (player) setPlayer2(player);
+  };
 
   const handlePlayerChange =
-    setter =>
-    event => {
+    setter => event => {
       const player =
         categoryPlayers.find(
           item =>
             String(item.id) ===
-            String(
-              event.target.value
-            )
+            String(event.target.value)
         );
 
       if (player) {
@@ -1581,60 +1159,35 @@ export default function App() {
     };
 
   const openAccount = () => {
-    setTempUsername(
-      username
-    );
-
-    setTempAvatar(
-      avatarUrl
-    );
-
+    setTempUsername(username);
+    setTempAvatar(avatarUrl);
     setIsAccountOpen(true);
   };
 
-  const handleFileChange =
-    e => {
-      const file =
-        e.target.files?.[0];
+  const handleFileChange = e => {
+    const file = e.target.files?.[0];
 
-      if (
-        !file?.type.startsWith(
-          "image/"
-        )
-      ) {
-        return;
+    if (!file?.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setTempAvatar(reader.result);
       }
-
-      const reader =
-        new FileReader();
-
-      reader.onloadend = () => {
-        if (
-          typeof reader.result ===
-          "string"
-        ) {
-          setTempAvatar(
-            reader.result
-          );
-        }
-      };
-
-      reader.readAsDataURL(
-        file
-      );
     };
+
+    reader.readAsDataURL(file);
+  };
 
   const saveAccount = e => {
     e.preventDefault();
 
     const name =
-      tempUsername.trim() ||
-      "Matīss";
+      tempUsername.trim() || "Matīss";
 
     setUsername(name);
-    setAvatarUrl(
-      tempAvatar
-    );
+    setAvatarUrl(tempAvatar);
 
     localStorage.setItem(
       "radars_username",
@@ -1649,65 +1202,54 @@ export default function App() {
     setIsAccountOpen(false);
   };
 
-  const takeScreenshot =
-    async () => {
-      if (!captureRef.current)
-        return;
+  const takeScreenshot = async () => {
+    if (!captureRef.current) return;
 
-      try {
-        const canvas =
-          await html2canvas(
-            captureRef.current,
-            {
-              scale: 2,
-              useCORS: true,
-              allowTaint: false,
-              backgroundColor:
-                "#f1f5f9",
-              logging: false,
-            }
-          );
-
-        const clean = name =>
-          (name || "player")
-            .replace(
-              /[^a-z0-9āčēģīķļņōŗšūž-]/gi,
-              "-"
-            );
-
-        const link =
-          document.createElement(
-            "a"
-          );
-
-        link.href =
-          canvas.toDataURL(
-            "image/png"
-          );
-
-        link.download =
-          `flow-comparison-${clean(
-            player1?.name
-          )}-vs-${clean(
-            player2?.name
-          )}.png`;
-
-        link.click();
-      } catch (err) {
-        console.error(
-          "Kļūda veidojot ekrānuzņēmumu:",
-          err
+    try {
+      const canvas =
+        await html2canvas(
+          captureRef.current,
+          {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#f1f5f9",
+            logging: false,
+          }
         );
-      }
-    };
 
-  const refreshData =
-    async () => {
-      clearFootballDataCache();
-      await loadPlayers(
-        true
+      const clean = name =>
+        (name || "player").replace(
+          /[^a-z0-9āčēģīķļņōŗšūž-]/gi,
+          "-"
+        );
+
+      const link =
+        document.createElement("a");
+
+      link.href =
+        canvas.toDataURL("image/png");
+
+      link.download =
+        `flow-comparison-${clean(
+          player1?.name
+        )}-vs-${clean(
+          player2?.name
+        )}.png`;
+
+      link.click();
+    } catch (err) {
+      console.error(
+        "Kļūda veidojot ekrānuzņēmumu:",
+        err
       );
-    };
+    }
+  };
+
+  const refreshData = async () => {
+    clearFootballDataCache();
+    await loadPlayers(true);
+  };
 
   return (
     <div className="min-h-screen bg-[#f5f7fa] font-sans text-slate-800">
@@ -1715,7 +1257,10 @@ export default function App() {
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-6">
           <button
             type="button"
-            onClick={resetPlayers}
+            onClick={() => {
+              setActiveView("players");
+              resetPlayers();
+            }}
             className="flex items-center gap-3"
           >
             <Logo className="h-9 w-9" />
@@ -1734,23 +1279,34 @@ export default function App() {
           <nav className="hidden items-center gap-1 md:flex">
             <button
               type="button"
-              onClick={resetPlayers}
+              onClick={() => {
+                setActiveView("players");
+                resetPlayers();
+              }}
               className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                !selectedCategory
+                activeView === "players"
                   ? "bg-slate-100 text-slate-900"
                   : "text-slate-500 hover:bg-slate-50"
               }`}
             >
-              Home
+              Players
             </button>
 
             <button
               type="button"
-              onClick={() =>
-                setIsGuideOpen(
-                  true
-                )
-              }
+              onClick={() => setActiveView("teams")}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                activeView === "teams"
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              Teams
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900"
             >
               Guide
@@ -1782,66 +1338,34 @@ export default function App() {
       {detailsPlayer && (
         <PlayerDetailsModal
           player={detailsPlayer}
-          favorite={isFavorite(
-            detailsPlayer
-          )}
-          profileData={
-            playerProfileData
-          }
-          profileLoading={
-            playerProfileLoading
-          }
-          profileError={
-            playerProfileError
-          }
-          onToggleFavorite={
-            toggleFavorite
-          }
-          onCompare={
-            addToComparison
-          }
+          favorite={isFavorite(detailsPlayer)}
+          profileData={playerProfileData}
+          profileLoading={playerProfileLoading}
+          profileError={playerProfileError}
+          onToggleFavorite={toggleFavorite}
+          onCompare={addToComparison}
           onClose={() => {
-            setDetailsPlayer(
-              null
-            );
-
-            setPlayerProfileData(
-              null
-            );
-
-            setPlayerProfileError(
-              ""
-            );
+            setDetailsPlayer(null);
+            setPlayerProfileData(null);
+            setPlayerProfileError("");
           }}
         />
       )}
 
       {isGuideOpen && (
         <GuideModal
-          onClose={() =>
-            setIsGuideOpen(false)
-          }
+          onClose={() => setIsGuideOpen(false)}
         />
       )}
 
       {isAccountOpen && (
         <AccountModal
-          username={
-            tempUsername
-          }
+          username={tempUsername}
           avatar={tempAvatar}
-          onUsernameChange={
-            setTempUsername
-          }
-          onFileChange={
-            handleFileChange
-          }
+          onUsernameChange={setTempUsername}
+          onFileChange={handleFileChange}
           onSave={saveAccount}
-          onClose={() =>
-            setIsAccountOpen(
-              false
-            )
-          }
+          onClose={() => setIsAccountOpen(false)}
         />
       )}
 
@@ -1854,9 +1378,7 @@ export default function App() {
               </span>
 
               <select
-                value={
-                  selectedSeason
-                }
+                value={selectedSeason}
                 onChange={e =>
                   setSelectedSeason(
                     e.target.value
@@ -1864,13 +1386,8 @@ export default function App() {
                 }
                 className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-emerald-400"
               >
-                <option>
-                  2026/2027
-                </option>
-
-                <option>
-                  2025/2026
-                </option>
+                <option>2026/2027</option>
+                <option>2025/2026</option>
               </select>
             </label>
 
@@ -1882,14 +1399,11 @@ export default function App() {
               </span>
 
               <select
-                value={
-                  selectedLeague
-                }
+                value={selectedLeague}
                 onChange={e => {
                   setSelectedLeague(
                     e.target.value
                   );
-
                   resetPlayers();
                 }}
                 className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:border-emerald-400"
@@ -1921,7 +1435,7 @@ export default function App() {
           </button>
         </div>
 
-        {loading && (
+        {activeView === "players" && loading && (
           <div className="rounded-3xl border border-slate-200 bg-white p-14 text-center shadow-sm">
             <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-2xl border-4 border-emerald-100 border-t-emerald-500" />
 
@@ -1930,13 +1444,12 @@ export default function App() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              {leagueName} ·{" "}
-              {selectedSeason}
+              {leagueName} · {selectedSeason}
             </p>
           </div>
         )}
 
-        {error && !loading && (
+        {activeView === "players" && error && !loading && (
           <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-6">
             <h2 className="font-bold text-red-700">
               API kļūda
@@ -1948,9 +1461,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() =>
-                loadPlayers(true)
-              }
+              onClick={() => loadPlayers(true)}
               className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500"
             >
               Mēģināt vēlreiz
@@ -1958,7 +1469,8 @@ export default function App() {
           </div>
         )}
 
-        {!loading &&
+        {activeView === "players" &&
+          !loading &&
           !error &&
           !selectedCategory && (
             <>
@@ -1982,7 +1494,9 @@ export default function App() {
                   </h1>
 
                   <p className="mt-5 max-w-xl text-sm leading-6 text-slate-400 md:text-base">
-                    Flow palīdz ātri salīdzināt profesionālus futbolistus pēc statistikas rādītājiem, Fantasy punktiem un spēlētāju profiliem.
+                    Flow palīdz ātri salīdzināt profesionālus
+                    futbolistus pēc statistikas rādītājiem,
+                    Fantasy punktiem un spēlētāju profiliem.
                   </p>
 
                   <div className="mt-7 flex flex-wrap gap-3">
@@ -2007,9 +1521,7 @@ export default function App() {
                 <Stat
                   icon="♟"
                   title="Datubāze"
-                  value={
-                    leaguePlayers.length
-                  }
+                  value={leaguePlayers.length}
                   text="pieejami spēlētāji"
                   color="emerald"
                 />
@@ -2017,9 +1529,7 @@ export default function App() {
                 <Stat
                   icon="★"
                   title="Favorīti"
-                  value={
-                    favorites.length
-                  }
+                  value={favorites.length}
                   text="saglabāti spēlētāji"
                   color="blue"
                 />
@@ -2033,8 +1543,7 @@ export default function App() {
                 />
               </section>
 
-              {favorites.length >
-                0 && (
+              {favorites.length > 0 && (
                 <section className="mb-10">
                   <div className="mb-5 flex items-end justify-between">
                     <div>
@@ -2047,36 +1556,27 @@ export default function App() {
                       </div>
 
                       <p className="mt-1.5 text-sm text-slate-500">
-                        Noklikšķini uz spēlētāja, lai apskatītu viņa individuālo statistiku.
+                        Noklikšķini uz spēlētāja, lai apskatītu
+                        viņa individuālo statistiku.
                       </p>
                     </div>
 
                     <span className="text-xs font-bold text-slate-400">
-                      {
-                        favorites.length
-                      }
+                      {favorites.length}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {favorites.map(
-                      player => (
-                        <FavoriteCard
-                          key={
-                            player.id
-                          }
-                          player={
-                            player
-                          }
-                          onOpen={
-                            openPlayer
-                          }
-                          onToggleFavorite={
-                            toggleFavorite
-                          }
-                        />
-                      )
-                    )}
+                    {favorites.map(player => (
+                      <FavoriteCard
+                        key={player.id}
+                        player={player}
+                        onOpen={openPlayer}
+                        onToggleFavorite={
+                          toggleFavorite
+                        }
+                      />
+                    ))}
                   </div>
                 </section>
               )}
@@ -2092,35 +1592,30 @@ export default function App() {
                   </div>
 
                   <p className="mt-1.5 text-sm text-slate-500">
-                    Katram spēlētāju tipam ir savs statistikas profils.
+                    Katram spēlētāju tipam ir savs statistikas
+                    profils.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {categories.map(
-                    category => (
-                      <CategoryCard
-                        key={
-                          category
-                        }
-                        category={
-                          category
-                        }
-                        count={
-                          leaguePlayers.filter(
-                            p =>
-                              p.category ===
-                              category
-                          ).length
-                        }
-                        onClick={() =>
-                          selectCategory(
+                  {categories.map(category => (
+                    <CategoryCard
+                      key={category}
+                      category={category}
+                      count={
+                        leaguePlayers.filter(
+                          p =>
+                            p.category ===
                             category
-                          )
-                        }
-                      />
-                    )
-                  )}
+                        ).length
+                      }
+                      onClick={() =>
+                        selectCategory(
+                          category
+                        )
+                      }
+                    />
+                  ))}
                 </div>
               </section>
 
@@ -2135,7 +1630,8 @@ export default function App() {
                   </div>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Četri vienkārši soļi līdz spēlētāju salīdzinājumam.
+                    Četri vienkārši soļi līdz spēlētāju
+                    salīdzinājumam.
                   </p>
                 </div>
 
@@ -2162,18 +1658,9 @@ export default function App() {
                       "Apskati statistiku un salīdzini.",
                     ],
                   ].map(
-                    (
-                      [
-                        number,
-                        title,
-                        text,
-                      ],
-                      index
-                    ) => (
+                    ([number, title, text], index) => (
                       <div
-                        key={
-                          number
-                        }
+                        key={number}
                         className="flex gap-4"
                       >
                         <div
@@ -2187,22 +1674,16 @@ export default function App() {
                               : "bg-blue-500"
                           }`}
                         >
-                          {
-                            number
-                          }
+                          {number}
                         </div>
 
                         <div>
                           <h3 className="text-sm font-bold">
-                            {
-                              title
-                            }
+                            {title}
                           </h3>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {
-                              text
-                            }
+                            {text}
                           </p>
                         </div>
                       </div>
@@ -2213,16 +1694,15 @@ export default function App() {
             </>
           )}
 
-        {!loading &&
+        {activeView === "players" &&
+          !loading &&
           !error &&
           selectedCategory && (
             <section>
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <button
                   type="button"
-                  onClick={
-                    resetPlayers
-                  }
+                  onClick={resetPlayers}
                   className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-emerald-600"
                 >
                   ← Atpakaļ
@@ -2230,40 +1710,33 @@ export default function App() {
 
                 <div className="flex gap-3">
                   <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
-                    {
-                      CATEGORIES[
-                        selectedCategory
-                      ]?.name
-                    }
+                    {CATEGORIES[
+                      selectedCategory
+                    ]?.name}
                   </span>
 
-                  {player1 &&
-                    player2 && (
-                      <button
-                        type="button"
-                        onClick={
-                          takeScreenshot
-                        }
-                        className="rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800"
-                      >
-                        📷 Saglabāt attēlu
-                      </button>
-                    )}
+                  {player1 && player2 && (
+                    <button
+                      type="button"
+                      onClick={takeScreenshot}
+                      className="rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                    >
+                      📷 Saglabāt attēlu
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {!player1 ||
-              !player2 ? (
+              {!player1 || !player2 ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                   <p className="text-sm text-slate-500">
-                    Šajā kategorijā nav pietiekami daudz spēlētāju salīdzināšanai.
+                    Šajā kategorijā nav pietiekami daudz
+                    spēlētāju salīdzināšanai.
                   </p>
                 </div>
               ) : (
                 <div
-                  ref={
-                    captureRef
-                  }
+                  ref={captureRef}
                   className="rounded-2xl bg-slate-100 p-2"
                 >
                   <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -2272,41 +1745,23 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player1
-                            )
+                            openPlayer(player1)
                           }
                           className="text-xs font-bold text-rose-500 hover:underline"
                         >
-                          🔴{" "}
-                          {
-                            player1.name
-                          }{" "}
-                          (
-                          {
-                            player1.team
-                          }
-                          )
+                          🔴 {player1.name} (
+                          {player1.team})
                         </button>
 
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player2
-                            )
+                            openPlayer(player2)
                           }
                           className="text-xs font-bold text-emerald-600 hover:underline"
                         >
-                          🟢{" "}
-                          {
-                            player2.name
-                          }{" "}
-                          (
-                          {
-                            player2.team
-                          }
-                          )
+                          🟢 {player2.name} (
+                          {player2.team})
                         </button>
                       </div>
 
@@ -2324,45 +1779,21 @@ export default function App() {
                   </div>
 
                   <ComparisonSummary
-                    player1={
-                      player1
-                    }
-                    player2={
-                      player2
-                    }
+                    player1={player1}
+                    player2={player2}
                   />
 
                   <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div>
                       <SearchBox
-                        players={
-                          categoryPlayers
-                        }
-                        selected={
-                          player1
-                        }
+                        players={categoryPlayers}
+                        selected={player1}
                         target="player1"
-                        onSelectPlayer1={
-                          player =>
-                            setPlayer1(
-                              player
-                            )
-                        }
-                        onSelectPlayer2={
-                          player =>
-                            setPlayer2(
-                              player
-                            )
-                        }
-                        onOpen={
-                          openPlayer
-                        }
-                        isFavorite={
-                          isFavorite
-                        }
-                        onToggleFavorite={
-                          toggleFavorite
-                        }
+                        onSelectPlayer1={player => setPlayer1(player)}
+                        onSelectPlayer2={player => setPlayer2(player)}
+                        onOpen={openPlayer}
+                        isFavorite={isFavorite}
+                        onToggleFavorite={toggleFavorite}
                         color="rose"
                         label="Meklēt pirmo spēlētāju"
                       />
@@ -2371,9 +1802,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player1
-                            )
+                            openPlayer(player1)
                           }
                           className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500"
                         >
@@ -2382,49 +1811,25 @@ export default function App() {
                       </div>
 
                       <PlayerCard
-                        player={
-                          player1
-                        }
+                        player={player1}
                         players={
                           categoryPlayers
                         }
-                        onChange={
-                          handlePlayer1Change
-                        }
+                        onChange={handlePlayer1Change}
                         color="rose"
                       />
                     </div>
 
                     <div>
                       <SearchBox
-                        players={
-                          categoryPlayers
-                        }
-                        selected={
-                          player2
-                        }
+                        players={categoryPlayers}
+                        selected={player2}
                         target="player2"
-                        onSelectPlayer1={
-                          player =>
-                            setPlayer1(
-                              player
-                            )
-                        }
-                        onSelectPlayer2={
-                          player =>
-                            setPlayer2(
-                              player
-                            )
-                        }
-                        onOpen={
-                          openPlayer
-                        }
-                        isFavorite={
-                          isFavorite
-                        }
-                        onToggleFavorite={
-                          toggleFavorite
-                        }
+                        onSelectPlayer1={player => setPlayer1(player)}
+                        onSelectPlayer2={player => setPlayer2(player)}
+                        onOpen={openPlayer}
+                        isFavorite={isFavorite}
+                        onToggleFavorite={toggleFavorite}
                         color="emerald"
                         label="Meklēt otro spēlētāju"
                       />
@@ -2433,9 +1838,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() =>
-                            openPlayer(
-                              player2
-                            )
+                            openPlayer(player2)
                           }
                           className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-500"
                         >
@@ -2444,37 +1847,35 @@ export default function App() {
                       </div>
 
                       <PlayerCard
-                        player={
-                          player2
-                        }
+                        player={player2}
                         players={
                           categoryPlayers
                         }
-                        onChange={
-                          handlePlayer2Change
-                        }
+                        onChange={handlePlayer2Change}
                         color="emerald"
                       />
                     </div>
                   </div>
 
                   <CaptaincySimulator
-                    player1={
-                      player1
-                    }
-                    player2={
-                      player2
-                    }
+                    player1={player1}
+                    player2={player2}
                     fdr1={fdr1}
                     fdr2={fdr2}
-                    loading={
-                      fdrLoading
-                    }
+                    loading={fdrLoading}
                   />
                 </div>
               )}
             </section>
           )}
+
+        {activeView === "teams" && (
+          <TeamPage
+            competition={selectedLeague}
+            season={apiSeason}
+            leagueName={leagueName}
+          />
+        )}
 
         <footer className="mt-12 border-t border-slate-200 pt-6 text-center">
           <div className="flex flex-col items-center justify-between gap-2 text-center sm:flex-row sm:text-left">

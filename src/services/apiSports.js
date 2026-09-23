@@ -276,12 +276,12 @@ const weightedAverage = (
 
   return (
     Math.round(
-      (values.reduce(
-        (sum, value) => sum + value,
-        0
-      ) /
-        values.length) *
-        10
+      (
+        values.reduce(
+          (sum, value) => sum + value,
+          0
+        ) / values.length
+      ) * 10
     ) / 10
   );
 };
@@ -346,18 +346,29 @@ const aggregatePlayerStats = statistics => {
     item => item.passes?.total
   );
 
-  const accuratePasses = sumField(stats, item => {
-    const total = nullableNumber(item.passes?.total);
-    const accuracy = normalizePercentage(
-      item.passes?.accuracy
-    );
+  const accuratePasses = sumField(
+    stats,
+    item => {
+      const total = nullableNumber(
+        item.passes?.total
+      );
 
-    if (total === null || accuracy === null) {
-      return null;
+      const accuracy = normalizePercentage(
+        item.passes?.accuracy
+      );
+
+      if (
+        total === null ||
+        accuracy === null
+      ) {
+        return null;
+      }
+
+      return (
+        (total * accuracy) / 100
+      );
     }
-
-    return (total * accuracy) / 100;
-  });
+  );
 
   const duels = sumField(
     stats,
@@ -380,7 +391,8 @@ const aggregatePlayerStats = statistics => {
   );
 
   const passAccuracy =
-    passes > 0 && accuratePasses >= 0
+    passes > 0 &&
+    accuratePasses >= 0
       ? Math.round(
           (accuratePasses / passes) * 10
         ) / 10
@@ -390,7 +402,8 @@ const aggregatePlayerStats = statistics => {
             normalizePercentage(
               item.passes?.accuracy
             ),
-          item => item.passes?.total
+          item =>
+            item.passes?.total
         );
 
   const duelsWonPercentage =
@@ -564,7 +577,10 @@ const aggregatePlayerStats = statistics => {
 };
 
 const calculateSavePercentage = stats => {
-  const saves = nullableNumber(stats.saves);
+  const saves = nullableNumber(
+    stats.saves
+  );
+
   const conceded = nullableNumber(
     stats.goalsConceded
   );
@@ -579,7 +595,9 @@ const calculateSavePercentage = stats => {
 
   return (
     Math.round(
-      (saves / (saves + conceded)) * 1000
+      (saves /
+        (saves + conceded)) *
+        1000
     ) / 10
   );
 };
@@ -587,12 +605,17 @@ const calculateSavePercentage = stats => {
 const buildAdvancedStats = aggregated => ({
   ...aggregated,
   savePercentage:
-    calculateSavePercentage(aggregated),
+    calculateSavePercentage(
+      aggregated
+    ),
 });
 
 const radarDefinitions = {
   GOALKEEPERS: [
-    { label: "Saves", key: "saves" },
+    {
+      label: "Saves",
+      key: "saves",
+    },
     {
       label: "Save %",
       key: "savePercentage",
@@ -601,8 +624,14 @@ const radarDefinitions = {
       label: "Pass accuracy",
       key: "passAccuracy",
     },
-    { label: "Rating", key: "rating" },
-    { label: "Minutes", key: "minutes" },
+    {
+      label: "Rating",
+      key: "rating",
+    },
+    {
+      label: "Minutes",
+      key: "minutes",
+    },
     {
       label: "Appearances",
       key: "appearances",
@@ -610,12 +639,18 @@ const radarDefinitions = {
   ],
 
   DEFENDERS: [
-    { label: "Tackles", key: "tackles" },
+    {
+      label: "Tackles",
+      key: "tackles",
+    },
     {
       label: "Interceptions",
       key: "interceptions",
     },
-    { label: "Blocks", key: "blocks" },
+    {
+      label: "Blocks",
+      key: "blocks",
+    },
     {
       label: "Duels won %",
       key: "duelsWonPercentage",
@@ -624,7 +659,10 @@ const radarDefinitions = {
       label: "Pass accuracy",
       key: "passAccuracy",
     },
-    { label: "Minutes", key: "minutes" },
+    {
+      label: "Minutes",
+      key: "minutes",
+    },
   ],
 
   MIDFIELDERS: [
@@ -632,7 +670,10 @@ const radarDefinitions = {
       label: "Key passes",
       key: "keyPasses",
     },
-    { label: "Passes", key: "passes" },
+    {
+      label: "Passes",
+      key: "passes",
+    },
     {
       label: "Pass accuracy",
       key: "passAccuracy",
@@ -652,9 +693,18 @@ const radarDefinitions = {
   ],
 
   STRIKERS: [
-    { label: "Goals", key: "goals" },
-    { label: "Assists", key: "assists" },
-    { label: "Shots", key: "shots" },
+    {
+      label: "Goals",
+      key: "goals",
+    },
+    {
+      label: "Assists",
+      key: "assists",
+    },
+    {
+      label: "Shots",
+      key: "shots",
+    },
     {
       label: "Shots on target",
       key: "shotsOnTarget",
@@ -670,17 +720,27 @@ const radarDefinitions = {
   ],
 };
 
-const getRadarRawValue = (player, key) => {
-  const value = player?.advancedStats?.[key];
+const getRadarRawValue = (
+  player,
+  key
+) => {
+  const value =
+    player?.advancedStats?.[key];
 
-  if (value === null || value === undefined) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return null;
   }
 
   return toNumber(value);
 };
 
-const percentileRank = (value, values) => {
+const percentileRank = (
+  value,
+  values
+) => {
   if (
     value === null ||
     value === undefined ||
@@ -689,21 +749,23 @@ const percentileRank = (value, values) => {
     return null;
   }
 
-  const sorted = [...values].sort(
-    (a, b) => a - b
-  );
+  const sorted = [
+    ...values,
+  ].sort((a, b) => a - b);
 
   if (sorted.length === 1) {
     return 50;
   }
 
-  const lower = sorted.filter(
-    item => item < value
-  ).length;
+  const lower =
+    sorted.filter(
+      item => item < value
+    ).length;
 
-  const equal = sorted.filter(
-    item => item === value
-  ).length;
+  const equal =
+    sorted.filter(
+      item => item === value
+    ).length;
 
   if (
     lower === 0 &&
@@ -713,9 +775,13 @@ const percentileRank = (value, values) => {
   }
 
   const percentile =
-    ((lower + (equal - 1) / 2) /
-      (sorted.length - 1)) *
-    100;
+    (
+      (
+        lower +
+        (equal - 1) / 2
+      ) /
+      (sorted.length - 1)
+    ) * 100;
 
   return Math.max(
     0,
@@ -731,18 +797,23 @@ const buildRadarStats = (
   players
 ) => {
   const definition =
-    radarDefinitions[player.category] ||
+    radarDefinitions[
+      player.category
+    ] ||
     radarDefinitions.STRIKERS;
 
   const labels = [];
   const values = [];
 
-  const positionPlayers = players.filter(
-    candidate =>
-      candidate.category ===
-        player.category &&
-      toNumber(candidate.minutes) > 0
-  );
+  const positionPlayers =
+    players.filter(
+      candidate =>
+        candidate.category ===
+          player.category &&
+        toNumber(
+          candidate.minutes
+        ) > 0
+    );
 
   const referencePlayers =
     positionPlayers.length
@@ -753,20 +824,27 @@ const buildRadarStats = (
             player.category
         );
 
-  for (const item of definition) {
-    const current = getRadarRawValue(
-      player,
-      item.key
-    );
+  for (
+    const item of definition
+  ) {
+    const current =
+      getRadarRawValue(
+        player,
+        item.key
+      );
 
-    const available = referencePlayers
-      .map(candidate =>
-        getRadarRawValue(
-          candidate,
-          item.key
+    const available =
+      referencePlayers
+        .map(candidate =>
+          getRadarRawValue(
+            candidate,
+            item.key
+          )
         )
-      )
-      .filter(value => value !== null);
+        .filter(
+          value =>
+            value !== null
+        );
 
     if (
       current === null ||
@@ -781,12 +859,19 @@ const buildRadarStats = (
         available
       );
 
-    if (percentile === null) {
+    if (
+      percentile === null
+    ) {
       continue;
     }
 
-    labels.push(item.label);
-    values.push(percentile);
+    labels.push(
+      item.label
+    );
+
+    values.push(
+      percentile
+    );
   }
 
   return {
@@ -799,12 +884,15 @@ const buildRadarPercentiles = (
   player,
   players
 ) => {
-  const positionPlayers = players.filter(
-    candidate =>
-      candidate.category ===
-        player.category &&
-      toNumber(candidate.minutes) > 0
-  );
+  const positionPlayers =
+    players.filter(
+      candidate =>
+        candidate.category ===
+          player.category &&
+        toNumber(
+          candidate.minutes
+        ) > 0
+    );
 
   const referencePlayers =
     positionPlayers.length
@@ -817,22 +905,30 @@ const buildRadarPercentiles = (
 
   const keys = [
     ...new Set(
-      Object.values(radarDefinitions)
+      Object.values(
+        radarDefinitions
+      )
         .flat()
-        .map(item => item.key)
+        .map(
+          item => item.key
+        )
     ),
   ];
 
   const result = {};
 
-  for (const key of keys) {
+  for (
+    const key of keys
+  ) {
     const current =
       getRadarRawValue(
         player,
         key
       );
 
-    if (current === null) {
+    if (
+      current === null
+    ) {
       continue;
     }
 
@@ -845,10 +941,13 @@ const buildRadarPercentiles = (
           )
         )
         .filter(
-          value => value !== null
+          value =>
+            value !== null
         );
 
-    if (!available.length) {
+    if (
+      !available.length
+    ) {
       continue;
     }
 
@@ -862,31 +961,41 @@ const buildRadarPercentiles = (
   return result;
 };
 
-const buildFormMetrics = player => [
-  {
-    label: "Punkti",
-    value: toNumber(player.points),
-  },
-  {
-    label: "Vārti",
-    value: toNumber(player.goals),
-  },
-  {
-    label: "Assist",
-    value: toNumber(player.assists),
-  },
-  {
-    label: "Spēles",
-    value: toNumber(player.appearances),
-  },
-];
+const buildFormMetrics =
+  player => [
+    {
+      label: "Punkti",
+      value: toNumber(
+        player.points
+      ),
+    },
+    {
+      label: "Vārti",
+      value: toNumber(
+        player.goals
+      ),
+    },
+    {
+      label: "Assist",
+      value: toNumber(
+        player.assists
+      ),
+    },
+    {
+      label: "Spēles",
+      value: toNumber(
+        player.appearances
+      ),
+    },
+  ];
 
 const createPlayer = (
   item,
   season,
   competition
 ) => {
-  const player = item?.player || {};
+  const player =
+    item?.player || {};
 
   const aggregated =
     aggregatePlayerStats(
@@ -916,8 +1025,10 @@ const createPlayer = (
   const points =
     calculateFantasyPoints({
       category,
-      goals: aggregated.goals,
-      assists: aggregated.assists,
+      goals:
+        aggregated.goals,
+      assists:
+        aggregated.assists,
       penalties:
         penaltyGoals || 0,
     });
@@ -947,7 +1058,9 @@ const createPlayer = (
       "Unknown",
 
     positionLabel:
-      getPositionLabel(category),
+      getPositionLabel(
+        category
+      ),
 
     category,
 
@@ -969,37 +1082,49 @@ const createPlayer = (
     points,
 
     photo:
-      player.photo || null,
+      player.photo ||
+      null,
 
     nationality:
-      player.nationality || null,
+      player.nationality ||
+      null,
 
     injured:
-      Boolean(player.injured),
+      Boolean(
+        player.injured
+      ),
 
     age:
-      player.age ?? null,
+      player.age ??
+      null,
 
     height:
-      player.height || null,
+      player.height ||
+      null,
 
     weight:
-      player.weight || null,
+      player.weight ||
+      null,
 
     birthDate:
-      player.birth?.date || null,
+      player.birth?.date ||
+      null,
 
     birthPlace:
-      player.birth?.place || null,
+      player.birth?.place ||
+      null,
 
     birthCountry:
-      player.birth?.country || null,
+      player.birth?.country ||
+      null,
 
     number:
-      player.number ?? null,
+      player.number ??
+      null,
 
     teamLogo:
-      aggregated.teamLogo || null,
+      aggregated.teamLogo ||
+      null,
 
     advancedStats: {
       ...advancedStats,
@@ -1030,10 +1155,15 @@ const createPlayer = (
     },
 
     customStats: {},
+
     formMetrics: [],
+
     recentForm: [],
+
     league: competition,
-    season: String(season),
+
+    season:
+      String(season),
   };
 };
 
@@ -1052,24 +1182,27 @@ const requestApiFootball = async (
     );
   }
 
-  const response = await fetch(
-    `${BASE_URL}/api-football.php?competition=${encodeURIComponent(
-      competition
-    )}&season=${encodeURIComponent(
-      season
-    )}`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    }
-  );
+  const response =
+    await fetch(
+      `${BASE_URL}/api-football.php?competition=${encodeURIComponent(
+        competition
+      )}&season=${encodeURIComponent(
+        season
+      )}`,
+      {
+        method: "GET",
+        headers: {
+          Accept:
+            "application/json",
+        },
+      }
+    );
 
   let data = null;
 
   try {
-    data = await response.json();
+    data =
+      await response.json();
   } catch {
     data = null;
   }
@@ -1085,7 +1218,9 @@ const requestApiFootball = async (
   }
 
   if (
-    !Array.isArray(data?.players)
+    !Array.isArray(
+      data?.players
+    )
   ) {
     throw new Error(
       "API-Football neatgrieza spēlētāju statistiku."
@@ -1100,7 +1235,9 @@ const requestApiFootball = async (
 
 export const seasonToApiSeason =
   season => {
-    if (typeof season === "number") {
+    if (
+      typeof season === "number"
+    ) {
       return season;
     }
 
@@ -1121,21 +1258,28 @@ export const fetchApiSportsPlayers =
     options = {}
   ) => {
     const competition =
-      COMPETITION_IDS[leagueId] ||
-      leagueId;
+      COMPETITION_IDS[
+        leagueId
+      ] || leagueId;
 
     const apiSeason =
-      seasonToApiSeason(season);
+      seasonToApiSeason(
+        season
+      );
 
     const cacheKey =
       `${competition}_${apiSeason}`;
 
-    if (!options.forceRefresh) {
+    if (
+      !options.forceRefresh
+    ) {
       const cached =
         getCache(cacheKey);
 
       if (
-        Array.isArray(cached) &&
+        Array.isArray(
+          cached
+        ) &&
         cached.length
       ) {
         options.onProgress?.({
@@ -1170,33 +1314,37 @@ export const fetchApiSportsPlayers =
         )
         .filter(Boolean);
 
-    if (!players.length) {
+    if (
+      !players.length
+    ) {
       throw new Error(
         "Šai līgai un sezonai nav pieejamu spēlētāju datu."
       );
     }
 
     const enriched =
-      players.map(player => ({
-        ...player,
+      players.map(
+        player => ({
+          ...player,
 
-        customStats:
-          buildRadarStats(
-            player,
-            players
-          ),
+          customStats:
+            buildRadarStats(
+              player,
+              players
+            ),
 
-        radarPercentiles:
-          buildRadarPercentiles(
-            player,
-            players
-          ),
+          radarPercentiles:
+            buildRadarPercentiles(
+              player,
+              players
+            ),
 
-        formMetrics:
-          buildFormMetrics(
-            player
-          ),
-      }));
+          formMetrics:
+            buildFormMetrics(
+              player
+            ),
+        })
+      );
 
     setCache(
       cacheKey,
@@ -1217,7 +1365,8 @@ export const fetchPlayerProfile =
     playerId,
     season = 2026
   ) => {
-    const id = Number(playerId);
+    const id =
+      Number(playerId);
 
     if (
       !Number.isInteger(id) ||
@@ -1229,7 +1378,9 @@ export const fetchPlayerProfile =
     }
 
     const apiSeason =
-      seasonToApiSeason(season);
+      seasonToApiSeason(
+        season
+      );
 
     const cacheKey =
       `profile_${id}_${apiSeason}`;
@@ -1239,11 +1390,15 @@ export const fetchPlayerProfile =
       "undefined"
     ) {
       const cached =
-        getAnyCache(cacheKey);
+        getAnyCache(
+          cacheKey
+        );
 
       if (
         cached &&
-        !Array.isArray(cached)
+        !Array.isArray(
+          cached
+        )
       ) {
         return cached;
       }
@@ -1268,7 +1423,8 @@ export const fetchPlayerProfile =
     let data = null;
 
     try {
-      data = await response.json();
+      data =
+        await response.json();
     } catch {
       data = null;
     }
@@ -1348,7 +1504,9 @@ export const fetchCompetitionStandings =
     season = 2026
   ) => {
     const apiSeason =
-      seasonToApiSeason(season);
+      seasonToApiSeason(
+        season
+      );
 
     const cacheKey =
       `standings_${competition}_${apiSeason}`;
@@ -1358,11 +1516,15 @@ export const fetchCompetitionStandings =
       "undefined"
     ) {
       const cached =
-        getAnyCache(cacheKey);
+        getAnyCache(
+          cacheKey
+        );
 
       if (
         cached &&
-        Array.isArray(cached)
+        Array.isArray(
+          cached
+        )
       ) {
         return cached;
       }
@@ -1410,7 +1572,9 @@ export const getTeamFdr =
     }
 
     const apiSeason =
-      seasonToApiSeason(season);
+      seasonToApiSeason(
+        season
+      );
 
     const normalizedCompetition =
       COMPETITION_IDS[
@@ -1425,12 +1589,16 @@ export const getTeamFdr =
       "undefined"
     ) {
       const cached =
-        getAnyCache(cacheKey);
+        getAnyCache(
+          cacheKey
+        );
 
       if (
         cached &&
         Number.isFinite(
-          Number(cached.fdr)
+          Number(
+            cached.fdr
+          )
         )
       ) {
         return Number(
@@ -1483,15 +1651,22 @@ export const getTeamFdr =
       Number.isFinite(fdr)
         ? Math.max(
             1,
-            Math.min(5, fdr)
+            Math.min(
+              5,
+              fdr
+            )
           )
         : 3;
 
-    setCache(cacheKey, {
-      fdr: safeFdr,
-      fixtures:
-        data?.fixtures || [],
-    });
+    setCache(
+      cacheKey,
+      {
+        fdr: safeFdr,
+        fixtures:
+          data?.fixtures ||
+          [],
+      }
+    );
 
     return safeFdr;
   };
@@ -1502,15 +1677,17 @@ export const clearFootballDataCache =
       Object.keys(
         localStorage
       )
-        .filter(key =>
-          key.startsWith(
-            CACHE_PREFIX
-          )
+        .filter(
+          key =>
+            key.startsWith(
+              CACHE_PREFIX
+            )
         )
-        .forEach(key =>
-          localStorage.removeItem(
-            key
-          )
+        .forEach(
+          key =>
+            localStorage.removeItem(
+              key
+            )
         );
     } catch {
       // Ignore cache errors.
@@ -1519,5 +1696,322 @@ export const clearFootballDataCache =
 
 export const getPositionName =
   category =>
-    POSITION_LABELS[category] ||
-    category;
+    POSITION_LABELS[
+      category
+    ] || category;
+
+export const fetchTeams =
+  async (
+    competition = "PL",
+    season = 2026
+  ) => {
+    const normalizedCompetition =
+      COMPETITION_IDS[
+        competition
+      ] || competition;
+
+    const apiSeason =
+      seasonToApiSeason(
+        season
+      );
+
+    const cacheKey =
+      `teams_${normalizedCompetition}_${apiSeason}`;
+
+    if (
+      typeof localStorage !==
+      "undefined"
+    ) {
+      const cached =
+        getAnyCache(
+          cacheKey
+        );
+
+      if (
+        cached &&
+        Array.isArray(
+          cached
+        )
+      ) {
+        return cached;
+      }
+    }
+
+    const response =
+      await fetch(
+        `${BASE_URL}/api-football.php?mode=teams&competition=${encodeURIComponent(
+          normalizedCompetition
+        )}&season=${encodeURIComponent(
+          apiSeason
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+    let data = null;
+
+    try {
+      data =
+        await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (
+      !response.ok ||
+      data?.success === false
+    ) {
+      throw new Error(
+        data?.error ||
+          `Komandu API kļūda: ${response.status}`
+      );
+    }
+
+    const teams =
+      Array.isArray(
+        data?.teams
+      )
+        ? data.teams
+        : [];
+
+    setCache(
+      cacheKey,
+      teams
+    );
+
+    return teams;
+  };
+
+export const fetchTeamStatistics =
+  async (
+    teamId,
+    competition = "PL",
+    season = 2026
+  ) => {
+    const numericTeamId =
+      Number(teamId);
+
+    if (
+      !Number.isInteger(
+        numericTeamId
+      ) ||
+      numericTeamId <= 0
+    ) {
+      throw new Error(
+        "Nederīgs komandas ID."
+      );
+    }
+
+    const normalizedCompetition =
+      COMPETITION_IDS[
+        competition
+      ] || competition;
+
+    const apiSeason =
+      seasonToApiSeason(
+        season
+      );
+
+    const cacheKey =
+      `team_stats_${normalizedCompetition}_${apiSeason}_${numericTeamId}`;
+
+    if (
+      typeof localStorage !==
+      "undefined"
+    ) {
+      const cached =
+        getAnyCache(
+          cacheKey
+        );
+
+      if (
+        cached &&
+        typeof cached ===
+          "object"
+      ) {
+        return cached;
+      }
+    }
+
+    const response =
+      await fetch(
+        `${BASE_URL}/api-football.php?mode=team-stats&competition=${encodeURIComponent(
+          normalizedCompetition
+        )}&season=${encodeURIComponent(
+          apiSeason
+        )}&team=${encodeURIComponent(
+          numericTeamId
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+    let data = null;
+
+    try {
+      data =
+        await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (
+      !response.ok ||
+      data?.success === false
+    ) {
+      throw new Error(
+        data?.error ||
+          `Komandas statistikas API kļūda: ${response.status}`
+      );
+    }
+
+    const statistics =
+      data?.statistics ||
+      null;
+
+    if (!statistics) {
+      throw new Error(
+        "API-Football neatgrieza komandas statistiku."
+      );
+    }
+
+    setCache(
+      cacheKey,
+      statistics
+    );
+
+    return statistics;
+  };
+
+export const fetchHeadToHead =
+  async (
+    team1Id,
+    team2Id,
+    last = 5
+  ) => {
+    const first =
+      Number(team1Id);
+
+    const second =
+      Number(team2Id);
+
+    const limit =
+      Math.max(
+        1,
+        Math.min(
+          20,
+          Number(last) || 5
+        )
+      );
+
+    if (
+      !Number.isInteger(
+        first
+      ) ||
+      first <= 0 ||
+      !Number.isInteger(
+        second
+      ) ||
+      second <= 0 ||
+      first === second
+    ) {
+      throw new Error(
+        "H2H salīdzināšanai nepieciešamas divas dažādas komandas."
+      );
+    }
+
+    const low =
+      Math.min(
+        first,
+        second
+      );
+
+    const high =
+      Math.max(
+        first,
+        second
+      );
+
+    const cacheKey =
+      `h2h_${low}_${high}_${limit}`;
+
+    if (
+      typeof localStorage !==
+      "undefined"
+    ) {
+      const cached =
+        getAnyCache(
+          cacheKey
+        );
+
+      if (
+        cached &&
+        Array.isArray(
+          cached
+        )
+      ) {
+        return cached;
+      }
+    }
+
+    const response =
+      await fetch(
+        `${BASE_URL}/api-football.php?mode=h2h&team1=${encodeURIComponent(
+          first
+        )}&team2=${encodeURIComponent(
+          second
+        )}&last=${encodeURIComponent(
+          limit
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+    let data = null;
+
+    try {
+      data =
+        await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (
+      !response.ok ||
+      data?.success === false
+    ) {
+      throw new Error(
+        data?.error ||
+          `H2H API kļūda: ${response.status}`
+      );
+    }
+
+    const matches =
+      Array.isArray(
+        data?.matches
+      )
+        ? data.matches
+        : [];
+
+    setCache(
+      cacheKey,
+      matches
+    );
+
+    return matches;
+  };

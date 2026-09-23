@@ -143,11 +143,205 @@ function sendApiError(int $status, string $message): never
     exit;
 }
 
+
 /*
-Uses API-Football standings + the team's next five fixtures.
-Each opponent receives a difficulty from its league position:
-1-4 = 5, 5-8 = 4, 9-12 = 3, 13-16 = 2, 17-20 = 1.
-The returned FDR is the average of the available opponent ratings.
+|--------------------------------------------------------------------------
+| Team list mode
+|--------------------------------------------------------------------------
+*/
+if ($mode === 'teams') {
+    $cacheFile = $cacheDirectory . '/teams-' . $competition . '-' . $season . '.json';
+    $cacheLifetime = 30 * 60;
+
+    if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
+        $cached = json_decode((string)file_get_contents($cacheFile), true);
+        if (is_array($cached)) {
+            $cached['cached'] = true;
+            echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+    }
+
+    $result = apiFootballRequest('teams', [
+        'league' => $leagueId,
+        'season' => $season,
+    ]);
+
+    if (!$result['success']) {
+        sendApiError($result['httpCode'] >= 400 ? $result['httpCode'] : 502, 'Unable to load teams.');
+    }
+
+    $teams = [];
+
+    foreach (($result['response']['response'] ?? []) as $item) {
+        if (!is_array($item)) continue;
+
+        $team = $item['team'] ?? [];
+        $venue = $item['venue'] ?? [];
+        $id = (int)($team['id'] ?? 0);
+
+        if ($id <= 0) continue;
+
+        $teams[] = [
+            'id' => $id,
+            'name' => $team['name'] ?? 'Unknown',
+            'code' => $team['code'] ?? null,
+            'country' => $team['country'] ?? null,
+            'logo' => $team['logo'] ?? null,
+            'founded' => $team['founded'] ?? null,
+            'venue' => [
+                'id' => $venue['id'] ?? null,
+                'name' => $venue['name'] ?? null,
+                'city' => $venue['city'] ?? null,
+                'capacity' => $venue['capacity'] ?? null,
+            ],
+        ];
+    }
+
+    $output = [
+        'success' => true,
+        'source' => 'api-football',
+        'mode' => 'teams',
+        'competition' => $competition,
+        'competitionName' => $leagueName,
+        'leagueId' => $leagueId,
+        'season' => $season,
+        'count' => count($teams),
+        'teams' => $teams,
+        'cached' => false,
+    ];
+
+    @file_put_contents($cacheFile, json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    echo json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Team season statistics mode
+|--------------------------------------------------------------------------
+*/
+if ($mode === 'team-stats') {
+    if ($teamId <= 0) {
+        sendApiError(400, 'A team ID is required for team statistics.');
+    }
+
+    $cacheFile = $cacheDirectory . '/team-stats-' . $competition . '-' . $season . '-' . $teamId . '.json';
+    $cacheLifetime = 30 * 60;
+
+    if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
+        $cached = json_decode((string)file_get_contents($cacheFile), true);
+        if (is_array($cached)) {
+            $cached['cached'] = true;
+            echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+    }
+
+    $result = apiFootballRequest('teams/statistics', [
+        'league' => $leagueId,
+        'season' => $season,
+        'team' => $teamId,
+    ]);
+
+    if (!$result['success']) {
+        sendApiError($result['httpCode'] >= 400 ? $result['httpCode'] : 502, 'Unable to load team statistics.');
+    }
+
+    $response = $result['response']['response'] ?? null;
+
+    if (!is_array($response)) {
+        sendApiError(502, 'API-Football returned no team statistics.');
+    }
+
+    $output = [
+        'success' => true,
+        'source' => 'api-football',
+        'mode' => 'team-stats',
+        'competition' => $competition,
+        'leagueId' => $leagueId,
+        'season' => $season,
+        'teamId' => $teamId,
+        'statistics' => $response,
+        'cached' => false,
+    ];
+
+    @file_put_contents($cacheFile, json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    echo json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Head-to-head mode
+|--------------------------------------------------------------------------
+*/
+if ($mode === 'h2h') {
+    $team1 = (int)($_GET['team1'] ?? 0);
+    $team2 = (int)($_GET['team2'] ?? 0);
+    $last = (int)($_GET['last'] ?? 5);
+    $last = max(1, min(20, $last));
+
+    if ($team1 <= 0 || $team2 <= 0 || $team1 === $team2) {
+        sendApiError(400, 'Two different team IDs are required for H2H.');
+    }
+
+    $low = min($team1, $team2);
+    $high = max($team1, $team2);
+    $cacheFile = $cacheDirectory . '/h2h-' . $low . '-' . $high . '-' . $last . '.json';
+    $cacheLifetime = 60 * 60;
+
+    if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
+        $cached = json_decode((string)file_get_contents($cacheFile), true);
+        if (is_array($cached)) {
+            $cached['cached'] = true;
+            echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+    }
+
+    $result = apiFootballRequest('fixtures/headtohead', [
+        'h2h' => $team1 . '-' . $team2,
+        'last' => $last,
+    ]);
+
+    if (!$result['success']) {
+        sendApiError($result['httpCode'] >= 400 ? $result['httpCode'] : 502, 'Unable to load head-to-head data.');
+    }
+
+    $matches = $result['response']['response'] ?? [];
+    if (!is_array($matches)) $matches = [];
+
+    $output = [
+        'success' => true,
+        'source' => 'api-football',
+        'mode' => 'h2h',
+        'team1' => $team1,
+        'team2' => $team2,
+        'last' => $last,
+        'count' => count($matches),
+        'matches' => $matches,
+        'cached' => false,
+    ];
+
+    @file_put_contents($cacheFile, json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+
+    echo json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Real fixture difficulty mode
+|--------------------------------------------------------------------------
+|
+| Uses API-Football standings + the team's next five fixtures.
+| Each opponent receives a difficulty from its league position:
+| 1-4 = 5, 5-8 = 4, 9-12 = 3, 13-16 = 2, 17-20 = 1.
+| The returned FDR is the average of the available opponent ratings.
+|--------------------------------------------------------------------------
 */
 if ($mode === 'fdr') {
     if ($teamId <= 0) {
@@ -257,6 +451,11 @@ if ($mode === 'fdr') {
     exit;
 }
 
+/*
+|--------------------------------------------------------------------------
+| Player data mode
+|--------------------------------------------------------------------------
+*/
 $cacheFile = $cacheDirectory . '/api-football-' . $competition . '-' . $season . '.json';
 $cacheLifetime = 30 * 60;
 
