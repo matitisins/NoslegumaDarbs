@@ -35,6 +35,7 @@ function TeamSelect({
   value,
   teams,
   onChange,
+  disabledTeamId = null,
   accent = "emerald",
 }) {
   const isRose = accent === "rose";
@@ -53,13 +54,23 @@ function TeamSelect({
 
       <select
         value={value || ""}
-        onChange={event =>
-          onChange(
+        onChange={event => {
+          const nextTeamId =
             event.target.value
               ? Number(event.target.value)
-              : null
-          )
-        }
+              : null;
+
+          if (
+            nextTeamId !== null &&
+            disabledTeamId !== null &&
+            Number(nextTeamId) ===
+              Number(disabledTeamId)
+          ) {
+            return;
+          }
+
+          onChange(nextTeamId);
+        }}
         className={`mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 ${
           isRose
             ? "focus:border-rose-400 focus:ring-rose-100"
@@ -74,6 +85,11 @@ function TeamSelect({
           <option
             key={team.id}
             value={team.id}
+            disabled={
+              disabledTeamId !== null &&
+              Number(team.id) ===
+                Number(disabledTeamId)
+            }
           >
             {team.name}
           </option>
@@ -715,7 +731,6 @@ export default function TeamPage({
 
           const secondTeam =
             availableTeams[1] ||
-            availableTeams[0] ||
             null;
 
           setTeam1Id(
@@ -938,6 +953,7 @@ export default function TeamPage({
           value={team1Id}
           teams={teams}
           onChange={setTeam1Id}
+          disabledTeamId={team2Id}
           accent="rose"
         />
 
@@ -946,6 +962,7 @@ export default function TeamPage({
           value={team2Id}
           teams={teams}
           onChange={setTeam2Id}
+          disabledTeamId={team1Id}
           accent="emerald"
         />
       </div>
@@ -981,10 +998,7 @@ export default function TeamPage({
 
                 return (
                   <section
-                    key={
-                      team?.id ||
-                      index
-                    }
+                    key={`team-${team?.id ?? "empty"}-${index}`}
                     className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"
                   >
                     <TeamHeader

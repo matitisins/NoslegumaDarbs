@@ -26,6 +26,8 @@ import CaptaincySimulator from "./components/CaptaincySimulator";
 import AccountModal from "./components/AccountModal";
 import GuideModal from "./components/GuideModal";
 import TeamPage from "./TeamPage";
+import LeagueTables from "./LeagueTables";
+import FootballAnalyticsTools from "./components/FootballAnalyticsTools";
 
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
@@ -1306,6 +1308,30 @@ export default function App() {
 
             <button
               type="button"
+              onClick={() => setActiveView("league-tables")}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                activeView === "league-tables"
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              League Tables
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView("analytics-tools")}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                activeView === "analytics-tools"
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              Analytics Tools
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsGuideOpen(true)}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900"
             >
@@ -1871,6 +1897,22 @@ export default function App() {
 
         {activeView === "teams" && (
           <TeamPage
+            competition={selectedLeague}
+            season={apiSeason}
+            leagueName={leagueName}
+          />
+        )}
+
+        {activeView === "league-tables" && (
+          <LeagueTables
+            competition={selectedLeague}
+            season={apiSeason}
+            leagueName={leagueName}
+          />
+        )}
+
+        {activeView === "analytics-tools" && (
+          <FootballAnalyticsTools
             competition={selectedLeague}
             season={apiSeason}
             leagueName={leagueName}

@@ -1,3 +1,9 @@
+/*
+ * Attēlo spēlētāju salīdzināšanas sadaļas virsrakstu un galveno informāciju.
+ * Parāda izvēlēto spēlētāju kategoriju, abu spēlētāju vārdus, iespēju atgriezties
+ * pie spēlētāju izvēles un saglabāt salīdzinājumu kā attēlu.
+ */
+
 import React from "react";
 import {
   CATEGORIES,
