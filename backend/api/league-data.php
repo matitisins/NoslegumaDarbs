@@ -68,7 +68,7 @@ if ($season < 2000 || $season > 2100) {
     exit;
 }
 
-if (!in_array($mode, ['standings', 'fixtures'], true)) {
+if (!in_array($mode, ['standings', 'fixtures', 'player-context'], true)) {
     http_response_code(400);
     echo json_encode([
         'success' => false,
@@ -181,6 +181,190 @@ function sendLeagueError(int $status, string $message): never
         'error' => $message,
     ], JSON_UNESCAPED_UNICODE);
 
+    exit;
+}
+
+
+if ($mode === 'player-context') {
+    $teamId = (int)($_GET['team'] ?? 0);
+    $playerId = (int)($_GET['player'] ?? 0);
+
+    if ($teamId <= 0 || $playerId <= 0) {
+        sendLeagueError(400, 'Team un player ID ir obligāti.');
+    }
+
+    $cacheFile = $cacheDirectory . '/league-data-player-context-' . $competition . '-' . $season . '-' . $teamId . '-' . $playerId . '.json';
+    $cacheLifetime = 5 * 60;
+
+    if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
+        $cached = json_decode((string)file_get_contents($cacheFile), true);
+        if (is_array($cached) && is_array($cached['upcoming'] ?? null) && is_array($cached['recent'] ?? null)) {
+            $cached['cached'] = true;
+            echo json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+    }
+
+    $upcomingResult = requestApiFootball('fixtures', [
+        'team' => $teamId,
+        'league' => $leagueId,
+        'season' => $season,
+        'next' => 5,
+    ]);
+
+    $recentResult = requestApiFootball('fixtures', [
+        'team' => $teamId,
+        'league' => $leagueId,
+        'season' => $season,
+        'last' => 5,
+    ]);
+
+    if (!$upcomingResult['success'] && !$recentResult['success']) {
+        sendLeagueError(502, 'Neizdevās ielādēt spēlētāja spēļu datus.');
+    }
+
+    $normalizeFixture = static function (array $fixture): ?array {
+        $fixtureId = (int)($fixture['fixture']['id'] ?? 0);
+        if ($fixtureId <= 0) return null;
+
+        return [
+            'fixture' => [
+                'id' => $fixtureId,
+                'date' => $fixture['fixture']['date'] ?? null,
+                'timestamp' => $fixture['fixture']['timestamp'] ?? null,
+                'status' => $fixture['fixture']['status'] ?? [],
+                'venue' => $fixture['fixture']['venue'] ?? null,
+            ],
+            'league' => [
+                'id' => $fixture['league']['id'] ?? null,
+                'name' => $fixture['league']['name'] ?? null,
+                'round' => $fixture['league']['round'] ?? null,
+            ],
+            'teams' => [
+                'home' => [
+                    'id' => $fixture['teams']['home']['id'] ?? null,
+                    'name' => $fixture['teams']['home']['name'] ?? 'Unknown',
+                    'logo' => $fixture['teams']['home']['logo'] ?? null,
+                    'winner' => $fixture['teams']['home']['winner'] ?? null,
+                ],
+                'away' => [
+                    'id' => $fixture['teams']['away']['id'] ?? null,
+                    'name' => $fixture['teams']['away']['name'] ?? 'Unknown',
+                    'logo' => $fixture['teams']['away']['logo'] ?? null,
+                    'winner' => $fixture['teams']['away']['winner'] ?? null,
+                ],
+            ],
+            'goals' => [
+                'home' => $fixture['goals']['home'] ?? null,
+                'away' => $fixture['goals']['away'] ?? null,
+            ],
+        ];
+    };
+
+    $upcoming = [];
+    if ($upcomingResult['success']) {
+        foreach (($upcomingResult['response']['response'] ?? []) as $fixture) {
+            $normalized = is_array($fixture) ? $normalizeFixture($fixture) : null;
+            if ($normalized) $upcoming[] = $normalized;
+        }
+    }
+
+    $recent = [];
+    $recentRaw = [];
+    if ($recentResult['success']) {
+        $recentRaw = is_array($recentResult['response']['response'] ?? null)
+            ? $recentResult['response']['response']
+            : [];
+        foreach ($recentRaw as $fixture) {
+            $normalized = is_array($fixture) ? $normalizeFixture($fixture) : null;
+            if ($normalized) $recent[] = $normalized;
+        }
+    }
+
+    usort($upcoming, static fn(array $a, array $b): int => (int)($a['fixture']['timestamp'] ?? 0) <=> (int)($b['fixture']['timestamp'] ?? 0));
+    usort($recent, static fn(array $a, array $b): int => (int)($b['fixture']['timestamp'] ?? 0) <=> (int)($a['fixture']['timestamp'] ?? 0));
+
+    $recentIds = array_values(array_filter(array_map(
+        static fn(array $fixture): int => (int)($fixture['fixture']['id'] ?? 0),
+        $recent
+    )));
+
+    $playerMatches = [];
+
+    if (count($recentIds) > 0) {
+        $detailResult = requestApiFootball('fixtures', [
+            'ids' => implode('-', array_slice($recentIds, 0, 20)),
+        ]);
+
+        if ($detailResult['success']) {
+            foreach (($detailResult['response']['response'] ?? []) as $fixture) {
+                if (!is_array($fixture)) continue;
+                $fixtureId = (int)($fixture['fixture']['id'] ?? 0);
+                if ($fixtureId <= 0) continue;
+
+                $found = null;
+                foreach (($fixture['players'] ?? []) as $teamBlock) {
+                    foreach (($teamBlock['players'] ?? []) as $playerBlock) {
+                        $candidateId = (int)($playerBlock['player']['id'] ?? 0);
+                        if ($candidateId === $playerId) {
+                            $stats = $playerBlock['statistics'][0] ?? [];
+                            $found = [
+                                'fixtureId' => $fixtureId,
+                                'playerId' => $candidateId,
+                                'minutes' => (int)($stats['games']['minutes'] ?? 0),
+                                'rating' => isset($stats['games']['rating']) ? (float)$stats['games']['rating'] : null,
+                                'position' => $stats['games']['position'] ?? null,
+                                'substitute' => (bool)($stats['games']['substitute'] ?? false),
+                                'goals' => (int)($stats['goals']['total'] ?? 0),
+                                'assists' => (int)($stats['goals']['assists'] ?? 0),
+                                'shots' => (int)($stats['shots']['total'] ?? 0),
+                                'shotsOn' => (int)($stats['shots']['on'] ?? 0),
+                                'keyPasses' => (int)($stats['passes']['key'] ?? 0),
+                                'tackles' => (int)($stats['tackles']['total'] ?? 0),
+                                'interceptions' => (int)($stats['tackles']['interceptions'] ?? 0),
+                                'yellow' => (int)($stats['cards']['yellow'] ?? 0),
+                                'red' => (int)($stats['cards']['red'] ?? 0),
+                                'penaltyScored' => (int)($stats['penalty']['scored'] ?? 0),
+                                'penaltyMissed' => (int)($stats['penalty']['missed'] ?? 0),
+                            ];
+                            break 2;
+                        }
+                    }
+                }
+
+                if ($found) $playerMatches[$fixtureId] = $found;
+            }
+        }
+    }
+
+    foreach ($recent as &$fixture) {
+        $fixtureId = (int)$fixture['fixture']['id'];
+        $fixture['player'] = $playerMatches[$fixtureId] ?? null;
+    }
+    unset($fixture);
+
+    $output = [
+        'success' => true,
+        'source' => 'api-football',
+        'mode' => 'player-context',
+        'competition' => $competition,
+        'competitionName' => $leagueName,
+        'leagueId' => $leagueId,
+        'season' => $season,
+        'teamId' => $teamId,
+        'playerId' => $playerId,
+        'upcoming' => $upcoming,
+        'recent' => $recent,
+        'cached' => false,
+    ];
+
+    @file_put_contents(
+        $cacheFile,
+        json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        LOCK_EX
+    );
+
+    echo json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 

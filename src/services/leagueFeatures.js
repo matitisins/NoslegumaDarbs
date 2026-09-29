@@ -7,7 +7,7 @@
 const BASE_URL =
   "http://localhost/Nosleguma_Darbs/Nosleguma_Darbs/backend/api";
 
-const CACHE_PREFIX = "flow_league_features_v1_";
+const CACHE_PREFIX = "flow_league_features_v2_";
 const CACHE_TIME = 1000 * 60 * 15;
 
 const readCache = key => {
@@ -34,7 +34,6 @@ const readCache = key => {
       localStorage.removeItem(
         `${CACHE_PREFIX}${key}`
       );
-
       return null;
     }
 
@@ -59,23 +58,17 @@ const writeCache = (key, data) => {
 };
 
 const request = async url => {
-  const response = await fetch(
-    url,
-    {
-      method: "GET",
-
-      headers: {
-        Accept:
-          "application/json",
-      },
-    }
-  );
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
 
   let data = null;
 
   try {
-    data =
-      await response.json();
+    data = await response.json();
   } catch {
     data = null;
   }
@@ -93,151 +86,213 @@ const request = async url => {
   return data;
 };
 
-export const fetchLeagueStandings =
-  async (
-    competition = "PL",
-    season = 2026
-  ) => {
-    const normalizedCompetition =
-      String(
-        competition ||
-          "PL"
-      ).toUpperCase();
+export const fetchLeagueStandings = async (
+  competition = "PL",
+  season = 2026
+) => {
+  const normalizedCompetition = String(
+    competition || "PL"
+  ).toUpperCase();
 
-    const normalizedSeason =
-      Number(
-        season
-      );
+  const normalizedSeason = Number(
+    season
+  );
 
-    const cacheKey =
-      `standings_${normalizedCompetition}_${normalizedSeason}`;
+  const cacheKey =
+    `standings_${normalizedCompetition}_${normalizedSeason}`;
 
-    const cached =
-      readCache(
-        cacheKey
-      );
+  const cached = readCache(cacheKey);
 
-    if (
-      Array.isArray(
-        cached
-      ) &&
-      cached.length
-    ) {
-      return cached;
-    }
+  if (
+    Array.isArray(cached) &&
+    cached.length
+  ) {
+    return cached;
+  }
 
-    const data =
-      await request(
-        `${BASE_URL}/league-data.php?mode=standings&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          normalizedSeason
-        )}`
-      );
+  const data = await request(
+    `${BASE_URL}/league-data.php?mode=standings&competition=${encodeURIComponent(
+      normalizedCompetition
+    )}&season=${encodeURIComponent(
+      normalizedSeason
+    )}`
+  );
 
-    const standings =
-      Array.isArray(
-        data?.standings
-      )
-        ? data.standings
-        : [];
+  const standings = Array.isArray(
+    data?.standings
+  )
+    ? data.standings
+    : [];
 
-    writeCache(
-      cacheKey,
-      standings
-    );
+  writeCache(
+    cacheKey,
+    standings
+  );
 
-    return standings;
+  return standings;
+};
+
+export const fetchLeagueFixtures = async (
+  competition = "PL",
+  season = 2026
+) => {
+  const normalizedCompetition = String(
+    competition || "PL"
+  ).toUpperCase();
+
+  const normalizedSeason = Number(
+    season
+  );
+
+  const cacheKey =
+    `fixtures_${normalizedCompetition}_${normalizedSeason}`;
+
+  const cached = readCache(cacheKey);
+
+  if (
+    cached &&
+    Array.isArray(cached.upcoming) &&
+    Array.isArray(cached.recent)
+  ) {
+    return cached;
+  }
+
+  const data = await request(
+    `${BASE_URL}/league-data.php?mode=fixtures&competition=${encodeURIComponent(
+      normalizedCompetition
+    )}&season=${encodeURIComponent(
+      normalizedSeason
+    )}`
+  );
+
+  const result = {
+    upcoming: Array.isArray(
+      data?.upcoming
+    )
+      ? data.upcoming
+      : [],
+
+    recent: Array.isArray(
+      data?.recent
+    )
+      ? data.recent
+      : [],
   };
 
-export const fetchLeagueFixtures =
-  async (
-    competition = "PL",
-    season = 2026
-  ) => {
-    const normalizedCompetition =
-      String(
-        competition ||
-          "PL"
-      ).toUpperCase();
+  writeCache(
+    cacheKey,
+    result
+  );
 
-    const normalizedSeason =
-      Number(
-        season
-      );
+  return result;
+};
 
-    const cacheKey =
-      `fixtures_${normalizedCompetition}_${normalizedSeason}`;
+export const fetchPlayerFixtureContext = async (
+  player,
+  competition,
+  season
+) => {
+  const teamId = Number(
+    player?.teamId
+  );
 
-    const cached =
-      readCache(
-        cacheKey
-      );
+  const playerId = Number(
+    player?.id
+  );
 
-    if (
-      cached &&
-      Array.isArray(
-        cached.upcoming
-      ) &&
-      Array.isArray(
-        cached.recent
-      )
-    ) {
-      return cached;
-    }
+  const normalizedCompetition = String(
+    competition ||
+      player?.league ||
+      "PL"
+  ).toUpperCase();
 
-    const data =
-      await request(
-        `${BASE_URL}/league-data.php?mode=fixtures&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          normalizedSeason
-        )}`
-      );
+  const normalizedSeason = Number(
+    season ||
+      player?.season ||
+      2026
+  );
 
-    const result = {
-      upcoming:
-        Array.isArray(
-          data?.upcoming
-        )
-          ? data.upcoming
-          : [],
-
-      recent:
-        Array.isArray(
-          data?.recent
-        )
-          ? data.recent
-          : [],
+  if (
+    !teamId ||
+    !playerId
+  ) {
+    return {
+      upcoming: [],
+      recent: [],
+      error:
+        "Player or team ID is missing.",
     };
+  }
 
-    writeCache(
-      cacheKey,
-      result
-    );
+  const cacheKey =
+    `player_context_${normalizedCompetition}_${normalizedSeason}_${teamId}_${playerId}`;
 
-    return result;
+  const cached = readCache(
+    cacheKey
+  );
+
+  if (
+    cached &&
+    Array.isArray(
+      cached.upcoming
+    ) &&
+    Array.isArray(
+      cached.recent
+    )
+  ) {
+    return cached;
+  }
+
+  const data = await request(
+    `${BASE_URL}/league-data.php?mode=player-context&competition=${encodeURIComponent(
+      normalizedCompetition
+    )}&season=${encodeURIComponent(
+      normalizedSeason
+    )}&team=${encodeURIComponent(
+      teamId
+    )}&player=${encodeURIComponent(
+      playerId
+    )}`
+  );
+
+  const result = {
+    upcoming: Array.isArray(
+      data?.upcoming
+    )
+      ? data.upcoming
+      : [],
+
+    recent: Array.isArray(
+      data?.recent
+    )
+      ? data.recent
+      : [],
   };
 
-export const clearLeagueFeatureCache =
-  () => {
-    try {
-      Object.keys(
-        localStorage
-      )
-        .filter(
-          key =>
-            key.startsWith(
-              CACHE_PREFIX
-            )
+  writeCache(
+    cacheKey,
+    result
+  );
+
+  return result;
+};
+
+export const clearLeagueFeatureCache = () => {
+  try {
+    Object.keys(
+      localStorage
+    )
+      .filter(key =>
+        key.startsWith(
+          CACHE_PREFIX
         )
-        .forEach(
-          key =>
-            localStorage.removeItem(
-              key
-            )
-        );
-    } catch {
-      // Ignore storage errors.
-    }
-  };
+      )
+      .forEach(key =>
+        localStorage.removeItem(
+          key
+        )
+      );
+  } catch {
+    // Ignore storage errors.
+  }
+};
