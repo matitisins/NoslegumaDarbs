@@ -109,8 +109,8 @@ export default function LeagueTopScorers({
           }
 
           return (
-            number(b?.points) -
-            number(a?.points)
+            number(b?.flowPoints) -
+            number(a?.flowPoints)
           );
         })
         .slice(0, 20);
@@ -245,7 +245,7 @@ export default function LeagueTopScorers({
                             )
                           : metric === "points"
                           ? number(
-                              player.points
+                              player.flowPoints
                             )
                           : number(
                               player.assists

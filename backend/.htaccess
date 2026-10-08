@@ -1,0 +1,13 @@
+# Never expose backend secrets or runtime data through Apache.
+
+<FilesMatch "^\.env(?:\..*)?$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.(log|json)$">
+        <RequireAll>
+            Require all denied
+        </RequireAll>
+    </FilesMatch>
+</IfModule>

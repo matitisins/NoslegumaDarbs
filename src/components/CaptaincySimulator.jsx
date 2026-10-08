@@ -84,7 +84,7 @@ function PlayerColumn({
           </p>
 
           <p className="mt-1 text-lg font-black text-slate-900">
-            {number(player.points)}
+            {number(player.flowPoints)}
           </p>
         </div>
 
@@ -112,6 +112,7 @@ export default function CaptaincySimulator({
   const [captain, setCaptain] =
     useState("player1");
 
+  // Expected values here are heuristic projections, not official FPL predictions.
   const expected1 = useMemo(() => {
     if (!player1) return 0;
 

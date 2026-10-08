@@ -32,6 +32,9 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
+require_once __DIR__ . '/../src/api/config.php';
+enforceRateLimit('fpl', 60, 60);
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
     exit;
@@ -51,7 +54,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     exit;
 }
 
-$season = (int)($_GET['season'] ?? 2026);
+$seasonRaw = trim((string)($_GET['season'] ?? '2026'));
+
+if (!preg_match('/^\d{4}$/', $seasonRaw)) {
+    sendJsonError(400, 'Sezonai jābūt četrciparu gadam.');
+}
+
+$season = (int)$seasonRaw;
 
 /*
 |--------------------------------------------------------------------------
@@ -79,9 +88,7 @@ if ($season !== 2026) {
 
 $cacheDirectory = __DIR__ . '/../cache';
 
-if (!is_dir($cacheDirectory)) {
-    @mkdir($cacheDirectory, 0775, true);
-}
+ensureCacheDirectory($cacheDirectory);
 
 $cacheFile = $cacheDirectory . '/fpl-bootstrap-2026.json';
 
@@ -414,10 +421,8 @@ if ($json === false) {
     exit;
 }
 
-@file_put_contents(
-    $cacheFile,
-    $json,
-    LOCK_EX
-);
+if (file_put_contents($cacheFile, $json, LOCK_EX) === false) {
+    error_log('Flow FPL cache write failed: ' . $cacheFile);
+}
 
 echo $json;

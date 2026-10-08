@@ -1,1508 +1,51 @@
-const BASE_URL =
-  "http://localhost/Nosleguma_Darbs/Nosleguma_Darbs/backend/api";
+import {
+  BASE_URL,
+  REQUEST_TIMEOUT,
+  isValidSeason,
+  isValidCompetition,
+  buildApiUrl,
+  requestJson,
+  API_FOOTBALL_LEAGUES,
+  CACHE_PREFIX,
+  CACHE_TIME,
+  POSITION_LABELS,
+  toNumber,
+  nullableNumber,
+  normalizePercentage,
+  normalize,
+  getCache,
+  getAnyCache,
+  setCache,
+  getPositionCategory,
+  getPositionLabel,
+  calculateFantasyPoints,
+  sumField,
+  firstNonNull,
+  weightedAverage
+} from "./apiSportsCore";
 
+import {
+  aggregatePlayerStats,
+  calculateSavePercentage,
+  buildAdvancedStats,
+  radarDefinitions,
+  getRadarRawValue,
+  percentileRank,
+  buildRadarStats,
+  buildRadarPercentiles,
+  buildFormMetrics,
+  createPlayer
+} from "./apiSportsStats";
+
+
+// Public competition IDs used by the application.
 export const COMPETITION_IDS = {
-  PL: "PL",
-  PD: "PD",
-  SA: "SA",
-  BL1: "BL1",
-  FL1: "FL1",
   PREMIER_LEAGUE: "PL",
   LA_LIGA: "PD",
   SERIE_A: "SA",
   BUNDESLIGA: "BL1",
   LIGUE_1: "FL1",
 };
-
-export const LEAGUE_NAMES = {
-  PL: "Premier League",
-  PD: "La Liga",
-  SA: "Serie A",
-  BL1: "Bundesliga",
-  FL1: "Ligue 1",
-};
-
-const API_FOOTBALL_LEAGUES = {
-  PL: 39,
-  PD: 140,
-  SA: 135,
-  BL1: 78,
-  FL1: 61,
-};
-
-/*
- * v9 is intentional.
- *
- * The previous cache contained the old Flow-point calculation.
- * Changing the prefix guarantees that the new FPL-based values
- * are loaded instead of the old cached values.
- */
-const CACHE_PREFIX = "flow_api_football_v9_";
-
-const CACHE_TIME = 1000 * 60 * 60;
-
-const POSITION_LABELS = {
-  GOALKEEPERS: "Vārtsargi",
-  DEFENDERS: "Aizsargi",
-  MIDFIELDERS: "Pussargi",
-  STRIKERS: "Uzbrucēji",
-};
-
-const toNumber = value => {
-  const number = Number(value);
-
-  return Number.isFinite(number)
-    ? number
-    : 0;
-};
-
-const nullableNumber = value => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return null;
-  }
-
-  const number = Number(value);
-
-  return Number.isFinite(number)
-    ? number
-    : null;
-};
-
-const normalizePercentage = value => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return null;
-  }
-
-  const number = Number(
-    String(value).replace("%", "")
-  );
-
-  return Number.isFinite(number)
-    ? number
-    : null;
-};
-
-const normalize = value =>
-  String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-const getCache = key => {
-  try {
-    const raw = localStorage.getItem(
-      `${CACHE_PREFIX}${key}`
-    );
-
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (
-      !parsed?.timestamp ||
-      !Array.isArray(parsed.data)
-    ) {
-      return null;
-    }
-
-    if (
-      Date.now() - parsed.timestamp >
-      CACHE_TIME
-    ) {
-      localStorage.removeItem(
-        `${CACHE_PREFIX}${key}`
-      );
-
-      return null;
-    }
-
-    return parsed.data;
-  } catch {
-    return null;
-  }
-};
-
-const getAnyCache = key => {
-  try {
-    const raw = localStorage.getItem(
-      `${CACHE_PREFIX}${key}`
-    );
-
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (
-      !parsed?.timestamp ||
-      parsed.data === undefined
-    ) {
-      return null;
-    }
-
-    if (
-      Date.now() - parsed.timestamp >
-      CACHE_TIME
-    ) {
-      localStorage.removeItem(
-        `${CACHE_PREFIX}${key}`
-      );
-
-      return null;
-    }
-
-    return parsed.data;
-  } catch {
-    return null;
-  }
-};
-
-const setCache = (key, data) => {
-  try {
-    localStorage.setItem(
-      `${CACHE_PREFIX}${key}`,
-      JSON.stringify({
-        timestamp: Date.now(),
-        data,
-      })
-    );
-  } catch {
-    // Ignore browser storage limits.
-  }
-};
-
-const getPositionCategory = position => {
-  const p = String(position || "")
-    .toLowerCase()
-    .trim();
-
-  if (
-    p.includes("goalkeeper") ||
-    p.includes("keeper") ||
-    p === "gk" ||
-    p === "g"
-  ) {
-    return "GOALKEEPERS";
-  }
-
-  if (
-    p.includes("defence") ||
-    p.includes("defender") ||
-    p.includes("back") ||
-    p.includes("centre-back") ||
-    p.includes("center-back") ||
-    p === "d"
-  ) {
-    return "DEFENDERS";
-  }
-
-  if (
-    p.includes("midfield") ||
-    p.includes("midfielder") ||
-    p === "m"
-  ) {
-    return "MIDFIELDERS";
-  }
-
-  if (
-    p.includes("offence") ||
-    p.includes("offense") ||
-    p.includes("forward") ||
-    p.includes("striker") ||
-    p.includes("attacker") ||
-    p.includes("winger") ||
-    p === "f"
-  ) {
-    return "STRIKERS";
-  }
-
-  return null;
-};
-
-const getPositionLabel = category =>
-  POSITION_LABELS[category] ||
-  "Spēlētājs";
-
-/*
-|--------------------------------------------------------------------------
-| FPL-style fallback
-|--------------------------------------------------------------------------
-|
-| Premier League 2026/27 uses the official FPL totals when available.
-|
-| This fallback exists for:
-| - La Liga
-| - Serie A
-| - Bundesliga
-| - Ligue 1
-| - older seasons
-| - temporary FPL API failures
-|
-| API-Football does not expose every match-level FPL metric required
-| to reproduce official FPL scoring exactly, so this fallback only
-| uses statistics that are actually available.
-|--------------------------------------------------------------------------
-*/
-
-const calculateFantasyPoints = ({
-  category,
-  appearances,
-  minutes,
-  goals,
-  assists,
-  penaltiesMissed,
-  saves,
-  goalsConceded,
-  yellowCards,
-  redCards,
-}) => {
-  const goalPoints = {
-    GOALKEEPERS: 10,
-    DEFENDERS: 6,
-    MIDFIELDERS: 5,
-    STRIKERS: 4,
-  };
-
-  const appearanceCount =
-    toNumber(appearances);
-
-  const totalMinutes =
-    toNumber(minutes);
-
-  let appearancePoints = 0;
-
-  if (appearanceCount > 0) {
-    /*
-     * API-Football gives aggregate minutes rather than each match's
-     * exact minute count.
-     *
-     * If the player's average is at least 60 minutes, treat the
-     * appearances as 60+ minutes. Otherwise use 1 point per appearance.
-     */
-    const averageMinutes =
-      totalMinutes /
-      appearanceCount;
-
-    appearancePoints =
-      averageMinutes >= 60
-        ? appearanceCount * 2
-        : appearanceCount;
-  }
-
-  const scoredGoalPoints =
-    toNumber(goals) *
-    (goalPoints[category] || 4);
-
-  const assistPoints =
-    toNumber(assists) * 3;
-
-  const savePoints =
-    category === "GOALKEEPERS"
-      ? Math.floor(
-          toNumber(saves) / 3
-        )
-      : 0;
-
-  const penaltyMissPoints =
-    toNumber(penaltiesMissed) * -2;
-
-  const concededGoalPoints =
-    category === "GOALKEEPERS" ||
-    category === "DEFENDERS"
-      ? -Math.floor(
-          toNumber(goalsConceded) / 2
-        )
-      : 0;
-
-  const yellowCardPoints =
-    toNumber(yellowCards) * -1;
-
-  const redCardPoints =
-    toNumber(redCards) * -3;
-
-  return Math.round(
-    appearancePoints +
-      scoredGoalPoints +
-      assistPoints +
-      savePoints +
-      penaltyMissPoints +
-      concededGoalPoints +
-      yellowCardPoints +
-      redCardPoints
-  );
-};
-
-const sumField = (
-  stats,
-  selector
-) =>
-  stats.reduce(
-    (total, item) => {
-      const value =
-        selector(item);
-
-      return value === null ||
-        value === undefined
-        ? total
-        : total + toNumber(value);
-    },
-    0
-  );
-
-const firstNonNull = (
-  stats,
-  selector
-) => {
-  for (const item of stats) {
-    const value =
-      selector(item);
-
-    if (
-      value !== null &&
-      value !== undefined &&
-      value !== ""
-    ) {
-      return value;
-    }
-  }
-
-  return null;
-};
-
-const weightedAverage = (
-  stats,
-  valueSelector,
-  weightSelector
-) => {
-  let weightedTotal = 0;
-  let weightTotal = 0;
-
-  for (const item of stats) {
-    const value =
-      nullableNumber(
-        valueSelector(item)
-      );
-
-    const weight =
-      toNumber(
-        weightSelector(item)
-      );
-
-    if (value === null) {
-      continue;
-    }
-
-    if (weight > 0) {
-      weightedTotal +=
-        value * weight;
-
-      weightTotal += weight;
-    }
-  }
-
-  if (weightTotal > 0) {
-    return (
-      Math.round(
-        (weightedTotal /
-          weightTotal) *
-          10
-      ) / 10
-    );
-  }
-
-  const values = stats
-    .map(item =>
-      nullableNumber(
-        valueSelector(item)
-      )
-    )
-    .filter(
-      value => value !== null
-    );
-
-  if (!values.length) {
-    return null;
-  }
-
-  return (
-    Math.round(
-      (
-        values.reduce(
-          (sum, value) =>
-            sum + value,
-          0
-        ) /
-        values.length
-      ) * 10
-    ) / 10
-  );
-};
-
-const aggregatePlayerStats =
-  statistics => {
-    const stats =
-      Array.isArray(statistics)
-        ? statistics.filter(Boolean)
-        : [];
-
-    if (!stats.length) {
-      return {
-        teamId: null,
-        team: null,
-        teamLogo: null,
-        position: null,
-
-        appearances: 0,
-        minutes: 0,
-        goals: 0,
-        assists: 0,
-        penaltyGoals: 0,
-
-        shots: 0,
-        shotsOnTarget: 0,
-
-        passes: 0,
-        keyPasses: 0,
-        passAccuracy: null,
-
-        tackles: 0,
-        blocks: 0,
-        interceptions: 0,
-
-        duels: 0,
-        duelsWon: 0,
-
-        dribbleAttempts: 0,
-        successfulDribbles: 0,
-
-        foulsDrawn: 0,
-        foulsCommitted: 0,
-
-        yellowCards: 0,
-        yellowRedCards: 0,
-        redCards: 0,
-
-        penaltiesMissed: 0,
-        penaltiesWon: 0,
-
-        saves: 0,
-        goalsConceded: 0,
-
-        rating: null,
-
-        starts: 0,
-        substituteIn: 0,
-        substituteOut: 0,
-        bench: 0,
-      };
-    }
-
-    const appearances =
-      sumField(
-        stats,
-        item =>
-          item.games?.appearences
-      );
-
-    const minutes =
-      sumField(
-        stats,
-        item =>
-          item.games?.minutes
-      );
-
-    const passes =
-      sumField(
-        stats,
-        item =>
-          item.passes?.total
-      );
-
-    const accuratePasses =
-      sumField(
-        stats,
-        item => {
-          const total =
-            nullableNumber(
-              item.passes?.total
-            );
-
-          const accuracy =
-            normalizePercentage(
-              item.passes?.accuracy
-            );
-
-          if (
-            total === null ||
-            accuracy === null
-          ) {
-            return null;
-          }
-
-          return (
-            (total * accuracy) /
-            100
-          );
-        }
-      );
-
-    const duels =
-      sumField(
-        stats,
-        item =>
-          item.duels?.total
-      );
-
-    const duelsWon =
-      sumField(
-        stats,
-        item =>
-          item.duels?.won
-      );
-
-    const dribbleAttempts =
-      sumField(
-        stats,
-        item =>
-          item.dribbles?.attempts
-      );
-
-    const successfulDribbles =
-      sumField(
-        stats,
-        item =>
-          item.dribbles?.success
-      );
-
-    const passAccuracy =
-      passes > 0 &&
-      accuratePasses >= 0
-        ? Math.round(
-            (accuratePasses /
-              passes) *
-              1000
-          ) / 10
-        : weightedAverage(
-            stats,
-            item =>
-              normalizePercentage(
-                item.passes?.accuracy
-              ),
-            item =>
-              item.passes?.total
-          );
-
-    const duelsWonPercentage =
-      duels > 0
-        ? Math.round(
-            (duelsWon / duels) *
-              1000
-          ) / 10
-        : null;
-
-    const dribbleSuccess =
-      dribbleAttempts > 0
-        ? Math.round(
-            (successfulDribbles /
-              dribbleAttempts) *
-              1000
-          ) / 10
-        : null;
-
-    return {
-      teamId:
-        firstNonNull(
-          stats,
-          item =>
-            item.team?.id
-        ),
-
-      team:
-        firstNonNull(
-          stats,
-          item =>
-            item.team?.name
-        ),
-
-      teamLogo:
-        firstNonNull(
-          stats,
-          item =>
-            item.team?.logo
-        ),
-
-      position:
-        firstNonNull(
-          stats,
-          item =>
-            item.games?.position
-        ),
-
-      appearances,
-      minutes,
-
-      goals:
-        sumField(
-          stats,
-          item =>
-            item.goals?.total
-        ),
-
-      assists:
-        sumField(
-          stats,
-          item =>
-            item.goals?.assists
-        ),
-
-      penaltyGoals:
-        sumField(
-          stats,
-          item =>
-            item.penalty?.scored
-        ),
-
-      shots:
-        sumField(
-          stats,
-          item =>
-            item.shots?.total
-        ),
-
-      shotsOnTarget:
-        sumField(
-          stats,
-          item =>
-            item.shots?.on
-        ),
-
-      passes,
-      keyPasses:
-        sumField(
-          stats,
-          item =>
-            item.passes?.key
-        ),
-
-      passAccuracy,
-
-      tackles:
-        sumField(
-          stats,
-          item =>
-            item.tackles?.total
-        ),
-
-      blocks:
-        sumField(
-          stats,
-          item =>
-            item.tackles?.blocks
-        ),
-
-      interceptions:
-        sumField(
-          stats,
-          item =>
-            item.tackles?.interceptions
-        ),
-
-      duels,
-      duelsWon,
-      duelsWonPercentage,
-
-      dribbleAttempts,
-      successfulDribbles,
-      dribbleSuccess,
-
-      foulsDrawn:
-        sumField(
-          stats,
-          item =>
-            item.fouls?.drawn
-        ),
-
-      foulsCommitted:
-        sumField(
-          stats,
-          item =>
-            item.fouls?.committed
-        ),
-
-      yellowCards:
-        sumField(
-          stats,
-          item =>
-            item.cards?.yellow
-        ),
-
-      yellowRedCards:
-        sumField(
-          stats,
-          item =>
-            item.cards?.yellowred
-        ),
-
-      redCards:
-        sumField(
-          stats,
-          item =>
-            item.cards?.red
-        ),
-
-      penaltiesMissed:
-        sumField(
-          stats,
-          item =>
-            item.penalty?.missed
-        ),
-
-      penaltiesWon:
-        sumField(
-          stats,
-          item =>
-            item.penalty?.won
-        ),
-
-      saves:
-        sumField(
-          stats,
-          item =>
-            item.goals?.saves
-        ),
-
-      goalsConceded:
-        sumField(
-          stats,
-          item =>
-            item.goals?.conceded
-        ),
-
-      rating:
-        weightedAverage(
-          stats,
-          item =>
-            item.games?.rating,
-          item =>
-            item.games?.minutes
-        ),
-
-      starts:
-        sumField(
-          stats,
-          item =>
-            item.games?.lineups
-        ),
-
-      substituteIn:
-        sumField(
-          stats,
-          item =>
-            item.substitutes?.in
-        ),
-
-      substituteOut:
-        sumField(
-          stats,
-          item =>
-            item.substitutes?.out
-        ),
-
-      bench:
-        sumField(
-          stats,
-          item =>
-            item.substitutes?.bench
-        ),
-    };
-  };
-
-const calculateSavePercentage =
-  stats => {
-    const saves =
-      nullableNumber(
-        stats.saves
-      );
-
-    const conceded =
-      nullableNumber(
-        stats.goalsConceded
-      );
-
-    if (
-      saves === null ||
-      conceded === null ||
-      saves + conceded <= 0
-    ) {
-      return null;
-    }
-
-    return (
-      Math.round(
-        (saves /
-          (saves + conceded)) *
-          1000
-      ) / 10
-    );
-  };
-
-const buildAdvancedStats =
-  aggregated => ({
-    ...aggregated,
-
-    savePercentage:
-      calculateSavePercentage(
-        aggregated
-      ),
-  });
-
-const radarDefinitions = {
-  GOALKEEPERS: [
-    {
-      label: "Saves",
-      key: "saves",
-    },
-    {
-      label: "Save %",
-      key: "savePercentage",
-    },
-    {
-      label: "Pass accuracy",
-      key: "passAccuracy",
-    },
-    {
-      label: "Rating",
-      key: "rating",
-    },
-    {
-      label: "Minutes",
-      key: "minutes",
-    },
-    {
-      label: "Appearances",
-      key: "appearances",
-    },
-  ],
-
-  DEFENDERS: [
-    {
-      label: "Tackles",
-      key: "tackles",
-    },
-    {
-      label: "Interceptions",
-      key: "interceptions",
-    },
-    {
-      label: "Blocks",
-      key: "blocks",
-    },
-    {
-      label: "Duels won %",
-      key: "duelsWonPercentage",
-    },
-    {
-      label: "Pass accuracy",
-      key: "passAccuracy",
-    },
-    {
-      label: "Minutes",
-      key: "minutes",
-    },
-  ],
-
-  MIDFIELDERS: [
-    {
-      label: "Key passes",
-      key: "keyPasses",
-    },
-    {
-      label: "Passes",
-      key: "passes",
-    },
-    {
-      label: "Pass accuracy",
-      key: "passAccuracy",
-    },
-    {
-      label: "Dribbles",
-      key: "successfulDribbles",
-    },
-    {
-      label: "Duels won %",
-      key: "duelsWonPercentage",
-    },
-    {
-      label: "Shots on target",
-      key: "shotsOnTarget",
-    },
-  ],
-
-  STRIKERS: [
-    {
-      label: "Goals",
-      key: "goals",
-    },
-    {
-      label: "Assists",
-      key: "assists",
-    },
-    {
-      label: "Shots",
-      key: "shots",
-    },
-    {
-      label: "Shots on target",
-      key: "shotsOnTarget",
-    },
-    {
-      label: "Key passes",
-      key: "keyPasses",
-    },
-    {
-      label: "Dribbles",
-      key: "successfulDribbles",
-    },
-  ],
-};
-
-const getRadarRawValue = (
-  player,
-  key
-) => {
-  const value =
-    player?.advancedStats?.[key];
-
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return null;
-  }
-
-  return toNumber(value);
-};
-
-const percentileRank = (
-  value,
-  values
-) => {
-  if (
-    value === null ||
-    value === undefined ||
-    !values.length
-  ) {
-    return null;
-  }
-
-  const sorted = [
-    ...values,
-  ].sort(
-    (a, b) => a - b
-  );
-
-  if (
-    sorted.length === 1
-  ) {
-    return 50;
-  }
-
-  const lower =
-    sorted.filter(
-      item =>
-        item < value
-    ).length;
-
-  const equal =
-    sorted.filter(
-      item =>
-        item === value
-    ).length;
-
-  if (
-    lower === 0 &&
-    equal === sorted.length
-  ) {
-    return 50;
-  }
-
-  const percentile =
-    (
-      (
-        lower +
-        (equal - 1) / 2
-      ) /
-      (sorted.length - 1)
-    ) *
-    100;
-
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(
-        percentile
-      )
-    )
-  );
-};
-
-const buildRadarStats = (
-  player,
-  players
-) => {
-  const definition =
-    radarDefinitions[
-      player.category
-    ] ||
-    radarDefinitions.STRIKERS;
-
-  const labels = [];
-  const values = [];
-
-  const positionPlayers =
-    players.filter(
-      candidate =>
-        candidate.category ===
-          player.category &&
-        toNumber(
-          candidate.minutes
-        ) > 0
-    );
-
-  const referencePlayers =
-    positionPlayers.length
-      ? positionPlayers
-      : players.filter(
-          candidate =>
-            candidate.category ===
-            player.category
-        );
-
-  for (
-    const item of definition
-  ) {
-    const current =
-      getRadarRawValue(
-        player,
-        item.key
-      );
-
-    const available =
-      referencePlayers
-        .map(candidate =>
-          getRadarRawValue(
-            candidate,
-            item.key
-          )
-        )
-        .filter(
-          value =>
-            value !== null
-        );
-
-    if (
-      current === null ||
-      !available.length
-    ) {
-      continue;
-    }
-
-    const percentile =
-      percentileRank(
-        current,
-        available
-      );
-
-    if (
-      percentile === null
-    ) {
-      continue;
-    }
-
-    labels.push(
-      item.label
-    );
-
-    values.push(
-      percentile
-    );
-  }
-
-  return {
-    labels,
-    values,
-  };
-};
-
-const buildRadarPercentiles = (
-  player,
-  players
-) => {
-  const positionPlayers =
-    players.filter(
-      candidate =>
-        candidate.category ===
-          player.category &&
-        toNumber(
-          candidate.minutes
-        ) > 0
-    );
-
-  const referencePlayers =
-    positionPlayers.length
-      ? positionPlayers
-      : players.filter(
-          candidate =>
-            candidate.category ===
-            player.category
-        );
-
-  const keys = [
-    ...new Set(
-      Object.values(
-        radarDefinitions
-      )
-        .flat()
-        .map(
-          item => item.key
-        )
-    ),
-  ];
-
-  const result = {};
-
-  for (
-    const key of keys
-  ) {
-    const current =
-      getRadarRawValue(
-        player,
-        key
-      );
-
-    if (
-      current === null
-    ) {
-      continue;
-    }
-
-    const available =
-      referencePlayers
-        .map(candidate =>
-          getRadarRawValue(
-            candidate,
-            key
-          )
-        )
-        .filter(
-          value =>
-            value !== null
-        );
-
-    if (
-      !available.length
-    ) {
-      continue;
-    }
-
-    result[key] =
-      percentileRank(
-        current,
-        available
-      );
-  }
-
-  return result;
-};
-
-const buildFormMetrics =
-  player => [
-    {
-      label: "Punkti",
-      value: toNumber(
-        player.points
-      ),
-    },
-    {
-      label: "Vārti",
-      value: toNumber(
-        player.goals
-      ),
-    },
-    {
-      label: "Assist",
-      value: toNumber(
-        player.assists
-      ),
-    },
-    {
-      label: "Spēles",
-      value: toNumber(
-        player.appearances
-      ),
-    },
-  ];
-
-/*
-|--------------------------------------------------------------------------
-| Create player
-|--------------------------------------------------------------------------
-*/
-
-const createPlayer = (
-  item,
-  season,
-  competition
-) => {
-  const player =
-    item?.player || {};
-
-  const aggregated =
-    aggregatePlayerStats(
-      item?.statistics
-    );
-
-  const category =
-    getPositionCategory(
-      aggregated.position ||
-        player.position
-    );
-
-  if (
-    !category ||
-    player.id === null ||
-    player.id === undefined
-  ) {
-    return null;
-  }
-
-  const penaltyGoals =
-    category === "MIDFIELDERS" ||
-    category === "STRIKERS"
-      ? aggregated.penaltyGoals
-      : null;
-
-  /*
-   * This is the fallback score.
-   *
-   * Premier League 2026/27 is overwritten with the official FPL
-   * total later in fetchApiSportsPlayers().
-   */
-  const points =
-    calculateFantasyPoints({
-      category,
-
-      appearances:
-        aggregated.appearances,
-
-      minutes:
-        aggregated.minutes,
-
-      goals:
-        aggregated.goals,
-
-      assists:
-        aggregated.assists,
-
-      penaltiesMissed:
-        aggregated.penaltiesMissed,
-
-      saves:
-        aggregated.saves,
-
-      goalsConceded:
-        aggregated.goalsConceded,
-
-      yellowCards:
-        aggregated.yellowCards,
-
-      redCards:
-        aggregated.redCards,
-    });
-
-  const advancedStats =
-    buildAdvancedStats(
-      aggregated
-    );
-
-  return {
-    id: player.id,
-
-    name:
-      player.name ||
-      "Nezināms spēlētājs",
-
-    teamId:
-      aggregated.teamId,
-
-    team:
-      aggregated.team ||
-      "Nezināms klubs",
-
-    position:
-      aggregated.position ||
-      player.position ||
-      "Unknown",
-
-    positionLabel:
-      getPositionLabel(
-        category
-      ),
-
-    category,
-
-    appearances:
-      aggregated.appearances,
-
-    minutes:
-      aggregated.minutes,
-
-    goals:
-      aggregated.goals,
-
-    assists:
-      aggregated.assists,
-
-    penalties:
-      penaltyGoals,
-
-    points,
-
-    photo:
-      player.photo || null,
-
-    nationality:
-      player.nationality ||
-      null,
-
-    injured:
-      Boolean(
-        player.injured
-      ),
-
-    age:
-      player.age ?? null,
-
-    height:
-      player.height || null,
-
-    weight:
-      player.weight || null,
-
-    birthDate:
-      player.birth?.date ||
-      null,
-
-    birthPlace:
-      player.birth?.place ||
-      null,
-
-    birthCountry:
-      player.birth?.country ||
-      null,
-
-    number:
-      player.number ?? null,
-
-    teamLogo:
-      aggregated.teamLogo ||
-      null,
-
-    advancedStats: {
-      ...advancedStats,
-
-      penaltyGoals,
-
-      /*
-       * Useful if you want to inspect how the fallback score
-       * was produced without changing the existing UI.
-       */
-      fplFallback: {
-        appearances:
-          aggregated.appearances,
-
-        minutes:
-          aggregated.minutes,
-
-        goals:
-          aggregated.goals,
-
-        assists:
-          aggregated.assists,
-
-        penaltiesMissed:
-          aggregated.penaltiesMissed,
-
-        saves:
-          aggregated.saves,
-
-        goalsConceded:
-          aggregated.goalsConceded,
-
-        yellowCards:
-          aggregated.yellowCards,
-
-        redCards:
-          aggregated.redCards,
-      },
-    },
-
-    realStats: {
-      appearances:
-        aggregated.appearances,
-
-      minutes:
-        aggregated.minutes,
-
-      goals:
-        aggregated.goals,
-
-      assists:
-        aggregated.assists,
-
-      penalties:
-        penaltyGoals,
-
-      yellowCards:
-        aggregated.yellowCards,
-
-      redCards:
-        aggregated.redCards,
-    },
-
-    customStats: {},
-
-    formMetrics: [],
-
-    recentForm: [],
-
-    league: competition,
-
-    season: String(
-      season
-    ),
-  };
-};
-
-/*
-|--------------------------------------------------------------------------
-| API-Football request
-|--------------------------------------------------------------------------
-*/
 
 const requestApiFootball = async (
   competition,
@@ -1519,47 +62,26 @@ const requestApiFootball = async (
     );
   }
 
-  const response =
-    await fetch(
-      `${BASE_URL}/api-football.php?competition=${encodeURIComponent(
-        competition
-      )}&season=${encodeURIComponent(
-        season
-      )}`,
-      {
-        method: "GET",
-
-        headers: {
-          Accept:
-            "application/json",
-        },
-      }
-    );
-
-  let data = null;
-
-  try {
-    data =
-      await response.json();
-  } catch {
-    data = null;
-  }
-
-  if (
-    !response.ok ||
-    data?.success === false
-  ) {
+  if (!isValidCompetition(competition)) {
     throw new Error(
-      data?.error ||
-        `API-Football kļūda: ${response.status}`
+      "Izvēlētā līga nav atbalstīta."
     );
   }
 
-  if (
-    !Array.isArray(
-      data?.players
-    )
-  ) {
+  if (!isValidSeason(season)) {
+    throw new Error(
+      "Nederīga sezona."
+    );
+  }
+
+  const data = await requestJson(
+    buildApiUrl("api-football.php", {
+      competition,
+      season,
+    })
+  );
+
+  if (!Array.isArray(data?.players)) {
     throw new Error(
       "API-Football neatgrieza spēlētāju statistiku."
     );
@@ -1567,7 +89,6 @@ const requestApiFootball = async (
 
   return {
     ...data,
-
     leagueId,
   };
 };
@@ -1609,37 +130,19 @@ const fetchOfficialFplPoints =
     }
 
     try {
-      const response =
-        await fetch(
-          `${BASE_URL}/fpl.php?season=${encodeURIComponent(
-            season
-          )}`,
-          {
-            method: "GET",
-
-            headers: {
-              Accept:
-                "application/json",
-            },
-          }
-        );
-
-      let data = null;
-
-      try {
-        data =
-          await response.json();
-      } catch {
-        data = null;
+      if (!isValidSeason(season)) {
+        return null;
       }
 
+      const data = await requestJson(
+        buildApiUrl("fpl.php", {
+          season,
+        })
+      );
+
       if (
-        !response.ok ||
-        data?.success === false ||
         data?.available === false ||
-        !Array.isArray(
-          data?.players
-        )
+        !Array.isArray(data?.players)
       ) {
         return null;
       }
@@ -1651,10 +154,6 @@ const fetchOfficialFplPoints =
 
       return data;
     } catch {
-      /*
-       * Never break Flow if the official FPL endpoint is temporarily
-       * unavailable.
-       */
       return null;
     }
   };
@@ -1671,9 +170,6 @@ const applyOfficialFplPoints =
     competition,
     season
   ) => {
-    /*
-     * Official FPL scoring only exists for the Premier League.
-     */
     if (
       competition !== "PL" ||
       Number(season) !== 2026
@@ -1698,9 +194,6 @@ const applyOfficialFplPoints =
     const fplPlayers =
       fplData.players;
 
-    /*
-     * Maps for reliable matching.
-     */
     const fullNameMap =
       new Map();
 
@@ -1785,9 +278,6 @@ const applyOfficialFplPoints =
         } else if (
           exactMatches.length > 1
         ) {
-          /*
-           * If multiple players share a name, prefer the team match.
-           */
           const normalizedTeam =
             normalize(
               player.team
@@ -1804,9 +294,6 @@ const applyOfficialFplPoints =
             exactMatches[0];
         }
 
-        /*
-         * Fallback to web_name.
-         */
         if (!match) {
           const webMatches =
             webNameMap.get(
@@ -1858,15 +345,9 @@ const applyOfficialFplPoints =
         return {
           ...player,
 
-          /*
-           * This is now the official FPL total.
-           */
           points:
             officialPoints,
 
-          /*
-           * Keep the original API-Football statistics untouched.
-           */
           advancedStats: {
             ...(player.advancedStats ||
               {}),
@@ -1991,14 +472,6 @@ export const fetchApiSportsPlayers =
       );
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * For Premier League 2026/27, replace the old calculated
-     * Flow score with the official FPL total.
-     *
-     * All other player data remains unchanged.
-     */
     players =
       await applyOfficialFplPoints(
         players,
@@ -2092,41 +565,18 @@ export const fetchPlayerProfile =
       }
     }
 
-    const response =
-      await fetch(
-        `${BASE_URL}/player-details.php?player=${encodeURIComponent(
-          id
-        )}&season=${encodeURIComponent(
-          apiSeason
-        )}`,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-    let data = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
+    if (!isValidSeason(apiSeason)) {
       throw new Error(
-        data?.error ||
-          `Spēlētāja profila API kļūda: ${response.status}`
+        "Nederīga sezona."
       );
     }
+
+    const data = await requestJson(
+      buildApiUrl("player-details.php", {
+        player: id,
+        season: apiSeason,
+      })
+    );
 
     try {
       localStorage.setItem(
@@ -2156,43 +606,24 @@ const fetchFootballData =
     competition,
     season
   ) => {
-    const response =
-      await fetch(
-        `${BASE_URL}/football.php?competition=${encodeURIComponent(
-          competition
-        )}&season=${encodeURIComponent(
-          season
-        )}`,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-    let data = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
+    if (!isValidCompetition(competition)) {
       throw new Error(
-        data?.error ||
-          `football-data.org kļūda: ${response.status}`
+        "Izvēlētā līga nav atbalstīta."
       );
     }
 
-    return data;
+    if (!isValidSeason(season)) {
+      throw new Error(
+        "Nederīga sezona."
+      );
+    }
+
+    return requestJson(
+      buildApiUrl("football.php", {
+        competition,
+        season,
+      })
+    );
   };
 
 export const fetchCompetitionStandings =
@@ -2308,43 +739,26 @@ export const getTeamFdr =
       }
     }
 
-    const response =
-      await fetch(
-        `${BASE_URL}/api-football.php?mode=fdr&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          apiSeason
-        )}&team=${encodeURIComponent(
-          numericTeamId
-        )}`,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-    let data = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
+    if (!isValidCompetition(normalizedCompetition)) {
       throw new Error(
-        data?.error ||
-          `FDR API kļūda: ${response.status}`
+        "Izvēlētā līga nav atbalstīta."
       );
     }
+
+    if (!isValidSeason(apiSeason)) {
+      throw new Error(
+        "Nederīga sezona."
+      );
+    }
+
+    const data = await requestJson(
+      buildApiUrl("api-football.php", {
+        mode: "fdr",
+        competition: normalizedCompetition,
+        season: apiSeason,
+        team: numericTeamId,
+      })
+    );
 
     const fdr =
       Number(
@@ -2451,41 +865,25 @@ export const fetchTeams =
       }
     }
 
-    const response =
-      await fetch(
-        `${BASE_URL}/api-football.php?mode=teams&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          apiSeason
-        )}`,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-    let data = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
+    if (!isValidCompetition(normalizedCompetition)) {
       throw new Error(
-        data?.error ||
-          `Komandu API kļūda: ${response.status}`
+        "Izvēlētā līga nav atbalstīta."
       );
     }
+
+    if (!isValidSeason(apiSeason)) {
+      throw new Error(
+        "Nederīga sezona."
+      );
+    }
+
+    const data = await requestJson(
+      buildApiUrl("api-football.php", {
+        mode: "teams",
+        competition: normalizedCompetition,
+        season: apiSeason,
+      })
+    );
 
     const teams =
       Array.isArray(
@@ -2559,43 +957,26 @@ export const fetchTeamStatistics =
       }
     }
 
-    const response =
-      await fetch(
-        `${BASE_URL}/api-football.php?mode=team-stats&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          apiSeason
-        )}&team=${encodeURIComponent(
-          numericTeamId
-        )}`,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-    let data = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
+    if (!isValidCompetition(normalizedCompetition)) {
       throw new Error(
-        data?.error ||
-          `Komandas statistikas API kļūda: ${response.status}`
+        "Izvēlētā līga nav atbalstīta."
       );
     }
+
+    if (!isValidSeason(apiSeason)) {
+      throw new Error(
+        "Nederīga sezona."
+      );
+    }
+
+    const data = await requestJson(
+      buildApiUrl("api-football.php", {
+        mode: "team-stats",
+        competition: normalizedCompetition,
+        season: apiSeason,
+        team: numericTeamId,
+      })
+    );
 
     const statistics =
       data?.statistics ||
@@ -2686,43 +1067,14 @@ export const fetchHeadToHead =
       }
     }
 
-    const response =
-      await fetch(
-        `${BASE_URL}/api-football.php?mode=h2h&team1=${encodeURIComponent(
-          first
-        )}&team2=${encodeURIComponent(
-          second
-        )}&last=${encodeURIComponent(
-          limit
-        )}`,
-        {
-          method: "GET",
-
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-    let data = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
-      throw new Error(
-        data?.error ||
-          `H2H API kļūda: ${response.status}`
-      );
-    }
+    const data = await requestJson(
+      buildApiUrl("api-football.php", {
+        mode: "h2h",
+        team1: first,
+        team2: second,
+        last: limit,
+      })
+    );
 
     const matches =
       Array.isArray(

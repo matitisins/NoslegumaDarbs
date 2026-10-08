@@ -1,6 +1,7 @@
 /*
- * Nodrošina lietotāja profila logu, kurā var apskatīt un mainīt
- * lietotājvārdu un profila attēlu, kā arī saglabāt vai atcelt veiktās izmaiņas.
+ * Nodrošina lokālā lietotāja profila logu, kurā var apskatīt un mainīt
+ * lietotājvārdu un profila attēlu, kā arī saglabāt vai atcelt veiktās
+ * izmaiņas. Šis nav autentifikācijas konts ar servera sesiju vai paroli.
  */
 
 import React from "react";
@@ -19,6 +20,7 @@ export default function AccountModal({
   open = true,
   username = "",
   avatar = "",
+  fileError = "",
   onUsernameChange,
   onFileChange,
   onSave,
@@ -36,7 +38,6 @@ export default function AccountModal({
       }}
     >
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-        {/* Header */}
         <div className="bg-slate-950 px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -49,7 +50,7 @@ export default function AccountModal({
               </h2>
 
               <p className="mt-1 text-xs text-slate-400">
-                Pielāgo savu Flow profilu.
+                Lokāls profils šajā pārlūkā. Tas nav autentifikācijas konts.
               </p>
             </div>
 
@@ -68,7 +69,6 @@ export default function AccountModal({
           onSubmit={onSave}
           className="p-6"
         >
-          {/* Avatar */}
           <div className="flex flex-col items-center">
             <div className="relative">
               {avatar ? (
@@ -100,13 +100,26 @@ export default function AccountModal({
               />
             </div>
 
-            <p className="mt-3 text-xs text-slate-400">
-              Noklikšķini uz +, lai
-              augšupielādētu attēlu.
+            <p className="mt-3 text-center text-xs text-slate-400">
+              Noklikšķini uz +, lai augšupielādētu attēlu.
+              <br />
+              JPG, PNG vai WEBP · maksimālais faila izmērs: 2 MB.
+              <br />
+              Attēls pirms saglabāšanas tiek automātiski samazināts.
             </p>
+
+            {fileError && (
+              <div
+                role="alert"
+                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+              >
+                <p className="text-xs font-bold leading-5 text-red-700">
+                  {fileError}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Username */}
           <div className="mt-7">
             <label
               htmlFor="flow-username"
@@ -131,7 +144,6 @@ export default function AccountModal({
             />
           </div>
 
-          {/* Actions */}
           <div className="mt-7 flex gap-3">
             <button
               type="button"
@@ -143,7 +155,8 @@ export default function AccountModal({
 
             <button
               type="submit"
-              className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600"
+              disabled={Boolean(fileError)}
+              className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Saglabāt
             </button>

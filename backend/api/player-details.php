@@ -1,11 +1,5 @@
 <?php
 
-/*
- * Nodrošina konkrēta spēlētāja profila un sezonas statistikas iegūšanu
- * no API-Football pēc spēlētāja ID un sezonas, kā arī iegūst informāciju
- * par spēlētāja izcīnītajām trofejām.
- */
-
 declare(strict_types=1);
 
 header("Content-Type: application/json; charset=utf-8");
@@ -28,6 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 }
 
 require_once __DIR__ . "/../src/api/config.php";
+enforceRateLimit('player-details', 60, 60);
 
 function readApiFootballKey(): string
 {
@@ -107,7 +102,9 @@ if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
 }
 
 if (!is_dir($cacheDir)) {
-    @mkdir($cacheDir, 0775, true);
+    if (!mkdir($cacheDir, 0775, true) && !is_dir($cacheDir)) {
+        error_log('Flow player-details cache directory could not be created: ' . $cacheDir);
+    }
 }
 
 function apiFootballRequest(string $url, string $apiKey): array
@@ -163,6 +160,7 @@ function optionalEndpoint(
                 : [];
         }
     } catch (Throwable $e) {
+        // Optional profile sections must not break the main player profile.
     }
 
     return [];
@@ -205,11 +203,9 @@ if (!is_array($playerResponse) || !isset($playerResponse[0])) {
 }
 
 $playerEntry = $playerResponse[0];
-
 $profile = is_array($playerEntry["player"] ?? null)
     ? $playerEntry["player"]
     : [];
-
 $statistics = is_array($playerEntry["statistics"] ?? null)
     ? $playerEntry["statistics"]
     : [];
@@ -239,7 +235,9 @@ if ($json === false) {
 }
 
 if (is_dir($cacheDir)) {
-    @file_put_contents($cacheFile, $json, LOCK_EX);
+    if (file_put_contents($cacheFile, $json, LOCK_EX) === false) {
+        error_log('Flow player-details cache write failed: ' . $cacheFile);
+    }
 }
 
 echo $json;

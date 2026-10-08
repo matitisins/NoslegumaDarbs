@@ -421,7 +421,7 @@ export default function PlayerCard({
         <div className="bg-white p-4 text-center">
           <p className="text-xl font-black text-emerald-600">
             {value(
-              player.points
+              player.flowPoints
             )}
           </p>
 
@@ -466,7 +466,7 @@ export default function PlayerCard({
           label="Flow punkti"
           value={
             Number(
-              player.points
+              player.flowPoints
             ) || 0
           }
           max={max("points")}

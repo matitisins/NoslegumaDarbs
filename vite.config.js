@@ -1,23 +1,64 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(
+    mode,
+    process.cwd(),
+    ""
+  );
 
-  server: {
-    host: "localhost",
+  const backendTarget =
+    env.VITE_BACKEND_PROXY_TARGET ||
+    "http://localhost";
 
-    port: 5173,
+  return {
+    plugins: [
+      react(),
+    ],
 
-    proxy: {
-      "/api": {
-        target:
-          "http://localhost/Nosleguma_Darbs/Nosleguma_Darbs",
+    server: {
+      host: "localhost",
 
-        changeOrigin: true,
+      port: 5173,
 
-        secure: false,
+      proxy: {
+        "/backend": {
+          target: backendTarget,
+
+          changeOrigin: true,
+
+          secure: false,
+
+          configure: proxy => {
+            proxy.on(
+              "error",
+              error => {
+                console.error(
+                  "PHP backend proxy error:",
+                  error.message
+                );
+              }
+            );
+          },
+        },
       },
     },
-  },
+
+    preview: {
+      host: "localhost",
+
+      port: 4173,
+
+      proxy: {
+        "/backend": {
+          target: backendTarget,
+
+          changeOrigin: true,
+
+          secure: false,
+        },
+      },
+    },
+  };
 });

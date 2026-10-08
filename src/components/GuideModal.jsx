@@ -405,12 +405,12 @@ export default function GuideModal({ onClose }) {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="font-bold text-slate-900">
-                    Labākais XI
+                    Ieteiktais XI
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Automātiski izveido komandas sākumsastāvu
-                    pēc spēlētāju prognozētajiem rezultātiem.
+                    Automātiski izveido komandas sākumsastāvu pēc Flow heuristiska
+                    vērtējuma, vienlaikus ievērojot izvēlēto formāciju un budžetu.
                   </p>
                 </div>
 
@@ -420,8 +420,8 @@ export default function GuideModal({ onClose }) {
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Atrod formāciju ar lielāko prognozēto
-                    punktu skaitu.
+                    Salīdzina pieejamās formācijas pēc Flow prognozes, ievērojot
+                    Fantasy budžeta un pozīciju ierobežojumus.
                   </p>
                 </div>
 
@@ -465,10 +465,31 @@ export default function GuideModal({ onClose }) {
               </p>
             </section>
 
+            {/* Terminoloģija */}
+            <section>
+              <h3 className="text-lg font-black text-slate-900">
+                Flow punktu un prognožu nozīme
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Flow punkti ir lietotnes paša aprēķināts analītisks rādītājs.
+                Tie nav oficiālie Fantasy Premier League punkti. Projected GW (heuristiska aplēse)
+                points ir Flow prognozes rādītājs, kas izmanto pieejamo spēlētāja
+                formu, statistiku, minūtes un pretinieka grūtības novērtējumu.
+                Tas nav garantēts nākamās spēļu kārtas rezultāts.
+              </p>
+
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Recommendation Score ir projekta heuristisks rezultāts. Tas nav
+                statistiska ticamība vai procentuāla varbūtība, tāpēc to nevajag
+                interpretēt kā prognozi ar noteiktu panākuma garantiju.
+              </p>
+            </section>
+
             {/* 21 */}
             <section>
               <h3 className="text-lg font-black text-slate-900">
-                21. Datu atjaunošana
+                22. Datu atjaunošana
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-slate-600">

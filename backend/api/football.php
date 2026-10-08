@@ -1,16 +1,5 @@
 <?php
 
-/*
- * Šis fails nodrošina savienojumu ar Football-data.org API un iegūst
- * izvēlētās futbola līgas spēlētāju rezultātus, komandu informāciju un
- * turnīra tabulas datus. Tas apstrādā API pieprasījumus, kļūdas un
- * pieprasījumu ierobežojumus, kā arī izmanto kešatmiņu, lai samazinātu
- * atkārtotu API pieprasījumu skaitu un uzlabotu lietotnes darbību.
- *
- * API piekļuves tokens tiek iegūts no backend/.env faila, tādēļ tas
- * netiek glabāts tieši PHP pirmkodā.
- */ 
-
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
@@ -30,6 +19,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 }
 
 require_once __DIR__ . '/../src/api/config.php';
+enforceRateLimit('football-data', 60, 60);
 
 if (FOOTBALL_DATA_API_TOKEN === '') {
     http_response_code(500);
@@ -119,11 +109,10 @@ function readCache(string $file, bool $allowStale = false, int $maxAge = 1800): 
 
 function writeCache(string $file, array $data): void
 {
-    @file_put_contents(
-        $file,
-        json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        LOCK_EX
-    );
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || file_put_contents($file, $json, LOCK_EX) === false) {
+        error_log('Flow football-data cache write failed: ' . $file);
+    }
 }
 
 function sendFootballError(int $status, string $message): never
@@ -135,7 +124,9 @@ function sendFootballError(int $status, string $message): never
 
 $cacheDirectory = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'cache';
 if (!is_dir($cacheDirectory)) {
-    @mkdir($cacheDirectory, 0775, true);
+    if (!mkdir($cacheDirectory, 0775, true) && !is_dir($cacheDirectory)) {
+        error_log('Flow football-data cache directory could not be created: ' . $cacheDirectory);
+    }
 }
 
 $base = rtrim(FOOTBALL_DATA_API_BASE_URL, '/');
