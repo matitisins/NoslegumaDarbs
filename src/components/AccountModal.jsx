@@ -56,7 +56,11 @@ export default function AccountModal({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose?.();
+              }}
               aria-label="Aizvērt"
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition hover:bg-white/20 hover:text-white"
             >
@@ -147,7 +151,11 @@ export default function AccountModal({
           <div className="mt-7 flex gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose?.();
+              }}
               className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600 transition hover:bg-slate-50"
             >
               Atcelt

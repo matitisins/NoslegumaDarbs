@@ -72,6 +72,7 @@ export default function PlayerCard({
   player,
   players = [],
   onChange,
+  onOpen,
   color = "emerald",
 }) {
   if (!player) {
@@ -340,12 +341,17 @@ export default function PlayerCard({
     <div
       className={`overflow-hidden rounded-2xl border ${borderClass} bg-white shadow-sm`}
     >
-      <div className="relative overflow-hidden bg-slate-950 p-5 text-white">
+      <div className="relative overflow-hidden bg-slate-950 p-0 text-white">
         <div
-          className={`absolute left-0 top-0 h-full w-1 ${accentClass}`}
+          className={`pointer-events-none absolute left-0 top-0 z-10 h-full w-1 ${accentClass}`}
         />
 
-        <div className="relative flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => onOpen?.(player)}
+          aria-label={`Atvērt ${player.name} profilu`}
+          className="relative flex w-full items-center gap-4 p-5 text-left outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400"
+        >
           {player.photo ? (
             <img
               src={player.photo}
@@ -356,17 +362,13 @@ export default function PlayerCard({
             <div
               className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-black ${softClass}`}
             >
-              {initials(
-                player.name
-              )}
+              {initials(player.name)}
             </div>
           )}
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-              {player.positionLabel ||
-                player.position ||
-                "Spēlētājs"}
+              {player.positionLabel || player.position || "Spēlētājs"}
             </p>
 
             <h3 className="mt-1 truncate text-xl font-black">
@@ -374,11 +376,16 @@ export default function PlayerCard({
             </h3>
 
             <p className="mt-1 truncate text-xs text-slate-400">
-              {player.team ||
-                "Nezināms klubs"}
+              {player.team || "Nezināms klubs"}
             </p>
           </div>
-        </div>
+
+          {onOpen && (
+            <span className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-300">
+              Profils ↗
+            </span>
+          )}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-px border-b border-slate-200 bg-slate-200 sm:grid-cols-4">

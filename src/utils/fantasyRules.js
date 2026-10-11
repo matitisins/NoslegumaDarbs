@@ -155,7 +155,7 @@ export const buildBudgetConstrainedXI = ({
     source
       .filter(player => player?.category === slot.category)
       .sort((a, b) => Number(getProjection(b) || 0) - Number(getProjection(a) || 0))
-      .slice(0, 30)
+      .slice(0, 16)
   );
   if (candidatesBySlot.some(candidates => !candidates.length)) return null;
 
@@ -165,8 +165,12 @@ export const buildBudgetConstrainedXI = ({
 
   let best = null;
   let bestProjection = -Infinity;
+  let visitedNodes = 0;
+  const MAX_SEARCH_NODES = 120000;
 
   const search = (depth, selected, ids, clubs, totalBudget, totalProjection) => {
+    visitedNodes += 1;
+    if (visitedNodes > MAX_SEARCH_NODES) return;
     if (totalBudget > Number(budget) + 0.0001) return;
     if (depth === slotOrder.length) {
       if (totalProjection > bestProjection) {
@@ -175,6 +179,17 @@ export const buildBudgetConstrainedXI = ({
       }
       return;
     }
+
+    // Optimistic upper bound prevents an exponential search from freezing the UI.
+    let upperBound = totalProjection;
+    for (let remaining = depth; remaining < slotOrder.length; remaining += 1) {
+      const maxProjection = Math.max(
+        0,
+        ...slotOrder[remaining].candidates.map(player => Number(getProjection(player) || 0))
+      );
+      upperBound += maxProjection;
+    }
+    if (upperBound <= bestProjection) return;
 
     const { index, candidates } = slotOrder[depth];
     for (const player of candidates) {

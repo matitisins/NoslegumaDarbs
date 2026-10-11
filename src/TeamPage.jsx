@@ -716,14 +716,15 @@ export default function TeamPage({
             return;
           }
 
-          const availableTeams =
-            Array.isArray(data)
-              ? data
-              : [];
+          const availableTeams = Array.isArray(data)
+            ? data.filter(team => Number.isInteger(Number(team?.id)) && Number(team.id) > 0)
+              .filter((team, index, list) => list.findIndex(item => Number(item.id) === Number(team.id)) === index)
+            : [];
 
-          setTeams(
-            availableTeams
-          );
+          setTeams(availableTeams);
+          if (availableTeams.length === 0) {
+            setError(`API-Football pašlaik neatgrieza komandas līgai ${competition}, sezonai ${season}. Pārbaudi API plāna piekļuvi šai sezonai un mēģini vēlreiz.`);
+          }
 
           const firstTeam =
             availableTeams[0] ||

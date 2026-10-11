@@ -147,7 +147,7 @@ Svarīgi:
 - `backend/.env` nedrīkst publicēt Git repozitorijā.
 - `backend/.env` nedrīkst iekļaut gala iesnieguma ZIP failā.
 - API atslēgas nedrīkst ievietot `src/` mapē.
-- Ja API atslēga kādreiz ir nonākusi publiskā repozitorijā, tā ir jāmaina/atsauc pie attiecīgā API nodrošinātāja.
+- Ja API atslēga kādreiz ir nonākusi publiskā repozitorijā, tā ir jāmaina vai jāatsauc pie attiecīgā API nodrošinātāja.
 
 ## 7. Apache, Laragon vai XAMPP konfigurācija
 
@@ -456,6 +456,22 @@ Pārbaudi:
 4. vai `backend/api/` ir pieejams caur Apache.
 
 ## 19. Gala iesnieguma sagatavošana
+
+Lai izveidotu tīru iesnieguma kopiju, kas neiekļauj lokālos noslēpumus un ģenerētos failus, izmanto:
+
+```bash
+npm run prepare:release
+```
+
+Komanda izveido `release/Flow-Football-Analytics/` mapi un pārbauda, ka tajā ir vajadzīgie projekta faili. No kopijas tiek izslēgti `.env` un citi lokālie vides faili (saglabājot `.env.example`), `node_modules/`, `dist/`, `backend/cache/`, `backend/logs/`, `.git/` un pati `release/` mape. Pēc tam saspied **sagatavoto mapi**, nevis sākotnējo darba mapi, ZIP arhīvā.
+
+Ja nepieciešams cits izvades ceļš, to var padot kā argumentu, piemēram:
+
+```bash
+node scripts/prepare-release.mjs C:\Temp\Flow-Football-Analytics
+```
+
+Pārliecinies, ka piemēru `.env.example` failos ir tikai tukšas vai demonstrācijas vērtības, nevis īstas API atslēgas.
 
 Pirms projekta iesniegšanas:
 

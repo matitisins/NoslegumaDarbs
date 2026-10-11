@@ -4,7 +4,7 @@ import React, {
 } from "react";
 
 import {
-  fetchLeagueFixtures,
+  fetchLeagueFixturesWithStatus,
 } from "../services/leagueFeatures";
 
 const formatDate = value => {
@@ -34,22 +34,13 @@ const getStatus = fixture => {
     "NS";
 
   const finished = [
-    "FT",
-    "AET",
-    "PEN",
-  ].includes(short);
+    "FT", "AET", "PEN", "FINISHED", "AWARDED", "CANCELLED",
+  ].includes(String(short).toUpperCase());
 
   if (finished) return "Beigas";
 
   if (
-    [
-      "1H",
-      "HT",
-      "2H",
-      "ET",
-      "BT",
-      "P",
-    ].includes(short)
+    ["1H", "HT", "2H", "ET", "BT", "P", "IN_PLAY", "PAUSED", "LIVE"].includes(String(short).toUpperCase())
   ) {
     return "LIVE";
   }
@@ -58,15 +49,18 @@ const getStatus = fixture => {
 };
 
 function FixtureRow({ fixture }) {
-  const home =
-    fixture?.teams?.home || {};
-  const away =
-    fixture?.teams?.away || {};
-  const goals =
-    fixture?.goals || {};
-
-  const status =
-    getStatus(fixture);
+  // The backend may return API-Football fixtures (teams.home/away) or
+  // football-data.org matches (homeTeam/awayTeam). Normalize both here.
+  const home = fixture?.teams?.home || fixture?.homeTeam || {};
+  const away = fixture?.teams?.away || fixture?.awayTeam || {};
+  const goals = fixture?.goals || {
+    home: fixture?.score?.fullTime?.home ?? fixture?.score?.regularTime?.home,
+    away: fixture?.score?.fullTime?.away ?? fixture?.score?.regularTime?.away,
+  };
+  const fixtureDate = fixture?.fixture?.date || fixture?.utcDate || fixture?.date;
+  const fixtureRound = fixture?.league?.round || fixture?.matchday || fixture?.stage || "";
+  const rawStatus = String(fixture?.fixture?.status?.short || fixture?.status || "NS").toUpperCase();
+  const status = getStatus(fixture);
 
   const isLive =
     status === "LIVE";
@@ -77,9 +71,7 @@ function FixtureRow({ fixture }) {
     <div className="grid min-w-[720px] grid-cols-[150px_minmax(180px,1fr)_80px_minmax(180px,1fr)_150px] items-center border-b border-slate-100 px-5 py-4 last:border-b-0 hover:bg-slate-50">
       <div>
         <p className="text-xs font-bold text-slate-700">
-          {formatDate(
-            fixture?.fixture?.date
-          )}
+          {formatDate(fixtureDate)}
         </p>
         <p
           className={`mt-1 text-[9px] font-black uppercase tracking-wider ${
@@ -133,7 +125,7 @@ function FixtureRow({ fixture }) {
       </div>
 
       <div className="text-right text-[10px] font-bold text-slate-400">
-        {fixture?.league?.round || ""}
+        {fixtureRound}
       </div>
     </div>
   );
@@ -153,6 +145,8 @@ export default function LeagueFixtures({
     useState(true);
   const [error, setError] =
     useState("");
+  const [dataWarning, setDataWarning] =
+    useState("");
   const [view, setView] =
     useState("upcoming");
 
@@ -164,14 +158,15 @@ export default function LeagueFixtures({
       setError("");
 
       try {
-        const data =
-          await fetchLeagueFixtures(
+        const result =
+          await fetchLeagueFixturesWithStatus(
             competition,
             season
           );
 
         if (!cancelled) {
-          setFixtures(data);
+          setFixtures(result.data);
+          setDataWarning(result.warning || "");
         }
       } catch (err) {
         if (!cancelled) {
@@ -179,6 +174,7 @@ export default function LeagueFixtures({
             upcoming: [],
             recent: [],
           });
+          setDataWarning("");
           setError(
             err?.message ||
               "Neizdevās ielādēt spēles."
@@ -245,6 +241,12 @@ export default function LeagueFixtures({
         </div>
       </div>
 
+      {dataWarning && (
+        <div role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong className="font-bold">Novecojuši dati.</strong> {dataWarning}
+        </div>
+      )}
+
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
           <p className="text-sm font-bold text-red-700">
@@ -282,8 +284,8 @@ export default function LeagueFixtures({
               {rows.map(fixture => (
                 <FixtureRow
                   key={
-                    fixture?.fixture?.id ||
-                    `${fixture?.fixture?.date}-${fixture?.teams?.home?.id}-${fixture?.teams?.away?.id}`
+                    fixture?.fixture?.id || fixture?.id ||
+                    `${fixture?.fixture?.date || fixture?.utcDate || fixture?.date}-${fixture?.teams?.home?.id || fixture?.homeTeam?.id}-${fixture?.teams?.away?.id || fixture?.awayTeam?.id}`
                   }
                   fixture={fixture}
                 />

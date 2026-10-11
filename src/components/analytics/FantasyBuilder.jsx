@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchLeagueFixtures, fetchLeagueStandings } from "../../services/leagueFeatures";
 import {
+  FANTASY_BENCH_SIZE,
   buildBudgetConstrainedXI,
   calculateSquadBudget,
+  getFantasySquadConstraintViolations,
   isFantasyTeamValid,
 } from "../../utils/fantasyRules";
 import {
@@ -24,7 +25,7 @@ import {
   FantasyPlayerList,
 } from "./FantasyComponents";
 
-function FantasyBuilder({ players, competition, season }) {
+function FantasyBuilder({ players = [], competition, season, fixtures = { upcoming: [], recent: [] }, standings = [], contextLoading = false }) {
   const [formation, setFormation] = useState("4-3-3");
   const [selectedPlayers, setSelectedPlayers] = useState([]);
   const [benchPlayers, setBenchPlayers] = useState([]);
@@ -33,9 +34,19 @@ function FantasyBuilder({ players, competition, season }) {
   const [picker, setPicker] = useState(null);
   const [budget, setBudget] = useState(100);
   const [budgetError, setBudgetError] = useState("");
-  const [fixtures, setFixtures] = useState({ upcoming: [], recent: [] });
-  const [standings, setStandings] = useState([]);
-  const [fixtureLoading, setFixtureLoading] = useState(false);
+  const fixtureLoading = Boolean(contextLoading);
+  const officialFplPriceCount = useMemo(
+    () => players.filter(player => Number(player?.officialFplPrice) > 0).length,
+    [players]
+  );
+  const useOfficialFplRules = competition === "PL" && Number(season) === 2026 && officialFplPriceCount > 0;
+  const budgetCurrency = useOfficialFplRules ? "£" : "€";
+  // In official FPL mode, do not allow API-Football-only players without an
+  // official FPL element/price to enter the squad.
+  const fantasyPlayers = useMemo(
+    () => useOfficialFplRules ? players.filter(player => Number(player?.officialFplPrice) > 0) : players,
+    [players, useOfficialFplRules]
+  );
 
   const slots = formationPositions[formation] || [];
   const selectedIds = useMemo(() => new Set(selectedPlayers.filter(Boolean).map(player => String(player.id))), [selectedPlayers]);
@@ -58,21 +69,16 @@ function FantasyBuilder({ players, competition, season }) {
   const isComplete = teamValidation.valid;
 
   useEffect(() => {
-    let cancelled = false;
-    setFixtureLoading(true);
+    if (useOfficialFplRules) setBudget(100);
+  }, [useOfficialFplRules]);
 
-    Promise.all([
-      fetchLeagueFixtures(competition, season).catch(() => ({ upcoming: [], recent: [] })),
-      fetchLeagueStandings(competition, season).catch(() => []),
-    ]).then(([fixtureData, table]) => {
-      if (cancelled) return;
-      setFixtures(fixtureData || { upcoming: [], recent: [] });
-      setStandings(Array.isArray(table) ? table : []);
-    }).finally(() => {
-      if (!cancelled) setFixtureLoading(false);
-    });
-
-    return () => { cancelled = true; };
+  useEffect(() => {
+    setSelectedPlayers([]);
+    setBenchPlayers([]);
+    setCaptainId(null);
+    setViceCaptainId(null);
+    setPicker(null);
+    setBudgetError("");
   }, [competition, season]);
 
   useEffect(() => {
@@ -116,11 +122,11 @@ function FantasyBuilder({ players, competition, season }) {
   const projectedPoints = expectedPoints + captainPoints;
 
   const differentialPlayers = useMemo(() => {
-    return [...players]
+    return [...fantasyPlayers]
       .filter(player => !allSquadIds.has(String(player.id)))
-      .sort((a, b) => getDifferentialScore(b, players) - getDifferentialScore(a, players))
+      .sort((a, b) => getDifferentialScore(b, fantasyPlayers) - getDifferentialScore(a, fantasyPlayers))
       .slice(0, 5);
-  }, [players, allSquadIds]);
+  }, [fantasyPlayers, allSquadIds]);
 
   const choosePlayer = player => {
     if (!picker) return;
@@ -158,7 +164,7 @@ function FantasyBuilder({ players, competition, season }) {
     }
 
     if (nextBudget > budget + 0.0001) {
-      const message = `Spēlētāju nevar pievienot. Sastāva vērtība būtu €${nextBudget.toFixed(1)}m, bet budžets ir €${budget.toFixed(1)}m.`;
+      const message = `Spēlētāju nevar pievienot. Sastāva vērtība būtu ${budgetCurrency}${nextBudget.toFixed(1)}m, bet budžets ir ${budgetCurrency}${budget.toFixed(1)}m.`;
       setBudgetError(message);
       window.setTimeout(() => {
         setBudgetError(current => current === message ? "" : current);
@@ -167,7 +173,11 @@ function FantasyBuilder({ players, competition, season }) {
     }
 
     setSelectedPlayers(nextStarting);
-    setBenchPlayers(nextBench.slice(0, FANTASY_BENCH_SIZE));
+    setBenchPlayers(nextBench.slice(0, FANTASY_BENCH_SIZE).sort((a, b) => {
+      if (a?.category === "GOALKEEPERS") return -1;
+      if (b?.category === "GOALKEEPERS") return 1;
+      return 0;
+    }));
     setBudgetError("");
     setPicker(null);
   };
@@ -188,6 +198,17 @@ function FantasyBuilder({ players, competition, season }) {
   const removeBench = id => {
     setBenchPlayers(current => current.filter(player => String(player.id) !== String(id)));
     setBudgetError("");
+  };
+
+  const moveBenchPlayer = (id, direction) => {
+    setBenchPlayers(current => {
+      const index = current.findIndex(player => String(player.id) === String(id));
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
   };
 
   const chooseCaptain = index => {
@@ -215,7 +236,7 @@ function FantasyBuilder({ players, competition, season }) {
 
   const buildBestXI = () => {
     const best = buildBudgetConstrainedXI({
-      players,
+      players: fantasyPlayers,
       slots,
       budget,
       getPrice: getBudgetPrice,
@@ -241,7 +262,7 @@ function FantasyBuilder({ players, competition, season }) {
       .map(candidateFormation => {
         const candidateSlots = formationPositions[candidateFormation];
         const candidate = buildBudgetConstrainedXI({
-          players,
+          players: fantasyPlayers,
           slots: candidateSlots,
           budget,
           getPrice: getBudgetPrice,
@@ -262,7 +283,7 @@ function FantasyBuilder({ players, competition, season }) {
         };
       })
       .filter(Boolean)
-      .sort((a, b) => b.flowPoints - a.flowPoints)[0];
+      .sort((a, b) => b.points - a.points)[0];
 
     if (!results) {
       setBudgetError(
@@ -287,7 +308,7 @@ function FantasyBuilder({ players, competition, season }) {
 
     for (const category of order) {
       const candidates = sortByProjection(
-        players.filter(
+        fantasyPlayers.filter(
           player =>
             player.category === category &&
             !used.has(String(player.id))
@@ -295,7 +316,7 @@ function FantasyBuilder({ players, competition, season }) {
       );
 
       for (const player of candidates) {
-        if (next.length >= 5) break;
+        if (next.length >= FANTASY_BENCH_SIZE) break;
         const playerPrice = getBudgetPrice(player);
 
         const constraintReasons = getFantasySquadConstraintViolations({
@@ -311,12 +332,16 @@ function FantasyBuilder({ players, competition, season }) {
         runningBudget += playerPrice;
       }
 
-      if (next.length >= 5) break;
+      if (next.length >= FANTASY_BENCH_SIZE) break;
     }
 
-    setBenchPlayers(next);
-    if (next.length < 5) {
-      setBudgetError(`Budžeta ietvaros automātiski izdevās pievienot ${next.length}/5 rezervistus.`);
+    setBenchPlayers(next.sort((a, b) => {
+      if (a?.category === "GOALKEEPERS") return -1;
+      if (b?.category === "GOALKEEPERS") return 1;
+      return 0;
+    }));
+    if (next.length < FANTASY_BENCH_SIZE) {
+      setBudgetError(`Budžeta ietvaros automātiski izdevās pievienot ${next.length}/${FANTASY_BENCH_SIZE} rezervistus.`);
     } else {
       setBudgetError("");
     }
@@ -328,6 +353,11 @@ function FantasyBuilder({ players, competition, season }) {
 
   return (
     <div>
+      <div className="mb-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-600">
+        {useOfficialFplRules
+          ? `Premier League FPL režīms: oficiālās spēlētāju cenas un pozīcijas (${officialFplPriceCount} spēlētājiem). Sastāva limits £100.0m.`
+          : "Flow Fantasy režīms: citām līgām oficiālas FPL cenas un punktu sistēma nav pieejama, tāpēc cenas un GW aplēses ir projekta novērtējums."}
+      </div>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <label className="rounded-xl border border-slate-200 bg-white p-3">
           <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">Formācija</span>
@@ -347,7 +377,7 @@ function FantasyBuilder({ players, competition, season }) {
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Spēlētāji</p><p className="mt-1 text-2xl font-black text-slate-900">{filledCount}/11</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Heuristiska GW aplēse</p><p className="mt-1 text-2xl font-black text-emerald-600">{expectedPoints.toFixed(1)}</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Ar kapteini</p><p className="mt-1 text-2xl font-black text-slate-900">{projectedPoints.toFixed(1)}</p></div>
-        <div className={`rounded-2xl border p-4 ${remainingBudget < 0 ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"}`}><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Budžets</p><p className={`mt-1 text-2xl font-black ${remainingBudget < 0 ? "text-rose-600" : "text-slate-900"}`}>{remainingBudget.toFixed(1)}m</p></div>
+        <div className={`rounded-2xl border p-4 ${remainingBudget < 0 ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"}`}><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Budžets</p><p className={`mt-1 text-2xl font-black ${remainingBudget < 0 ? "text-rose-600" : "text-slate-900"}`}>{budgetCurrency}{remainingBudget.toFixed(1)}m</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Kapteinis</p><p className="mt-1 truncate text-sm font-black text-slate-900">{captain?.name || "Nav"}</p></div>
       </div>
 
@@ -355,22 +385,26 @@ function FantasyBuilder({ players, competition, season }) {
         <label className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Komandas budžets</span>
-            <span className="text-xs font-black text-slate-900">{budget.toFixed(1)}m</span>
+            <span className="text-xs font-black text-slate-900">{budgetCurrency}{budget.toFixed(1)}m</span>
           </div>
-          <input type="range" min="60" max="150" step="0.5" value={budget} onChange={event => {
-            const nextBudget = Number(event.target.value);
-            setBudget(nextBudget);
-            if (squadBudget > nextBudget) {
-              setBudgetError(`Pašreizējais sastāvs maksā €${squadBudget.toFixed(1)}m un pārsniedz jauno budžetu €${nextBudget.toFixed(1)}m.`);
-            } else {
-              setBudgetError("");
-            }
-          }} className="mt-3 w-full accent-emerald-500" />
-          <p className="mt-1 text-[8px] text-slate-400">Izmantota Flow Value kā projekta Fantasy cena. Budžets ir stingrs ierobežojums. Pilnā komandā: 15 spēlētāji, 11 sākumsastāvā, 4 rezervē un ne vairāk kā 3 no vienas komandas.</p>
+          {useOfficialFplRules ? (
+            <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Oficiālais FPL budžets: £100.0m · budžetu mainīt nevar</div>
+          ) : (
+            <input type="range" min="60" max="150" step="0.5" value={budget} onChange={event => {
+              const nextBudget = Number(event.target.value);
+              setBudget(nextBudget);
+              if (squadBudget > nextBudget) {
+                setBudgetError(`Pašreizējais sastāvs maksā ${budgetCurrency}${squadBudget.toFixed(1)}m un pārsniedz jauno budžetu ${budgetCurrency}${nextBudget.toFixed(1)}m.`);
+              } else {
+                setBudgetError("");
+              }
+            }} className="mt-3 w-full accent-emerald-500" />
+          )}
+          <p className="mt-1 text-[8px] text-slate-400">{useOfficialFplRules ? "Premier League spēlētāju cenas tiek ņemtas no oficiālā FPL API." : "Citām līgām oficiālas FPL cenas nav pieejamas, tāpēc izmantojam Flow Value novērtējumu."} Pilnā komandā: 15 spēlētāji, 11 sākumsastāvā, 4 rezervē un ne vairāk kā 3 no vienas komandas.</p>
         </label>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Sastāva vērtība</p>
-          <p className="mt-1 text-2xl font-black text-slate-900">{squadBudget.toFixed(1)}m</p>
+          <p className="mt-1 text-2xl font-black text-slate-900">{budgetCurrency}{squadBudget.toFixed(1)}m</p>
           <p className="mt-1 text-[8px] font-bold text-slate-400">Start XI + 4 rezervisti</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -412,12 +446,16 @@ function FantasyBuilder({ players, competition, season }) {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Rezerves</p><p className="mt-1 text-xs font-bold text-slate-500">Līdz {FANTASY_BENCH_SIZE} spēlētājiem</p></div><button type="button" onClick={autoBench} className="rounded-lg bg-slate-900 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white">⚡ Auto bench</button></div>
+          <div className="mb-3 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Rezerves</p><p className="mt-1 text-xs font-bold text-slate-500">4 rezervisti · sakārto maiņu secību</p></div><button type="button" onClick={autoBench} className="rounded-lg bg-slate-900 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white">⚡ Auto bench</button></div>
           <div className="grid gap-2 sm:grid-cols-2">
             {benchPlayers.map(player => (
               <div key={player.id} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2">
                 {player.photo ? <img src={player.photo} alt="" className="h-8 w-8 rounded-full object-cover" /> : <div className="h-8 w-8 rounded-full bg-white" />}
-                <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-black text-slate-900">{player.name}</p><p className="text-[8px] font-bold text-slate-400">{player.team} · {getProjectedPoints(player).toFixed(1)} GW · €{getBudgetPrice(player).toFixed(1)}m</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-black text-slate-900">{player.category === "GOALKEEPERS" ? "Vārtsargs" : `Maiņa ${benchPlayers.findIndex(item => String(item.id) === String(player.id)) + 1}`} · {player.name}</p><p className="text-[8px] font-bold text-slate-400">{player.team} · {getProjectedPoints(player).toFixed(1)} GW · {budgetCurrency}{getBudgetPrice(player).toFixed(1)}m</p></div>
+                <div className="flex flex-col gap-1">
+                  <button type="button" aria-label="Pārvietot rezervistu augstāk" disabled={player.category === "GOALKEEPERS" || benchPlayers.findIndex(item => String(item.id) === String(player.id)) <= 1} onClick={() => moveBenchPlayer(player.id, -1)} className="flex h-5 w-6 items-center justify-center rounded bg-white text-[10px] font-black text-slate-600 disabled:opacity-30">↑</button>
+                  <button type="button" aria-label="Pārvietot rezervistu zemāk" disabled={player.category === "GOALKEEPERS" || benchPlayers.findIndex(item => String(item.id) === String(player.id)) === benchPlayers.length - 1} onClick={() => moveBenchPlayer(player.id, 1)} className="flex h-5 w-6 items-center justify-center rounded bg-white text-[10px] font-black text-slate-600 disabled:opacity-30">↓</button>
+                </div>
                 <button type="button" onClick={() => removeBench(player.id)} className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white hover:bg-rose-500">−</button>
               </div>
             ))}
@@ -429,7 +467,7 @@ function FantasyBuilder({ players, competition, season }) {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <FormationAnalysis players={players} />
+        <FormationAnalysis players={fantasyPlayers} />
         <FixtureSummary players={selectedPlayers.filter(Boolean)} fixtures={fixtures} standings={standings} />
       </div>
 
@@ -453,7 +491,7 @@ function FantasyBuilder({ players, competition, season }) {
                   return;
                 }
                 if (nextBudget > budget + 0.0001) {
-                  setBudgetError(`Spēlētāju nevar pievienot. Sastāva vērtība būtu €${nextBudget.toFixed(1)}m, bet budžets ir €${budget.toFixed(1)}m.`);
+                  setBudgetError(`Spēlētāju nevar pievienot. Sastāva vērtība būtu ${budgetCurrency}${nextBudget.toFixed(1)}m, bet budžets ir ${budgetCurrency}${budget.toFixed(1)}m.`);
                   return;
                 }
                 setSelectedPlayers(next);
@@ -479,7 +517,7 @@ function FantasyBuilder({ players, competition, season }) {
       {picker && (
         <FantasyPlayerPicker
           category={picker.category}
-          players={players}
+          players={fantasyPlayers}
           selectedIds={allSquadIds}
           onSelect={choosePlayer}
           onClose={() => setPicker(null)}

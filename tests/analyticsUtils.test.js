@@ -222,3 +222,74 @@ test("getStatusForPlayer distinguishes injured, regular and uncertain players", 
   assert.match(getStatusForPlayer({ appearances: 10, minutes: 800 }).label, /Regulārs starteris/);
   assert.match(getStatusForPlayer({ appearances: 10, minutes: 400 }).label, /jāpārbauda/);
 });
+
+test("weightedScore safely ignores invalid and negative weights", () => {
+  const pool = [
+    { id: 1, goals: 0, assists: 0 },
+    { id: 2, goals: 10, assists: 10 },
+  ];
+
+  const score = weightedScore(
+    pool[1],
+    {
+      goals: 50,
+      assists: -20,
+      invalid: "not-a-number",
+    },
+    pool
+  );
+
+  assert.equal(score, 100);
+});
+
+test("weightedScore is invariant to proportional scaling of weights", () => {
+  const pool = [
+    { id: 1, goals: 2, assists: 8 },
+    { id: 2, goals: 10, assists: 4 },
+  ];
+
+  const scoreA = weightedScore(
+    pool[1],
+    { goals: 25, assists: 75 },
+    pool
+  );
+
+  const scoreB = weightedScore(
+    pool[1],
+    { goals: 1, assists: 3 },
+    pool
+  );
+
+  assert.equal(scoreA, scoreB);
+});
+
+test("weightedScore returns zero when no valid active weights exist", () => {
+  const pool = [
+    { id: 1, goals: 2 },
+    { id: 2, goals: 10 },
+  ];
+
+  assert.equal(
+    weightedScore(pool[1], { goals: 0, assists: -10 }, pool),
+    0
+  );
+});
+
+test("getDifficulty handles string and numeric team IDs consistently", async () => {
+  const { getDifficulty } = await import("../src/utils/analyticsUtils.js");
+  const player = { id: 1, teamId: "10" };
+  const fixture = {
+    teams: {
+      home: { id: 10, name: "Home FC" },
+      away: { id: "20", name: "Away FC" },
+    },
+  };
+  const standings = [
+    { team: { id: 10, name: "Home FC" }, position: 2 },
+    { team: { id: 20, name: "Away FC" }, position: 18 },
+  ];
+
+  const difficulty = getDifficulty(player, fixture, standings);
+  assert.equal(difficulty.opponentPosition, 18);
+  assert.equal(difficulty.score, 1);
+});

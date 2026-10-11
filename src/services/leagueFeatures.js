@@ -5,54 +5,82 @@
  */
 
 import { API_BASE_URL } from "../config/api";
+import { buildStaleFallback } from "../utils/apiStatus";
 
 const BASE_URL =
   API_BASE_URL;
 
 const CACHE_PREFIX =
-  "flow_league_features_v4_";
+  "flow_league_features_v5_contract_fix_";
 
 const CACHE_TIME =
   1000 * 60 * 15;
 
-const readCache = key => {
+const readCacheEntry = key => {
   try {
-    const raw =
-      localStorage.getItem(
-        `${CACHE_PREFIX}${key}`
-      );
+    const raw = localStorage.getItem(`${CACHE_PREFIX}${key}`);
+    if (!raw) return null;
 
-    if (!raw) {
+    const parsed = JSON.parse(raw);
+    if (!Number.isFinite(Number(parsed?.timestamp)) || parsed?.data === undefined) {
       return null;
     }
 
-    const parsed =
-      JSON.parse(raw);
-
-    if (
-      !parsed?.timestamp ||
-      parsed.data ===
-        undefined
-    ) {
-      return null;
-    }
-
-    if (
-      Date.now() -
-        parsed.timestamp >
-      CACHE_TIME
-    ) {
-      localStorage.removeItem(
-        `${CACHE_PREFIX}${key}`
-      );
-
-      return null;
-    }
-
-    return parsed.data;
+    const age = Math.max(0, Date.now() - Number(parsed.timestamp));
+    return {
+      data: parsed.data,
+      timestamp: Number(parsed.timestamp),
+      age,
+      expired: age > CACHE_TIME,
+    };
   } catch {
     return null;
   }
+};
+
+const readCache = key => {
+  const entry = readCacheEntry(key);
+  return entry && !entry.expired ? entry.data : null;
+};
+
+const validStandings = value => Array.isArray(value) && value.length > 0;
+const validFixtures = value => Boolean(
+  value && Array.isArray(value.upcoming) && Array.isArray(value.recent)
+);
+
+
+const unwrapProviderData = payload =>
+  payload?.data && typeof payload.data === "object" ? payload.data : payload;
+
+const normalizeStandingsResponse = payload => {
+  const data = unwrapProviderData(payload);
+  const groups = Array.isArray(data?.standings) ? data.standings : [];
+  if (groups.some(group => Array.isArray(group?.table))) {
+    const total = groups.find(group => String(group?.type || "").toUpperCase() === "TOTAL");
+    const selected = total && Array.isArray(total.table)
+      ? total.table
+      : groups.find(group => Array.isArray(group?.table))?.table;
+    return Array.isArray(selected) ? selected : [];
+  }
+  if (groups.length && groups.every(row => row && typeof row === "object" && row.team)) return groups;
+  return [];
+};
+
+const normalizeFixturesResponse = payload => {
+  const data = unwrapProviderData(payload);
+  const matches = Array.isArray(data?.matches) ? data.matches : [];
+  const finishedStatuses = new Set(["FINISHED", "AWARDED", "CANCELLED"]);
+  const upcoming = [];
+  const recent = [];
+  for (const match of matches) {
+    if (!match || typeof match !== "object") continue;
+    const status = String(match.status || "").toUpperCase();
+    if (finishedStatuses.has(status)) recent.push(match);
+    else upcoming.push(match);
+  }
+  recent.sort((a, b) => Date.parse(b.utcDate || "") - Date.parse(a.utcDate || ""));
+  upcoming.sort((a, b) => Date.parse(a.utcDate || "") - Date.parse(b.utcDate || ""));
+  return { upcoming, recent };
 };
 
 const writeCache = (
@@ -73,159 +101,103 @@ const writeCache = (
   }
 };
 
-const request =
-  async url => {
-    const response =
-      await fetch(
-        url,
-        {
-          method: "GET",
-          headers: {
-            Accept:
-              "application/json",
-          },
-        }
-      );
+const request = async url => {
+  const controller = typeof AbortController !== "undefined"
+    ? new AbortController()
+    : null;
+  let timeoutId = null;
+
+  if (controller) timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller?.signal,
+    });
 
     let data = null;
+    try { data = await response.json(); } catch { data = null; }
 
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error || `API kļūda: ${response.status}`);
     }
-
-    if (
-      !response.ok ||
-      data?.success === false
-    ) {
-      throw new Error(
-        data?.error ||
-          `API kļūda: ${response.status}`
-      );
-    }
-
     return data;
-  };
-
-export const fetchLeagueStandings =
-  async (
-    competition = "PL",
-    season = 2026
-  ) => {
-    const normalizedCompetition =
-      String(
-        competition ||
-          "PL"
-      ).toUpperCase();
-
-    const normalizedSeason =
-      Number(season);
-
-    const cacheKey =
-      `standings_${normalizedCompetition}_${normalizedSeason}`;
-
-    const cached =
-      readCache(cacheKey);
-
-    if (
-      Array.isArray(
-        cached
-      ) &&
-      cached.length
-    ) {
-      return cached;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Līgas datu pieprasījums pārsniedza 15 sekunžu laika limitu. Pārbaudi Vite proxy un PHP backend.");
     }
+    throw error;
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
+};
 
-    const data =
-      await request(
-        `${BASE_URL}/league-data.php?mode=standings&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          normalizedSeason
-        )}`
-      );
+export const fetchLeagueStandingsWithStatus = async (competition = "PL", season = 2026) => {
+  const normalizedCompetition = String(competition || "PL").toUpperCase();
+  const normalizedSeason = Number(season);
+  const cacheKey = `standings_${normalizedCompetition}_${normalizedSeason}`;
+  const entry = readCacheEntry(cacheKey);
 
-    const standings =
-      Array.isArray(
-        data?.standings
-      )
-        ? data.standings
-        : [];
+  if (entry && !entry.expired && validStandings(entry.data)) {
+    return { data: entry.data, source: "browser-cache", stale: false, warning: null };
+  }
 
-    writeCache(
-      cacheKey,
-      standings
+  try {
+    const data = await request(
+      `${BASE_URL}/league-data.php?type=standings&competition=${encodeURIComponent(normalizedCompetition)}&season=${encodeURIComponent(normalizedSeason)}`
     );
-
-    return standings;
-  };
-
-export const fetchLeagueFixtures =
-  async (
-    competition = "PL",
-    season = 2026
-  ) => {
-    const normalizedCompetition =
-      String(
-        competition ||
-          "PL"
-      ).toUpperCase();
-
-    const normalizedSeason =
-      Number(season);
-
-    const cacheKey =
-      `fixtures_${normalizedCompetition}_${normalizedSeason}`;
-
-    const cached =
-      readCache(cacheKey);
-
-    if (
-      cached &&
-      Array.isArray(
-        cached.upcoming
-      ) &&
-      Array.isArray(
-        cached.recent
-      )
-    ) {
-      return cached;
+    const standings = normalizeStandingsResponse(data);
+    if (!validStandings(standings)) {
+      throw new Error(data?.error || "Servera atbilde nesatur derīgus līgas tabulas datus.");
     }
+    writeCache(cacheKey, standings);
+    return { data: standings, source: "server", stale: Boolean(data?.stale), warning: data?.warning || null };
+  } catch (error) {
+    if (entry && validStandings(entry.data)) {
+      return buildStaleFallback(entry.data, error);
+    }
+    throw error;
+  }
+};
 
-    const data =
-      await request(
-        `${BASE_URL}/league-data.php?mode=fixtures&competition=${encodeURIComponent(
-          normalizedCompetition
-        )}&season=${encodeURIComponent(
-          normalizedSeason
-        )}`
-      );
+export const fetchLeagueStandings = async (competition = "PL", season = 2026) => {
+  const result = await fetchLeagueStandingsWithStatus(competition, season);
+  return result.data;
+};
 
-    const result = {
-      upcoming:
-        Array.isArray(
-          data?.upcoming
-        )
-          ? data.upcoming
-          : [],
+export const fetchLeagueFixturesWithStatus = async (competition = "PL", season = 2026) => {
+  const normalizedCompetition = String(competition || "PL").toUpperCase();
+  const normalizedSeason = Number(season);
+  const cacheKey = `fixtures_${normalizedCompetition}_${normalizedSeason}`;
+  const entry = readCacheEntry(cacheKey);
 
-      recent:
-        Array.isArray(
-          data?.recent
-        )
-          ? data.recent
-          : [],
-    };
+  if (entry && !entry.expired && validFixtures(entry.data)) {
+    return { data: entry.data, source: "browser-cache", stale: false, warning: null };
+  }
 
-    writeCache(
-      cacheKey,
-      result
+  try {
+    const data = await request(
+      `${BASE_URL}/league-data.php?type=fixtures&competition=${encodeURIComponent(normalizedCompetition)}&season=${encodeURIComponent(normalizedSeason)}`
     );
+    const result = normalizeFixturesResponse(data);
+    if (!validFixtures(result)) {
+      throw new Error("Servera atbilde nesatur derīgus spēļu datus.");
+    }
+    writeCache(cacheKey, result);
+    return { data: result, source: "server", stale: false, warning: null };
+  } catch (error) {
+    if (entry && validFixtures(entry.data)) {
+      return buildStaleFallback(entry.data, error);
+    }
+    throw error;
+  }
+};
 
-    return result;
-  };
+export const fetchLeagueFixtures = async (competition = "PL", season = 2026) => {
+  const result = await fetchLeagueFixturesWithStatus(competition, season);
+  return result.data;
+};
 
 export const fetchTeamFixtures =
   async (
@@ -279,7 +251,7 @@ export const fetchTeamFixtures =
 
     const data =
       await request(
-        `${BASE_URL}/league-data.php?mode=fixtures&competition=${encodeURIComponent(
+        `${BASE_URL}/league-data.php?type=fixtures&competition=${encodeURIComponent(
           normalizedCompetition
         )}&season=${encodeURIComponent(
           normalizedSeason
@@ -288,26 +260,13 @@ export const fetchTeamFixtures =
         )}`
       );
 
+    const allFixtures = normalizeFixturesResponse(data);
+    const belongsToTeam = match =>
+      Number(match?.homeTeam?.id ?? match?.teams?.home?.id) === numericTeamId ||
+      Number(match?.awayTeam?.id ?? match?.teams?.away?.id) === numericTeamId;
     const result = {
-      upcoming:
-        Array.isArray(
-          data?.upcoming
-        )
-          ? data.upcoming.slice(
-              0,
-              5
-            )
-          : [],
-
-      recent:
-        Array.isArray(
-          data?.recent
-        )
-          ? data.recent.slice(
-              0,
-              5
-            )
-          : [],
+      upcoming: allFixtures.upcoming.filter(belongsToTeam).slice(0, 5),
+      recent: allFixtures.recent.filter(belongsToTeam).slice(0, 5),
     };
 
     writeCache(

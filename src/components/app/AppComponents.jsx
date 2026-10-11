@@ -21,8 +21,7 @@ function Star({ active = false }) {
 function SearchBox({
   players,
   selected,
-  onSelectPlayer1,
-  onSelectPlayer2,
+  onSelect,
   onOpen,
   isFavorite,
   onToggleFavorite,
@@ -48,12 +47,9 @@ function SearchBox({
   const handleSelect = player => {
     if (!player) return;
 
-    if (target === "player1") {
-      onSelectPlayer1(player);
-    } else {
-      onSelectPlayer2(player);
-    }
-
+    // Each search box receives a single slot-specific callback. This avoids
+    // accidentally writing a left-side search result into the right slot.
+    onSelect?.(player);
     setValue("");
   };
 
@@ -102,8 +98,13 @@ function SearchBox({
               >
                 <button
                   type="button"
-                  onClick={() => handleSelect(player)}
-                  className="flex min-w-0 flex-1 items-center justify-between px-1 py-1.5 text-left"
+                  aria-label={`Atvērt ${player.name} profilu`}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onOpen?.(player);
+                  }}
+                  className="flex min-w-0 flex-1 items-center justify-between rounded-lg px-1 py-1.5 text-left outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-400"
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-slate-800">
@@ -116,7 +117,7 @@ function SearchBox({
                   </span>
 
                   <span className="ml-3 shrink-0 text-[10px] font-bold uppercase text-slate-400">
-                    Izvēlēties
+                    Profils
                   </span>
                 </button>
 
@@ -127,7 +128,11 @@ function SearchBox({
                       ? "Noņemt no favorītiem"
                       : "Pievienot favorītiem"
                   }
-                  onClick={() => onToggleFavorite(player)}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onToggleFavorite(player);
+                  }}
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
                     isFavorite(player)
                       ? "bg-amber-50 text-amber-500"
@@ -139,7 +144,11 @@ function SearchBox({
 
                 <button
                   type="button"
-                  onClick={() => handleSelect(player)}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleSelect(player);
+                  }}
                   className={`rounded-lg px-2.5 py-2 text-[10px] font-bold text-white ${
                     rose
                       ? "bg-rose-500 hover:bg-rose-600"
@@ -391,19 +400,33 @@ function PlayerDetailsModal({
   const shirtNumber = profile.number ?? player.number;
 
   const handleCompare = () => {
-    onCompare?.(player);
+    try {
+      onCompare?.(player);
+    } finally {
+      onClose?.();
+    }
+  };
+
+  const handleClose = () => {
+    onClose?.();
   };
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-md sm:p-5"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) {
-          onClose?.();
-        }
+      role="presentation"
+      className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-md sm:p-5"
+      onClick={event => {
+        if (event.target === event.currentTarget) handleClose();
       }}
     >
-      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-slate-50 shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Spēlētāja ${player.name} profils`}
+        onMouseDown={event => event.stopPropagation()}
+        onClick={event => event.stopPropagation()}
+        className="pointer-events-auto flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-slate-50 shadow-[0_30px_90px_rgba(15,23,42,0.35)]"
+      >
         <div className="relative shrink-0 overflow-hidden bg-slate-950 px-5 pb-5 pt-5 text-white sm:px-7 sm:pb-7 sm:pt-6">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
@@ -465,7 +488,7 @@ function PlayerDetailsModal({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Aizvērt"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-slate-300 transition hover:bg-white/20 hover:text-white"
             >
@@ -666,7 +689,7 @@ function PlayerDetailsModal({
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-xs font-black text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 sm:flex-none"
             >
               Aizvērt

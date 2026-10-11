@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 
 import useAppController from "./hooks/useAppController";
 import AppHeader from "./components/app/AppHeader";
@@ -8,9 +8,9 @@ import AppStatus from "./components/app/AppStatus";
 import AppFooter from "./components/app/AppFooter";
 import PlayersHomeView from "./components/app/PlayersHomeView";
 import PlayerComparisonView from "./components/app/PlayerComparisonView";
-import TeamPage from "./TeamPage";
-import LeagueTables from "./LeagueTables";
-import FootballAnalyticsTools from "./components/FootballAnalyticsTools";
+const TeamPage = lazy(() => import("./TeamPage"));
+const LeagueTables = lazy(() => import("./LeagueTables"));
+const FootballAnalyticsTools = lazy(() => import("./components/FootballAnalyticsTools"));
 
 export default function App() {
   const app = useAppController();
@@ -36,15 +36,19 @@ export default function App() {
         toggleFavorite={app.toggleFavorite}
         addToComparison={app.addToComparison}
         setDetailsPlayer={app.setDetailsPlayer}
+        closePlayerProfile={app.closePlayerProfile}
         setPlayerProfileData={app.setPlayerProfileData}
         setPlayerProfileError={app.setPlayerProfileError}
         isGuideOpen={app.isGuideOpen}
         setIsGuideOpen={app.setIsGuideOpen}
         isAccountOpen={app.isAccountOpen}
+        username={app.username}
+        avatarUrl={app.avatarUrl}
         tempUsername={app.tempUsername}
         tempAvatar={app.tempAvatar}
         avatarError={app.avatarError}
         setTempUsername={app.setTempUsername}
+        setTempAvatar={app.setTempAvatar}
         handleFileChange={app.handleFileChange}
         saveAccount={app.saveAccount}
         setAvatarError={app.setAvatarError}
@@ -84,6 +88,7 @@ export default function App() {
               setSelectedCategory={app.setSelectedCategory}
               setPlayer1={app.setPlayer1}
               setPlayer2={app.setPlayer2}
+              selectComparisonPlayer={app.selectComparisonPlayer}
               setActiveView={app.setActiveView}
               selectCategory={app.selectCategory}
               openPlayer={app.openPlayer}
@@ -106,6 +111,7 @@ export default function App() {
               openPlayer={app.openPlayer}
               setPlayer1={app.setPlayer1}
               setPlayer2={app.setPlayer2}
+              selectComparisonPlayer={app.selectComparisonPlayer}
               isFavorite={app.isFavorite}
               toggleFavorite={app.toggleFavorite}
               handlePlayer1Change={app.handlePlayer1Change}
@@ -117,29 +123,43 @@ export default function App() {
             />
           )}
 
-        {app.activeView === "teams" && (
-          <TeamPage
-            competition={app.selectedLeague}
-            season={app.apiSeason}
-            leagueName={app.leagueName}
-          />
-        )}
+        <Suspense
+          fallback={(
+            <div
+              role="status"
+              className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm"
+            >
+              <div className="mx-auto h-10 w-10 animate-spin rounded-xl border-4 border-emerald-100 border-t-emerald-500" />
+              <p className="mt-4 text-sm font-bold text-slate-600">
+                Ielādē sadaļu...
+              </p>
+            </div>
+          )}
+        >
+          {app.activeView === "teams" && (
+            <TeamPage
+              competition={app.selectedLeague}
+              season={app.apiSeason}
+              leagueName={app.leagueName}
+            />
+          )}
 
-        {app.activeView === "league-tables" && (
-          <LeagueTables
-            competition={app.selectedLeague}
-            season={app.apiSeason}
-            leagueName={app.leagueName}
-          />
-        )}
+          {app.activeView === "league-tables" && (
+            <LeagueTables
+              competition={app.selectedLeague}
+              season={app.apiSeason}
+              leagueName={app.leagueName}
+            />
+          )}
 
-        {app.activeView === "analytics-tools" && (
-          <FootballAnalyticsTools
-            competition={app.selectedLeague}
-            season={app.apiSeason}
-            leagueName={app.leagueName}
-          />
-        )}
+          {app.activeView === "analytics-tools" && (
+            <FootballAnalyticsTools
+              competition={app.selectedLeague}
+              season={app.apiSeason}
+              leagueName={app.leagueName}
+            />
+          )}
+        </Suspense>
 
         <AppFooter />
       </main>

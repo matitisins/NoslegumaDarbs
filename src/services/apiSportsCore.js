@@ -4,6 +4,9 @@ const BASE_URL = API_BASE_URL;
 
 const REQUEST_TIMEOUT = 30000;
 
+// Prevent duplicate simultaneous requests to the same endpoint.
+const inFlightRequests = new Map();
+
 const isValidSeason = season =>
   /^\d{4}$/.test(String(season)) &&
   Number(season) >= 2000 &&
@@ -31,7 +34,7 @@ const buildApiUrl = (path, params = {}) => {
   return query ? `${url}?${query}` : url;
 };
 
-const requestJson = async (url, options = {}) => {
+const performRequestJson = async (url, options = {}) => {
   const controller =
     typeof AbortController !== "undefined"
       ? new AbortController()
@@ -100,6 +103,36 @@ const requestJson = async (url, options = {}) => {
   }
 };
 
+const responseCache = new Map();
+const RESPONSE_CACHE_TTL = 2 * 60 * 1000;
+
+const requestJson = (url, options = {}) => {
+  if (options.signal || (options.method && options.method !== "GET")) {
+    return performRequestJson(url, options);
+  }
+
+  const key = `GET:${url}`;
+  const cached = responseCache.get(key);
+  if (cached && Date.now() - cached.timestamp < RESPONSE_CACHE_TTL) {
+    return Promise.resolve(cached.data);
+  }
+  if (cached) responseCache.delete(key);
+
+  const existing = inFlightRequests.get(key);
+  if (existing) return existing;
+
+  const request = performRequestJson(url, options).then(data => {
+    responseCache.set(key, { timestamp: Date.now(), data });
+    return data;
+  }).finally(() => {
+    if (inFlightRequests.get(key) === request) {
+      inFlightRequests.delete(key);
+    }
+  });
+  inFlightRequests.set(key, request);
+  return request;
+};
+
 export const COMPETITION_IDS = {
   PL: "PL",
   PD: "PD",
@@ -136,7 +169,7 @@ const API_FOOTBALL_LEAGUES = {
  * Changing the prefix guarantees that the new FPL-based values
  * are loaded instead of the old cached values.
  */
-const CACHE_PREFIX = "flow_api_football_v11_";
+const CACHE_PREFIX = "flow_api_football_v12_contract_fix_";
 
 const CACHE_TIME = 1000 * 60 * 60;
 
@@ -347,12 +380,19 @@ const calculateFantasyPoints = ({
   minutes,
   goals,
   assists,
+  cleanSheets,
   penaltiesMissed,
+  penaltiesSaved,
   saves,
   goalsConceded,
   yellowCards,
   redCards,
+  ownGoals,
+  bonus,
 }) => {
+  // FPL scoring values, applied to aggregate statistics from any supported
+  // league. The source API provides season totals, so appearance points are
+  // estimated from average minutes rather than individual match appearances.
   const goalPoints = {
     GOALKEEPERS: 10,
     DEFENDERS: 6,
@@ -360,65 +400,51 @@ const calculateFantasyPoints = ({
     STRIKERS: 4,
   };
 
-  const appearanceCount =
-    toNumber(appearances);
+  const appearanceCount = Math.max(0, toNumber(appearances));
+  const totalMinutes = Math.max(0, toNumber(minutes));
+  const averageMinutes = appearanceCount > 0 ? totalMinutes / appearanceCount : 0;
+  const appearancePoints = appearanceCount === 0
+    ? 0
+    : appearanceCount * (averageMinutes >= 60 ? 2 : 1);
 
-  const totalMinutes =
-    toNumber(minutes);
+  const scoredGoalPoints = toNumber(goals) * (goalPoints[category] || 4);
+  const assistPoints = toNumber(assists) * 3;
 
-  let appearancePoints = 0;
-
-  if (appearanceCount > 0) {
-    const averageMinutes =
-      totalMinutes /
-      appearanceCount;
-
-    appearancePoints =
-      averageMinutes >= 60
-        ? appearanceCount * 2
-        : appearanceCount;
-  }
-
-  const scoredGoalPoints =
-    toNumber(goals) *
-    (goalPoints[category] || 4);
-
-  const assistPoints =
-    toNumber(assists) * 3;
-
-  const savePoints =
-    category === "GOALKEEPERS"
-      ? Math.floor(
-          toNumber(saves) / 3
-        )
+  const cleanSheetValue = category === "GOALKEEPERS" || category === "DEFENDERS"
+    ? 4
+    : category === "MIDFIELDERS"
+      ? 1
       : 0;
+  const cleanSheetPoints = Math.max(0, toNumber(cleanSheets)) * cleanSheetValue;
 
-  const penaltyMissPoints =
-    toNumber(penaltiesMissed) * -2;
-
-  const concededGoalPoints =
-    category === "GOALKEEPERS" ||
-    category === "DEFENDERS"
-      ? -Math.floor(
-          toNumber(goalsConceded) / 2
-        )
-      : 0;
-
-  const yellowCardPoints =
-    toNumber(yellowCards) * -1;
-
-  const redCardPoints =
-    toNumber(redCards) * -3;
+  const savePoints = category === "GOALKEEPERS"
+    ? Math.floor(Math.max(0, toNumber(saves)) / 3)
+    : 0;
+  const penaltySavePoints = category === "GOALKEEPERS"
+    ? Math.max(0, toNumber(penaltiesSaved)) * 5
+    : 0;
+  const penaltyMissPoints = Math.max(0, toNumber(penaltiesMissed)) * -2;
+  const concededGoalPoints = category === "GOALKEEPERS" || category === "DEFENDERS"
+    ? -Math.floor(Math.max(0, toNumber(goalsConceded)) / 2)
+    : 0;
+  const yellowCardPoints = Math.max(0, toNumber(yellowCards)) * -1;
+  const redCardPoints = Math.max(0, toNumber(redCards)) * -3;
+  const ownGoalPoints = Math.max(0, toNumber(ownGoals)) * -2;
+  const bonusPoints = Math.max(0, toNumber(bonus));
 
   return Math.round(
     appearancePoints +
-      scoredGoalPoints +
-      assistPoints +
-      savePoints +
-      penaltyMissPoints +
-      concededGoalPoints +
-      yellowCardPoints +
-      redCardPoints
+    scoredGoalPoints +
+    assistPoints +
+    cleanSheetPoints +
+    savePoints +
+    penaltySavePoints +
+    penaltyMissPoints +
+    concededGoalPoints +
+    yellowCardPoints +
+    redCardPoints +
+    ownGoalPoints +
+    bonusPoints
   );
 };
 

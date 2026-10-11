@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 
 import {
-  fetchLeagueStandings,
-  fetchLeagueFixtures,
+  fetchLeagueStandingsWithStatus,
+  fetchLeagueFixturesWithStatus,
 } from "./services/leagueFeatures";
 
 import LeagueTopScorers from "./components/LeagueTopScorers";
@@ -22,28 +22,27 @@ export default function LeagueTables({
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dataWarning, setDataWarning] = useState("");
 
   const loadStandings = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const [standingsData, fixturesData] = await Promise.all([
-        fetchLeagueStandings(competition, season),
-        fetchLeagueFixtures(competition, season),
+      const [standingsResult, fixturesResult] = await Promise.all([
+        fetchLeagueStandingsWithStatus(competition, season),
+        fetchLeagueFixturesWithStatus(competition, season),
       ]);
 
-      setStandings(Array.isArray(standingsData) ? standingsData : []);
-      setFixtures(
-        fixturesData || {
-          upcoming: [],
-          recent: [],
-        }
-      );
+      setStandings(Array.isArray(standingsResult.data) ? standingsResult.data : []);
+      setFixtures(fixturesResult.data || { upcoming: [], recent: [] });
+      const warnings = [standingsResult.warning, fixturesResult.warning].filter(Boolean);
+      setDataWarning(warnings.join(" "));
     } catch (err) {
       console.error(err);
       setStandings([]);
       setFixtures({ upcoming: [], recent: [] });
+      setDataWarning("");
       setError(err?.message || "Neizdevās ielādēt līgas datus.");
     } finally {
       setLoading(false);
@@ -110,6 +109,12 @@ export default function LeagueTables({
           </button>
         ))}
       </div>
+
+      {dataWarning && (
+        <div role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong className="font-bold">Novecojuši dati.</strong> {dataWarning}
+        </div>
+      )}
 
       {activeTab === "table" && (
         <StandingsViewEnhanced

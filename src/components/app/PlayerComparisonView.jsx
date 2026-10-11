@@ -25,6 +25,7 @@ export default function PlayerComparisonView({
   toggleFavorite,
   handlePlayer1Change,
   handlePlayer2Change,
+  selectComparisonPlayer,
   resetPlayers,
   fdr1,
   fdr2,
@@ -134,17 +135,13 @@ export default function PlayerComparisonView({
                           categoryPlayers
                         }
                         selected={player1}
-                        target="player1"
-                        onSelectPlayer1={player =>
-                          setPlayer1(
-                            player
-                          )
-                        }
-                        onSelectPlayer2={player =>
-                          setPlayer2(
-                            player
-                          )
-                        }
+                        onSelect={player => {
+                          if (selectComparisonPlayer) {
+                            selectComparisonPlayer("left", player);
+                          } else {
+                            setPlayer1(player);
+                          }
+                        }}
                         onOpen={openPlayer}
                         isFavorite={
                           isFavorite
@@ -178,6 +175,7 @@ export default function PlayerComparisonView({
                         onChange={
                           handlePlayer1Change
                         }
+                        onOpen={openPlayer}
                         color="rose"
                       />
                     </div>
@@ -188,17 +186,13 @@ export default function PlayerComparisonView({
                           categoryPlayers
                         }
                         selected={player2}
-                        target="player2"
-                        onSelectPlayer1={player =>
-                          setPlayer1(
-                            player
-                          )
-                        }
-                        onSelectPlayer2={player =>
-                          setPlayer2(
-                            player
-                          )
-                        }
+                        onSelect={player => {
+                          if (selectComparisonPlayer) {
+                            selectComparisonPlayer("right", player);
+                          } else {
+                            setPlayer2(player);
+                          }
+                        }}
                         onOpen={openPlayer}
                         isFavorite={
                           isFavorite
@@ -232,6 +226,7 @@ export default function PlayerComparisonView({
                         onChange={
                           handlePlayer2Change
                         }
+                        onOpen={openPlayer}
                         color="emerald"
                       />
                     </div>

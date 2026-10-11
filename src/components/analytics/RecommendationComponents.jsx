@@ -15,6 +15,9 @@ import {
   getDifficulty,
   getStatusForPlayer,
 } from "../../utils/analyticsUtils";
+import {
+  RECOMMENDATION_STYLES,
+} from "../../utils/analyticsMethodology";
 
 function RecommendationExplanation({ item, pool, weights }) {
   const metrics = Object.entries(weights).filter(([, weight]) => number(weight) > 0);
@@ -623,17 +626,6 @@ function RecommendationDetail({ item, pool, weights, fixture, standings, competi
   );
 }
 
-
-const RECOMMENDATION_STYLES = {
-  attacking: { goals: 35, assists: 25, points: 30, rating: 10 },
-  balanced: { goals: 25, assists: 20, points: 35, minutes: 10, rating: 10 },
-  creator: { assists: 35, keyPasses: 30, points: 25, rating: 10 },
-  defensive: { tackles: 25, interceptions: 25, points: 30, rating: 20 },
-  goalscorer: { goals: 55, points: 25, rating: 10, minutes: 10 },
-  form: { points: 60, rating: 25, minutes: 15 },
-  value: { points: 40, goals: 20, assists: 15, minutes: 15, rating: 10 },
-  allround: { goals: 20, assists: 20, points: 30, minutes: 15, rating: 15 },
-};
 
 
 export {

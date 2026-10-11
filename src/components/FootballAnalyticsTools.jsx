@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchApiSportsPlayers } from "../services/apiSports";
-import { fetchLeagueFixtures, fetchLeagueStandings } from "../services/leagueFeatures";
+import { fetchLeagueFixturesWithStatus, fetchLeagueStandingsWithStatus } from "../services/leagueFeatures";
 import RecommendationTool from "./analytics/RecommendationTool";
 import RankingTool from "./analytics/RankingTool";
 import FantasyBuilder from "./analytics/FantasyBuilder";
@@ -16,6 +16,8 @@ export default function FootballAnalyticsTools({
   const [tool, setTool] = useState("recommendations");
   const [fixtures, setFixtures] = useState({ upcoming: [], recent: [] });
   const [standings, setStandings] = useState([]);
+  const [contextWarning, setContextWarning] = useState("");
+  const [contextLoading, setContextLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,21 +51,27 @@ export default function FootballAnalyticsTools({
     let cancelled = false;
 
     const loadLeagueContext = async () => {
+      setContextLoading(true);
+      setContextWarning("");
       try {
-        const [fixtureData, standingData] = await Promise.all([
-          fetchLeagueFixtures(competition, season),
-          fetchLeagueStandings(competition, season),
+        const [fixtureResult, standingResult] = await Promise.all([
+          fetchLeagueFixturesWithStatus(competition, season),
+          fetchLeagueStandingsWithStatus(competition, season),
         ]);
 
         if (!cancelled) {
-          setFixtures(fixtureData || { upcoming: [], recent: [] });
-          setStandings(Array.isArray(standingData) ? standingData : []);
+          setFixtures(fixtureResult.data || { upcoming: [], recent: [] });
+          setStandings(Array.isArray(standingResult.data) ? standingResult.data : []);
+          setContextWarning([fixtureResult.warning, standingResult.warning].filter(Boolean).join(" "));
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
           setFixtures({ upcoming: [], recent: [] });
           setStandings([]);
+          setContextWarning(err?.message || "Neizdevās ielādēt līgas kontekstu.");
         }
+      } finally {
+        if (!cancelled) setContextLoading(false);
       }
     };
 
@@ -104,6 +112,12 @@ export default function FootballAnalyticsTools({
         ))}
       </div>
 
+      {contextWarning && (
+        <div role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong className="font-bold">Līgas datu paziņojums.</strong> {contextWarning}
+        </div>
+      )}
+
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
           <p className="text-sm font-bold text-red-700">API kļūda</p>
@@ -115,6 +129,11 @@ export default function FootballAnalyticsTools({
         <div className="rounded-[24px] border border-slate-200 bg-white p-14 text-center shadow-sm">
           <div className="mx-auto h-11 w-11 animate-spin rounded-2xl border-4 border-emerald-100 border-t-emerald-500" />
           <p className="mt-4 text-sm font-bold text-slate-600">Ielādē analītikas datus...</p>
+        </div>
+      ) : !error && players.length === 0 ? (
+        <div className="rounded-[24px] border border-slate-200 bg-white p-8 text-center">
+          <p className="text-sm font-black text-slate-800">Šai līgai un sezonai nav pieejamu spēlētāju datu.</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">Pārbaudi sezonu vai izvēlies citu līgu. Analītikas rīki tiks aktivizēti, kad būs pieejami spēlētāju dati.</p>
         </div>
       ) : !error ? (
         <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:p-6">
@@ -128,10 +147,23 @@ export default function FootballAnalyticsTools({
             />
           )}
           {tool === "ranking" && (
-            <RankingTool players={players} competition={competition} season={season} />
+            <RankingTool
+              players={players}
+              competition={competition}
+              season={season}
+              fixtures={fixtures}
+              standings={standings}
+            />
           )}
           {tool === "fantasy" && (
-            <FantasyBuilder players={players} competition={competition} season={season} />
+            <FantasyBuilder
+              players={players}
+              competition={competition}
+              season={season}
+              fixtures={fixtures}
+              standings={standings}
+              contextLoading={contextLoading}
+            />
           )}
         </div>
       ) : null}

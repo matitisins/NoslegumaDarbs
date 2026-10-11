@@ -1,15 +1,20 @@
 /*
  * Nodrošina kapteiņa simulatoru diviem izvēlētajiem spēlētājiem,
- * aprēķinot simulēto fantasy vērtību, ņemot vērā spēlētāja Flow
- * punktus un FDR, kā arī piemērojot kapteiņa dubulto vērtību.
+ * izmantojot spēlētāja fantasy punktus kā simulācijas bāzi un
+ * piemērojot standarta kapteiņa dubulto vērtību.
+ *
+ * FDR tiek parādīts kā pretinieka sarežģītības konteksts, bet netiek
+ * pārvērsts patvaļīgā procentuālajā punktu korekcijā. Tas novērš
+ * nepamatotu pieņēmumu, ka katrs FDR līmenis automātiski maina
+ * sagaidāmos punktus par noteiktu procentu.
  */
 
 import React, { useMemo, useState } from "react";
-
-function number(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+import {
+  getCaptainExpectedPoints,
+  getCaptainValue,
+  toFiniteNumber,
+} from "../utils/captaincyUtils";
 
 function PlayerColumn({
   player,
@@ -48,26 +53,22 @@ function PlayerColumn({
       type="button"
       onClick={onClick}
       className={`w-full rounded-2xl border p-4 text-left transition ${styles.border} ${styles.bg} ${
-        active
-          ? `ring-2 ${styles.ring}`
-          : "hover:border-slate-300"
+        active ? `ring-2 ${styles.ring}` : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p
-            className={`truncate text-sm font-black ${styles.text}`}
-          >
+          <p className="truncate text-sm font-black text-slate-900">
             {player.name}
           </p>
 
-          <p className="mt-1 truncate text-xs text-slate-400">
-            {player.team || "Nezināms klubs"}
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            {player.team || "Nezināma komanda"}
           </p>
         </div>
 
         <span
-          className={`shrink-0 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider ${
+          className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wider ${
             active
               ? `${styles.text} bg-white`
               : "bg-slate-100 text-slate-400"
@@ -84,7 +85,7 @@ function PlayerColumn({
           </p>
 
           <p className="mt-1 text-lg font-black text-slate-900">
-            {number(player.flowPoints)}
+            {toFiniteNumber(player.flowPoints)}
           </p>
         </div>
 
@@ -94,7 +95,7 @@ function PlayerColumn({
           </p>
 
           <p className="mt-1 text-lg font-black text-slate-900">
-            {number(fdr) || 3}
+            {toFiniteNumber(fdr) || 3}
           </p>
         </div>
       </div>
@@ -112,36 +113,23 @@ export default function CaptaincySimulator({
   const [captain, setCaptain] =
     useState("player1");
 
-  // Expected values here are heuristic projections, not official FPL predictions.
-  const expected1 = useMemo(() => {
-    if (!player1) return 0;
+  /*
+   * Expected values are intentionally conservative:
+   * - the player's supplied fantasy points are the simulation baseline;
+   * - FDR is displayed as contextual information;
+   * - no unsupported fixed percentage is applied to FDR.
+   *
+   * This is a heuristic simulation, not an official FPL prediction.
+   */
+  const expected1 = useMemo(
+    () => getCaptainExpectedPoints(player1),
+    [player1]
+  );
 
-    const points = number(
-      player1.points
-    );
-
-    const fdr = number(fdr1) || 3;
-
-    return (
-      points *
-      (1 + (6 - fdr) * 0.05)
-    );
-  }, [player1, fdr1]);
-
-  const expected2 = useMemo(() => {
-    if (!player2) return 0;
-
-    const points = number(
-      player2.points
-    );
-
-    const fdr = number(fdr2) || 3;
-
-    return (
-      points *
-      (1 + (6 - fdr) * 0.05)
-    );
-  }, [player2, fdr2]);
+  const expected2 = useMemo(
+    () => getCaptainExpectedPoints(player2),
+    [player2]
+  );
 
   if (!player1 || !player2) {
     return null;
@@ -163,7 +151,7 @@ export default function CaptaincySimulator({
       : player2.name;
 
   const captainPoints =
-    selectedExpected * 2;
+    getCaptainValue(selectedExpected);
 
   const totalPoints =
     captainPoints +
@@ -254,8 +242,12 @@ export default function CaptaincySimulator({
       </div>
 
       <p className="mt-4 text-[9px] leading-5 text-slate-400">
-        Šī ir Flow aprēķina simulācija,
-        nevis garantēta spēles vai fantasy
+        FDR tiek rādīts kā pretinieka sarežģītības
+        konteksts. Tas netiek pārvērsts fiksētā
+        procentuālajā punktu korekcijā, jo projektā
+        nav pietiekamu vēsturisku datu šāda koeficienta
+        statistiskai pamatošanai. Simulācija ir
+        heuristiska, nevis garantēta spēles vai fantasy
         rezultāta prognoze.
       </p>
     </section>

@@ -43,6 +43,10 @@ const aggregatePlayerStats =
         goals: 0,
         assists: 0,
         penaltyGoals: 0,
+        cleanSheets: 0,
+        penaltiesSaved: 0,
+        ownGoals: 0,
+        bonus: 0,
 
         shots: 0,
         shotsOnTarget: 0,
@@ -246,6 +250,34 @@ const aggregatePlayerStats =
           stats,
           item =>
             item.penalty?.scored
+        ),
+
+      cleanSheets:
+        sumField(
+          stats,
+          item =>
+            item.clean_sheet ?? item.cleanSheets ?? item.cleanSheet ?? item.goals?.clean_sheet
+        ),
+
+      penaltiesSaved:
+        sumField(
+          stats,
+          item =>
+            item.penalty?.saved ?? item.penalty?.save
+        ),
+
+      ownGoals:
+        sumField(
+          stats,
+          item =>
+            item.goals?.own ?? item.own_goals ?? item.ownGoals
+        ),
+
+      bonus:
+        sumField(
+          stats,
+          item =>
+            item.points?.bonus ?? item.bonus
         ),
 
       shots:
@@ -889,6 +921,18 @@ const createPlayer = (
       penaltiesMissed:
         aggregated.penaltiesMissed,
 
+      penaltiesSaved:
+        aggregated.penaltiesSaved,
+
+      cleanSheets:
+        aggregated.cleanSheets,
+
+      ownGoals:
+        aggregated.ownGoals,
+
+      bonus:
+        aggregated.bonus,
+
       saves:
         aggregated.saves,
 
@@ -948,7 +992,10 @@ const createPlayer = (
     penalties:
       penaltyGoals,
 
+    // Flow points are the project's FPL-style score, calculated consistently
+    // from API-Football stats for every supported competition.
     points,
+    flowPoints: points,
 
     photo:
       player.photo || null,
@@ -1010,6 +1057,18 @@ const createPlayer = (
 
         penaltiesMissed:
           aggregated.penaltiesMissed,
+
+        penaltiesSaved:
+          aggregated.penaltiesSaved,
+
+        cleanSheets:
+          aggregated.cleanSheets,
+
+        ownGoals:
+          aggregated.ownGoals,
+
+        bonus:
+          aggregated.bonus,
 
         saves:
           aggregated.saves,

@@ -38,8 +38,9 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
    * leagues could reuse a snapshot created for another competition.
    * That is especially problematic when the player dataset changes shape.
    */
-  const leagueKey = String(players?.[0]?.league || "PL").toUpperCase();
-  const historyKey = `flow_recommendation_history_${leagueKey}_${category}_${style}`;
+  const leagueKey = String(competition || players?.[0]?.league || "PL").toUpperCase();
+  const seasonKey = Number(season) || 2026;
+  const historyKey = `flow_recommendation_history_${leagueKey}_${seasonKey}_${category}_${style}`;
 
   const pool = useMemo(() => players.filter(player => category === "ALL" || player.category === category), [players, category]);
   const query = search.trim().toLowerCase();
@@ -65,6 +66,8 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
     return recommendations
       .map(item => Number(resolvePlayerTeam(item.player, standings)?.teamId))
       .filter(id => Number.isInteger(id) && id > 0)
+      .filter((id, index, ids) => ids.indexOf(id) === index)
+      .sort((a, b) => a - b)
       .join(",");
   }, [recommendations, standings]);
 
@@ -74,17 +77,18 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
     let cancelled = false;
 
     const loadRecommendationFixtures = async () => {
-      if (!recommendations.length) {
-        setRecommendationFixtureContexts({});
-        return;
-      }
+      setRecommendationFixtureContexts({});
+      if (!recommendations.length) return;
 
-      const resolved = recommendations
+      const uniqueTeams = new Map();
+      recommendations
         .map(item => resolvePlayerTeam(item.player, standings))
         .filter(player => {
           const teamId = Number(player?.teamId);
           return Number.isInteger(teamId) && teamId > 0;
-        });
+        })
+        .forEach(player => uniqueTeams.set(String(Number(player.teamId)), player));
+      const resolved = [...uniqueTeams.values()];
 
       if (!resolved.length) {
         setRecommendationFixtureContexts({});
@@ -153,7 +157,7 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
     setSelected(null);
     setCompare([]);
     setShowHidden(false);
-  }, [leagueKey]);
+  }, [leagueKey, seasonKey]);
 
   useEffect(() => {
     try {
@@ -161,8 +165,8 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
       const parsed = raw ? JSON.parse(raw) : [];
       setHistory(Array.isArray(parsed) ? parsed : []);
     } catch {
-      /* A corrupted old localStorage value must never blank the app. */
-      localStorage.removeItem(historyKey);
+      /* Storage can be disabled or contain malformed data; the tool must still work. */
+      try { localStorage.removeItem(historyKey); } catch { /* Storage unavailable. */ }
       setHistory([]);
     }
   }, [historyKey]);
@@ -183,9 +187,7 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
 
   useEffect(() => {
     if (!recommendations.length) {
-      setHistory(current =>
-        current.length ? [] : current
-      );
+      // Preserve saved history when the current filters temporarily produce no results.
       return;
     }
 
@@ -237,6 +239,7 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
   }, [
     recommendationHistorySignature,
     historyKey,
+    seasonKey,
   ]);
 
   const toggleCompare = item => {

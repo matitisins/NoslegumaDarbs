@@ -92,11 +92,15 @@ const normalize = (
   min,
   max
 ) => {
-  if (max <= min) return 50;
+  const safeValue = number(value);
+  const safeMin = number(min);
+  const safeMax = number(max);
+
+  if (safeMax <= safeMin) return 50;
 
   return (
-    ((value - min) /
-      (max - min)) *
+    ((safeValue - safeMin) /
+      (safeMax - safeMin)) *
     100
   );
 };
@@ -108,13 +112,23 @@ const weightedScore = (
   weights,
   pool
 ) => {
+  /*
+   * Weight validation:
+   * - non-numeric values are treated as zero;
+   * - negative values are ignored;
+   * - the final score is divided by the sum of active weights.
+   *
+   * This means custom sliders do not need to total exactly 100%, while the
+   * score still remains comparable on the 0–100 normalized scale.
+   */
   const entries =
-    Object.entries(weights).filter(
+    Object.entries(weights || {}).filter(
       ([, weight]) =>
-        number(weight) > 0
+        Number.isFinite(Number(weight)) &&
+        Number(weight) > 0
     );
 
-  if (!entries.length) return 0;
+  if (!entries.length || !Array.isArray(pool) || !pool.length) return 0;
 
   let total = 0;
   let weightTotal = 0;
@@ -280,6 +294,11 @@ const playerRecentForm = player => {
 // Heuristic Gameweek projection based on recent form and available player data.
 // This is an estimate, not an official FPL prediction or probability.
 const getProjectedPoints = player => {
+  const officialProjection = Number(player?.officialFplProjectedPoints);
+  if (Number.isFinite(officialProjection) && officialProjection > 0) {
+    return Math.round(officialProjection * 10) / 10;
+  }
+
   const values = playerRecentForm(player);
 
   if (values.length) {
@@ -333,6 +352,14 @@ const getFlowValue = player => {
 };
 
 const getBudgetPrice = player => {
+  const officialPrice = Number(player?.officialFplPrice);
+  if (Number.isFinite(officialPrice) && officialPrice > 0) {
+    return Math.round(officialPrice * 10) / 10;
+  }
+
+  // Other leagues do not have official FPL market prices. Keep the project's
+  // existing Flow Value estimate for those leagues, and never label it as an
+  // official FPL price.
   const value = getFlowValue(player);
   return Math.round(value * 10) / 10;
 };
@@ -475,12 +502,15 @@ const getDifficulty = (player, fixture, standings) => {
   if (!opponent) return { score: 3, label: "Vidēja", tone: "bg-amber-50 text-amber-700 border-amber-200" };
 
   const safeStandings = Array.isArray(standings) ? standings : [];
+  const playerTeamId = Number(player?.teamId ?? player?.team?.id);
+  const homeTeamId = Number(fixture?.teams?.home?.id);
+  const awayTeamId = Number(fixture?.teams?.away?.id);
+  const opponentTeamId = homeTeamId === playerTeamId
+    ? awayTeamId
+    : homeTeamId;
+
   const row = safeStandings.find(
-    item => Number(item?.team?.id) === Number(
-      fixture?.teams?.home?.id === player?.teamId
-        ? fixture?.teams?.away?.id
-        : fixture?.teams?.home?.id
-    )
+    item => Number(item?.team?.id ?? item?.id) === opponentTeamId
   );
 
   const position = Number(row?.position);

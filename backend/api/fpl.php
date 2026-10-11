@@ -2,38 +2,11 @@
 
 declare(strict_types=1);
 
-/*
-|--------------------------------------------------------------------------
-| Flow - Official Fantasy Premier League data proxy
-|--------------------------------------------------------------------------
-|
-| This endpoint retrieves the current official Fantasy Premier League
-| player data and exposes the total FPL points to the React application.
-|
-| It is intentionally kept separate from API-Football because FPL points
-| include information such as:
-|
-| - Clean sheets
-| - Defensive contributions
-| - Bonus points / BPS
-| - Penalty saves
-| - Penalty misses
-| - Own goals
-| - Match-by-match appearance rules
-|
-| Those values cannot be reconstructed exactly from the aggregated
-| API-Football player endpoint.
-|
-|--------------------------------------------------------------------------
-*/
-
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
 
 require_once __DIR__ . '/../src/api/config.php';
-enforceRateLimit('fpl', 60, 60);
+
+enforceCorsPolicy();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
@@ -42,387 +15,279 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     http_response_code(405);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Atļauts tikai GET pieprasījums.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
-    echo json_encode(
-        [
+enforceRateLimit(
+    'fpl',
+    RATE_LIMIT_WINDOW_SECONDS,
+    RATE_LIMIT_FPL_REQUESTS
+);
+
+$allowedEndpoints = [
+    'bootstrap-static',
+    'fixtures',
+    'element-summary',
+];
+
+$endpoint = trim((string)($_GET['endpoint'] ?? 'bootstrap-static'));
+
+if (!in_array($endpoint, $allowedEndpoints, true)) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Neatbalstīts FPL API endpoint.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$playerId = null;
+
+if ($endpoint === 'element-summary') {
+    $playerId = filter_input(INPUT_GET, 'player', FILTER_VALIDATE_INT);
+
+    if (!$playerId || $playerId < 1) {
+        http_response_code(400);
+        echo json_encode([
             'success' => false,
-            'error' => 'Only GET requests are allowed.',
-        ],
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-    );
-
-    exit;
-}
-
-$seasonRaw = trim((string)($_GET['season'] ?? '2026'));
-
-if (!preg_match('/^\d{4}$/', $seasonRaw)) {
-    sendJsonError(400, 'Sezonai jābūt četrciparu gadam.');
-}
-
-$season = (int)$seasonRaw;
-
-/*
-|--------------------------------------------------------------------------
-| FPL currently represents the active 2026/27 season.
-|--------------------------------------------------------------------------
-|
-| We only use official FPL totals when the requested season is 2026.
-| For other seasons Flow falls back to its API-Football based calculation.
-|
-*/
-
-if ($season !== 2026) {
-    echo json_encode(
-        [
-            'success' => true,
-            'available' => false,
-            'season' => $season,
-            'players' => [],
-        ],
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-    );
-
-    exit;
-}
-
-$cacheDirectory = __DIR__ . '/../cache';
-
-ensureCacheDirectory($cacheDirectory);
-
-$cacheFile = $cacheDirectory . '/fpl-bootstrap-2026.json';
-
-/*
-|--------------------------------------------------------------------------
-| Cache for 30 minutes
-|--------------------------------------------------------------------------
-*/
-
-$cacheLifetime = 30 * 60;
-
-if (
-    is_file($cacheFile) &&
-    (time() - (int)filemtime($cacheFile)) < $cacheLifetime
-) {
-    $cached = json_decode(
-        (string)file_get_contents($cacheFile),
-        true
-    );
-
-    if (
-        is_array($cached) &&
-        isset($cached['players']) &&
-        is_array($cached['players'])
-    ) {
-        $cached['cached'] = true;
-
-        echo json_encode(
-            $cached,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        );
-
+            'error' => 'Spēlētāja detaļām nepieciešams derīgs player ID.',
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Request helper
-|--------------------------------------------------------------------------
-*/
+$baseUrl = 'https://fantasy.premierleague.com/api';
 
-function requestFpl(string $url): array
+$url = rtrim($baseUrl, '/') . '/' . $endpoint . '/';
+
+if ($playerId !== null) {
+    $url = rtrim($baseUrl, '/') .
+        '/element-summary/' .
+        $playerId .
+        '/';
+}
+
+$cacheDirectory =
+    dirname(__DIR__) .
+    DIRECTORY_SEPARATOR .
+    'cache';
+
+if (
+    !is_dir($cacheDirectory) &&
+    !mkdir($cacheDirectory, 0775, true) &&
+    !is_dir($cacheDirectory)
+) {
+    error_log('Flow FPL cache directory could not be created.');
+    http_response_code(503);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Kešatmiņa īslaicīgi nav pieejama.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$cacheKey = $endpoint;
+
+if ($playerId !== null) {
+    $cacheKey .= '_' . $playerId;
+}
+
+$cacheFile =
+    $cacheDirectory .
+    DIRECTORY_SEPARATOR .
+    'fpl_' .
+    hash('sha256', $cacheKey) .
+    '.json';
+
+function fplReadCache(
+    string $file,
+    bool $allowStale = false
+): ?array {
+    if (!is_file($file)) {
+        return null;
+    }
+
+    $modified = filemtime($file);
+
+    if ($modified === false) {
+        return null;
+    }
+
+    if (
+        !$allowStale &&
+        time() - $modified > CACHE_TTL_FPL
+    ) {
+        return null;
+    }
+
+    $contents = file_get_contents($file);
+
+    if ($contents === false || trim($contents) === '') {
+        return null;
+    }
+
+    $data = json_decode($contents, true);
+
+    return is_array($data) ? $data : null;
+}
+
+function fplWriteCache(string $file, array $data): void
+{
+    $contents = json_encode(
+        $data,
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    );
+
+    if (
+        $contents === false ||
+        file_put_contents($file, $contents, LOCK_EX) === false
+    ) {
+        error_log('Flow FPL cache write failed: ' . $file);
+    }
+}
+
+function fplRequest(string $url): array
 {
     $curl = curl_init($url);
 
     if ($curl === false) {
-        return [
-            'success' => false,
-            'status' => 0,
-            'error' => 'Unable to initialize cURL.',
-            'data' => null,
-        ];
+        throw new RuntimeException('Neizdevās inicializēt cURL.');
     }
 
-    curl_setopt_array(
-        $curl,
-        [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTPHEADER => [
-                'Accept: application/json',
-                'User-Agent: Mozilla/5.0 Flow-Football-Analytics',
-            ],
-        ]
-    );
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+        ],
+        CURLOPT_USERAGENT => 'Flow Football Analytics',
+    ]);
 
     $body = curl_exec($curl);
-
-    $error = curl_error($curl);
-    $status = (int)curl_getinfo(
-        $curl,
-        CURLINFO_HTTP_CODE
-    );
+    $curlError = curl_error($curl);
+    $status = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
     curl_close($curl);
 
-    if ($body === false || $error !== '') {
-        return [
-            'success' => false,
-            'status' => $status,
-            'error' => $error !== ''
-                ? $error
-                : 'FPL request failed.',
-            'data' => null,
-        ];
+    if ($body === false) {
+        throw new RuntimeException(
+            $curlError !== '' ? $curlError : 'Nezināma cURL kļūda.'
+        );
     }
 
-    $data = json_decode(
-        (string)$body,
-        true
-    );
+    $decoded = json_decode($body, true);
 
-    if (!is_array($data)) {
-        return [
-            'success' => false,
-            'status' => $status,
-            'error' => 'FPL returned invalid JSON.',
-            'data' => null,
-        ];
-    }
-
-    if ($status < 200 || $status >= 300) {
-        return [
-            'success' => false,
-            'status' => $status,
-            'error' => 'FPL returned HTTP ' . $status . '.',
-            'data' => $data,
-        ];
+    if (!is_array($decoded)) {
+        throw new RuntimeException('FPL atgrieza nederīgu JSON atbildi.');
     }
 
     return [
-        'success' => true,
         'status' => $status,
-        'error' => null,
-        'data' => $data,
+        'data' => $decoded,
     ];
 }
 
-/*
-|--------------------------------------------------------------------------
-| Get official FPL bootstrap data
-|--------------------------------------------------------------------------
-*/
+function fplRespondError(int $status, string $message): never
+{
+    http_response_code($status);
 
-$fplUrl = 'https://fantasy.premierleague.com/api/bootstrap-static/';
+    echo json_encode([
+        'success' => false,
+        'error' => $message,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-$result = requestFpl($fplUrl);
+    exit;
+}
 
-if (!$result['success']) {
-    /*
-     * If we have an old cache, use it rather than breaking Flow.
-     */
-    if (is_file($cacheFile)) {
-        $stale = json_decode(
-            (string)file_get_contents($cacheFile),
-            true
+$cached = fplReadCache($cacheFile);
+
+if ($cached !== null) {
+    echo json_encode([
+        'success' => true,
+        'data' => $cached,
+        'cached' => true,
+        'stale' => false,
+        'source' => 'official-fpl',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+$cacheLock = acquireCacheRefreshLock($cacheFile);
+
+if ($cacheLock !== null) {
+    $cached = fplReadCache($cacheFile);
+
+    if ($cached !== null) {
+        releaseCacheRefreshLock($cacheLock);
+
+        echo json_encode([
+            'success' => true,
+            'data' => $cached,
+            'cached' => true,
+            'stale' => false,
+            'source' => 'official-fpl',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+}
+
+try {
+    $response = fplRequest($url);
+
+    if (
+        $response['status'] < 200 ||
+        $response['status'] >= 300
+    ) {
+        throw new RuntimeException(
+            'FPL atgrieza HTTP ' . $response['status'] . '.'
         );
-
-        if (
-            is_array($stale) &&
-            isset($stale['players']) &&
-            is_array($stale['players'])
-        ) {
-            $stale['cached'] = true;
-            $stale['stale'] = true;
-
-            echo json_encode(
-                $stale,
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-            );
-
-            exit;
-        }
     }
 
-    http_response_code(502);
+    fplWriteCache($cacheFile, $response['data']);
 
-    echo json_encode(
-        [
-            'success' => false,
-            'error' => 'Unable to load official Fantasy Premier League data.',
-            'details' => $result['error'],
-        ],
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    if ($cacheLock !== null) {
+        releaseCacheRefreshLock($cacheLock);
+    }
+
+    echo json_encode([
+        'success' => true,
+        'data' => $response['data'],
+        'cached' => false,
+        'stale' => false,
+        'source' => 'official-fpl',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+} catch (Throwable $error) {
+    if ($cacheLock !== null) {
+        releaseCacheRefreshLock($cacheLock);
+    }
+
+    error_log(
+        'Flow FPL request failed: ' .
+        $error->getMessage()
     );
 
-    exit;
+    $stale = fplReadCache($cacheFile, true);
+
+    if ($stale !== null) {
+        echo json_encode([
+            'success' => true,
+            'data' => $stale,
+            'cached' => true,
+            'stale' => true,
+            'warning' => 'FPL dati pašlaik nav atjaunojami; tiek izmantota iepriekš saglabāta informācija.',
+            'source' => 'official-fpl',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    fplRespondError(
+        502,
+        'Neizdevās iegūt datus no oficiālā FPL API. Mēģini vēlāk.'
+    );
 }
-
-$bootstrap = $result['data'];
-
-$elements = isset($bootstrap['elements'])
-    && is_array($bootstrap['elements'])
-    ? $bootstrap['elements']
-    : [];
-
-$teams = isset($bootstrap['teams'])
-    && is_array($bootstrap['teams'])
-    ? $bootstrap['teams']
-    : [];
-
-/*
-|--------------------------------------------------------------------------
-| Build team lookup
-|--------------------------------------------------------------------------
-*/
-
-$teamNames = [];
-
-foreach ($teams as $team) {
-    if (!is_array($team)) {
-        continue;
-    }
-
-    $teamId = (int)($team['id'] ?? 0);
-
-    if ($teamId <= 0) {
-        continue;
-    }
-
-    $teamNames[$teamId] =
-        $team['name']
-        ?? $team['short_name']
-        ?? '';
-}
-
-/*
-|--------------------------------------------------------------------------
-| Build compact player dataset
-|--------------------------------------------------------------------------
-*/
-
-$players = [];
-
-foreach ($elements as $player) {
-    if (!is_array($player)) {
-        continue;
-    }
-
-    $playerId = (int)($player['id'] ?? 0);
-
-    if ($playerId <= 0) {
-        continue;
-    }
-
-    $teamId = (int)($player['team'] ?? 0);
-
-    $firstName = trim(
-        (string)($player['first_name'] ?? '')
-    );
-
-    $secondName = trim(
-        (string)($player['second_name'] ?? '')
-    );
-
-    $webName = trim(
-        (string)($player['web_name'] ?? '')
-    );
-
-    $fullName = trim(
-        $firstName . ' ' . $secondName
-    );
-
-    if ($fullName === '') {
-        $fullName = $webName;
-    }
-
-    $players[] = [
-        'id' => $playerId,
-
-        'name' => $fullName,
-
-        'webName' => $webName,
-
-        'teamId' => $teamId,
-
-        'team' => $teamNames[$teamId] ?? '',
-
-        /*
-         * Official FPL total points.
-         */
-        'totalPoints' => (int)(
-            $player['total_points'] ?? 0
-        ),
-
-        /*
-         * Official FPL points per game.
-         */
-        'pointsPerGame' => (float)(
-            $player['points_per_game'] ?? 0
-        ),
-
-        /*
-         * Keep a few useful values available for debugging
-         * and future Flow features.
-         */
-        'minutes' => (int)(
-            $player['minutes'] ?? 0
-        ),
-
-        'goals' => (int)(
-            $player['goals_scored'] ?? 0
-        ),
-
-        'assists' => (int)(
-            $player['assists'] ?? 0
-        ),
-
-        'position' => (int)(
-            $player['element_type'] ?? 0
-        ),
-    ];
-}
-
-$output = [
-    'success' => true,
-
-    'available' => true,
-
-    'source' => 'official-fantasy-premier-league',
-
-    'season' => 2026,
-
-    'count' => count($players),
-
-    'players' => $players,
-
-    'cached' => false,
-];
-
-$json = json_encode(
-    $output,
-    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-);
-
-if ($json === false) {
-    http_response_code(500);
-
-    echo json_encode(
-        [
-            'success' => false,
-            'error' => 'Unable to encode FPL response.',
-        ],
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-    );
-
-    exit;
-}
-
-if (file_put_contents($cacheFile, $json, LOCK_EX) === false) {
-    error_log('Flow FPL cache write failed: ' . $cacheFile);
-}
-
-echo $json;

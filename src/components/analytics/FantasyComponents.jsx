@@ -18,6 +18,11 @@ import {
   categoryShortLabel,
 } from "../../utils/analyticsUtils";
 
+const formatFantasyPrice = player => {
+  const currency = Number(player?.officialFplPrice) > 0 ? "£" : "€";
+  return `${currency}${getBudgetPrice(player).toFixed(1)}m`;
+};
+
 function FantasyPlayerComparison({ player, players, fixture, standings }) {
   const opponent = getFixtureOpponent(player, fixture);
   const difficulty = getDifficulty(player, fixture, standings);
@@ -47,7 +52,7 @@ function FantasyPlayerComparison({ player, players, fixture, standings }) {
         </div>
         <div>
           <p className="text-[8px] font-black uppercase tracking-wider text-slate-400">Cena</p>
-          <p className="mt-1 text-xs font-black text-slate-900">€{getBudgetPrice(player).toFixed(1)}m</p>
+          <p className="mt-1 text-xs font-black text-slate-900">{formatFantasyPrice(player)}</p>
         </div>
       </div>
 
@@ -143,7 +148,7 @@ function FantasyPlayerPicker({ category, players, selectedIds, onSelect, onClose
                       <div className="text-right">
                         <p className="text-sm font-black text-emerald-600">{getProjectedPoints(player).toFixed(1)}</p>
                         <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">GW</p>
-                        <p className="mt-1 text-sm font-black text-slate-900">€{getBudgetPrice(player).toFixed(1)}m</p>
+                        <p className="mt-1 text-sm font-black text-slate-900">{formatFantasyPrice(player)}</p>
                         <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Cena</p>
                       </div>
                     </div>
@@ -226,7 +231,7 @@ function PlayerSlot({ slot, player, onOpen, onRemove, onCaptain, onViceCaptain, 
             <p className="mt-1 truncate text-[9px] font-black text-slate-900 sm:text-[10px]">{player.name}</p>
             <div className="mt-0.5 flex items-center justify-center gap-1.5">
               <span className="text-[8px] font-bold text-emerald-600">{getProjectedPoints(player).toFixed(1)} GW</span>
-              <span className="text-[8px] font-black text-slate-900">€{getBudgetPrice(player).toFixed(1)}m</span>
+              <span className="text-[8px] font-black text-slate-900">{formatFantasyPrice(player)}</span>
             </div>
           </button>
 
@@ -339,7 +344,7 @@ function FormationAnalysis({ players }) {
       const budget = selected.reduce((sum, player) => sum + (player ? getBudgetPrice(player) : 0), 0);
 
       return { formation, points, budget };
-    }).sort((a, b) => b.flowPoints - a.flowPoints);
+    }).sort((a, b) => b.points - a.points);
   }, [players]);
 
   return (
@@ -424,7 +429,7 @@ function FantasyPlayerList({ title, players, onAdd }) {
               </span>
               <span className="text-right">
                 <span className="block text-[10px] font-black text-emerald-600">{getProjectedPoints(player).toFixed(1)} GW</span>
-                <span className="block text-[9px] font-black text-slate-900">€{getBudgetPrice(player).toFixed(1)}m</span>
+                <span className="block text-[9px] font-black text-slate-900">{formatFantasyPrice(player)}</span>
                 <span className={`block rounded-full border px-1 py-0.5 text-[6px] font-black ${form.tone}`}>{form.label.replace(/^[^ ]+ /, "")}</span>
               </span>
             </button>

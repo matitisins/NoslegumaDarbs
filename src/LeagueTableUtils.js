@@ -246,7 +246,7 @@ function getTeamShortName(row) {
 }
 
 function getFixtureDate(fixture) {
-  const value = fixture?.fixture?.date || fixture?.date;
+  const value = fixture?.fixture?.date || fixture?.utcDate || fixture?.date;
   if (!value) return null;
 
   const date = new Date(value);
@@ -269,9 +269,25 @@ function formatFixtureDate(value) {
 }
 
 function getFixtureTeams(fixture) {
+  // Support API-Football (teams.home/away) and football-data.org (homeTeam/awayTeam).
+  const home = fixture?.teams?.home ?? fixture?.homeTeam ?? {};
+  const away = fixture?.teams?.away ?? fixture?.awayTeam ?? {};
+
   return {
-    home: fixture?.teams?.home || {},
-    away: fixture?.teams?.away || {},
+    home: {
+      ...home,
+      id: home?.id ?? home?.teamId ?? home?.team?.id ?? null,
+      name: home?.name ?? home?.team?.name ?? "Mājinieki",
+      shortName: home?.shortName ?? home?.tla ?? home?.short_name ?? "",
+      logo: home?.logo ?? home?.crest ?? "",
+    },
+    away: {
+      ...away,
+      id: away?.id ?? away?.teamId ?? away?.team?.id ?? null,
+      name: away?.name ?? away?.team?.name ?? "Viesi",
+      shortName: away?.shortName ?? away?.tla ?? away?.short_name ?? "",
+      logo: away?.logo ?? away?.crest ?? "",
+    },
   };
 }
 
@@ -280,10 +296,16 @@ function getFixtureGoals(fixture) {
     home:
       fixture?.goals?.home ??
       fixture?.score?.fulltime?.home ??
+      fixture?.score?.fullTime?.home ??
+      fixture?.score?.fullTime?.homeTeam ??
+      fixture?.result?.home ??
       null,
     away:
       fixture?.goals?.away ??
       fixture?.score?.fulltime?.away ??
+      fixture?.score?.fullTime?.away ??
+      fixture?.score?.fullTime?.awayTeam ??
+      fixture?.result?.away ??
       null,
   };
 }

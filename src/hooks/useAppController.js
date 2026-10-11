@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import html2canvas from "html2canvas";
 
 import {
   COMPETITION_IDS,
@@ -22,7 +21,20 @@ import {
   saveLocalStorageValue,
 } from "../components/app/AppConstants";
 
+import {
+  readFavoriteIds,
+  writeFavoriteIds,
+  readFavoritePlayers,
+  writeFavoritePlayers,
+  isFavoriteId,
+  toggleFavoriteId,
+  upsertFavoritePlayer,
+  removeFavoritePlayer,
+  normalizeFavoriteId,
+} from "../utils/favoriteUtils";
+
 export default function useAppController() {
+    const [selectedSeason, setSelectedSeason] =
     useState("2026/2027");
 
   const [activeView, setActiveView] =
@@ -76,16 +88,10 @@ export default function useAppController() {
     useState(false);
 
   const [favoriteIds, setFavoriteIds] =
-    useState(() => {
-      try {
-        return JSON.parse(
-          localStorage.getItem("flow_favorite_players") ||
-            "[]"
-        );
-      } catch {
-        return [];
-      }
-    });
+    useState(() => readFavoriteIds());
+
+  const [favoritePlayers, setFavoritePlayers] =
+    useState(() => readFavoritePlayers());
 
   const [detailsPlayer, setDetailsPlayer] =
     useState(null);
@@ -98,6 +104,16 @@ export default function useAppController() {
 
   const [playerProfileError, setPlayerProfileError] =
     useState("");
+
+  // Invalidate pending profile requests when the modal closes or another player opens.
+  const profileRequestId = useRef(0);
+  const closePlayerProfile = () => {
+    profileRequestId.current += 1;
+    setDetailsPlayer(null);
+    setPlayerProfileData(null);
+    setPlayerProfileError("");
+    setPlayerProfileLoading(false);
+  };
 
   const captureRef = useRef(null);
 
@@ -122,31 +138,157 @@ export default function useAppController() {
       )
     : [];
 
-  const favorites = leaguePlayers.filter(
-    player => favoriteIds.includes(player.id)
+  const favorites = favoritePlayers.map(
+    favoritePlayer => {
+      const currentLeaguePlayer =
+        leaguePlayers.find(
+          player =>
+            normalizeFavoriteId(player?.id) ===
+            normalizeFavoriteId(favoritePlayer?.id)
+        );
+
+      return currentLeaguePlayer
+        ? {
+            ...favoritePlayer,
+            ...currentLeaguePlayer,
+            id: normalizeFavoriteId(
+              currentLeaguePlayer.id
+            ),
+          }
+        : favoritePlayer;
+    }
   );
 
   const isFavorite = player =>
-    favoriteIds.includes(player.id);
+    isFavoriteId(favoriteIds, player?.id);
 
   const toggleFavorite = player => {
-    if (!player?.id) return;
+    const playerId =
+      normalizeFavoriteId(player?.id);
+
+    if (!playerId) return;
+
+    const currentlyFavorite =
+      isFavoriteId(favoriteIds, playerId);
+
+    if (currentlyFavorite) {
+      setFavoriteIds(current => {
+        const next = toggleFavoriteId(
+          current,
+          playerId
+        );
+
+        if (!writeFavoriteIds(next)) {
+          return current;
+        }
+
+        return next;
+      });
+
+      setFavoritePlayers(current => {
+        const next = removeFavoritePlayer(
+          current,
+          playerId
+        );
+
+        if (!writeFavoritePlayers(next)) {
+          return current;
+        }
+
+        return next;
+      });
+
+      return;
+    }
+
+    const favoriteSnapshot = {
+      ...player,
+      id: playerId,
+      favoriteLeague: selectedLeague,
+      favoriteSeason: selectedSeason,
+    };
 
     setFavoriteIds(current => {
-      const exists = current.includes(player.id);
-
-      const next = exists
-        ? current.filter(id => id !== player.id)
-        : [...current, player.id];
-
-      localStorage.setItem(
-        "flow_favorite_players",
-        JSON.stringify(next)
+      const next = toggleFavoriteId(
+        current,
+        playerId
       );
+
+      if (!writeFavoriteIds(next)) {
+        return current;
+      }
+
+      return next;
+    });
+
+    setFavoritePlayers(current => {
+      const next = upsertFavoritePlayer(
+        current,
+        favoriteSnapshot
+      );
+
+      if (!writeFavoritePlayers(next)) {
+        return current;
+      }
 
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!leaguePlayers.length) return;
+
+    const favoriteIdSet = new Set(
+      favoriteIds.map(normalizeFavoriteId)
+    );
+
+    const matchingPlayers =
+      leaguePlayers.filter(player =>
+        favoriteIdSet.has(
+          normalizeFavoriteId(player?.id)
+        )
+      );
+
+    if (!matchingPlayers.length) return;
+
+    setFavoritePlayers(current => {
+      let next = current;
+
+      matchingPlayers.forEach(player => {
+        next = upsertFavoritePlayer(
+          next,
+          player,
+          {
+            favoriteLeague:
+              player?.favoriteLeague ||
+              selectedLeague,
+            favoriteSeason:
+              player?.favoriteSeason ||
+              selectedSeason,
+          }
+        );
+      });
+
+      const changed =
+        JSON.stringify(next) !==
+        JSON.stringify(current);
+
+      if (!changed) {
+        return current;
+      }
+
+      if (!writeFavoritePlayers(next)) {
+        return current;
+      }
+
+      return next;
+    });
+  }, [
+    leaguePlayers,
+    favoriteIds,
+    selectedLeague,
+    selectedSeason,
+  ]);
 
   const resetPlayers = () => {
     setSelectedCategory(null);
@@ -154,38 +296,54 @@ export default function useAppController() {
     setPlayer2(null);
   };
 
-  const loadPlayers = async (
-    forceRefresh = false
-  ) => {
+  const playerLoadIdRef = useRef(0);
+
+  const loadPlayers = async (forceRefresh = false) => {
+    // Player pagination is expensive and must not run while the user
+    // is looking at Teams, League Tables, or Analytics Tools.
+    if (activeView !== "players") return;
+
+    const loadId = ++playerLoadIdRef.current;
     setLoading(true);
     setError("");
 
     try {
-      const players =
-        await fetchApiSportsPlayers(
-          COMPETITION_IDS[selectedLeague],
-          apiSeason,
-          { forceRefresh }
-        );
+      const players = await fetchApiSportsPlayers(
+        COMPETITION_IDS[selectedLeague],
+        apiSeason,
+        {
+          forceRefresh,
+          isCancelled: () => loadId !== playerLoadIdRef.current || activeView !== "players",
+        }
+      );
 
+      if (loadId !== playerLoadIdRef.current || activeView !== "players") return;
       setLeaguePlayers(players);
     } catch (err) {
+      if (loadId !== playerLoadIdRef.current || activeView !== "players") return;
       console.error(err);
       setLeaguePlayers([]);
-
-      setError(
-        err?.message ||
-          "Neizdevās ielādēt datus no API."
-      );
+      setError(err?.message || "Neizdevās ielādēt datus no API.");
     } finally {
-      setLoading(false);
+      if (loadId === playerLoadIdRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Invalidate a previous pagination run immediately when the user
+    // changes view, league, or season. Only Players needs the full player list.
+    playerLoadIdRef.current += 1;
+    if (activeView !== "players") {
+      setLoading(false);
+      setError("");
+      return;
+    }
+
     resetPlayers();
     loadPlayers();
-  }, [selectedLeague, selectedSeason]);
+    // loadPlayers intentionally uses the current state captured by this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, selectedLeague, selectedSeason]);
 
   useEffect(() => {
     if (!selectedCategory) return;
@@ -196,14 +354,14 @@ export default function useAppController() {
 
     setPlayer1(current =>
       current &&
-      players.some(p => p.id === current.id)
+      players.some(p => String(p.id ?? p.playerId) === String(current.id ?? current.playerId))
         ? current
         : players[0] || null
     );
 
     setPlayer2(current =>
       current &&
-      players.some(p => p.id === current.id)
+      players.some(p => String(p.id ?? p.playerId) === String(current.id ?? current.playerId))
         ? current
         : players[1] ||
           players[0] ||
@@ -280,37 +438,65 @@ export default function useAppController() {
     );
   };
 
+
+  // Explicit slot selection prevents the left/right comparison searches from
+  // accidentally updating the same player slot.
+  const selectComparisonPlayer = (slot, player) => {
+    if (!player || (slot !== "left" && slot !== "right")) return;
+
+    const normalizedPlayer = {
+      ...player,
+      id: player.id ?? player.playerId,
+      playerId: player.playerId ?? player.id,
+    };
+
+    if (slot === "left") {
+      setPlayer1(normalizedPlayer);
+    } else {
+      setPlayer2(normalizedPlayer);
+    }
+
+    setDetailsPlayer(null);
+    setPlayerProfileData(null);
+    setPlayerProfileError("");
+    setPlayerProfileLoading(false);
+  };
+
   const addToComparison = player => {
     if (!player) return;
 
-    setSelectedCategory(player.category);
+    const normalizedPlayer = {
+      ...player,
+      id: player.id ?? player.playerId,
+      category: player.category || selectedCategory || player1?.category || player2?.category || "FORWARDS",
+    };
+    const sameId = (left, right) => left != null && right != null && String(left) === String(right);
 
-    if (
-      !player1 ||
-      player1.id === player.id
-    ) {
-      setPlayer1(player);
+    setActiveView("players");
+    setSelectedCategory(normalizedPlayer.category);
 
-      if (
-        player2?.id === player.id
-      ) {
-        setPlayer2(null);
-      }
-    } else if (
-      !player2 ||
-      player2.id === player.id
-    ) {
-      setPlayer2(player);
+    if (!player1) {
+      setPlayer1(normalizedPlayer);
+      if (sameId(player2?.id, normalizedPlayer.id)) setPlayer2(null);
+    } else if (sameId(player1.id, normalizedPlayer.id)) {
+      setPlayer1(normalizedPlayer);
+    } else if (!player2 || sameId(player2.id, normalizedPlayer.id)) {
+      setPlayer2(normalizedPlayer);
     } else {
-      setPlayer1(player);
+      // Keep the first selected player and replace the second comparison slot.
+      setPlayer2(normalizedPlayer);
     }
 
+    setPlayerProfileData(null);
+    setPlayerProfileError("");
+    setPlayerProfileLoading(false);
     setDetailsPlayer(null);
   };
 
   const openPlayer = async player => {
     if (!player) return;
 
+    const requestId = ++profileRequestId.current;
     setDetailsPlayer(player);
     setPlayerProfileData(null);
     setPlayerProfileError("");
@@ -318,19 +504,25 @@ export default function useAppController() {
 
     try {
       const data = await fetchPlayerProfile(
-        player.id,
+        player.id ?? player.playerId,
         apiSeason
       );
 
-      setPlayerProfileData(data);
+      if (requestId === profileRequestId.current) {
+        setPlayerProfileData(data);
+      }
     } catch (profileError) {
-      console.error("Spēlētāja profila kļūda:", profileError);
-      setPlayerProfileError(
-        profileError?.message ||
-          "Neizdevās ielādēt papildu profila datus."
-      );
+      if (requestId === profileRequestId.current) {
+        console.error("Spēlētāja profila kļūda:", profileError);
+        setPlayerProfileError(
+          profileError?.message ||
+            "Neizdevās ielādēt papildu profila datus."
+        );
+      }
     } finally {
-      setPlayerProfileLoading(false);
+      if (requestId === profileRequestId.current) {
+        setPlayerProfileLoading(false);
+      }
     }
   };
 
@@ -523,6 +715,7 @@ export default function useAppController() {
     if (!captureRef.current) return;
 
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas =
         await html2canvas(
           captureRef.current,
@@ -613,8 +806,10 @@ export default function useAppController() {
     resetPlayers,
     loadPlayers,
     selectCategory,
+    selectComparisonPlayer,
     addToComparison,
     openPlayer,
+    closePlayerProfile,
     handlePlayer1Change,
     handlePlayer2Change,
     openAccount,

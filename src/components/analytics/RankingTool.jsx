@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchLeagueFixtures, fetchLeagueStandings } from "../../services/leagueFeatures";
 import { PlayerMiniCard } from "./AnalyticsShared";
+import { RANKING_PRESETS } from "../../utils/analyticsMethodology";
 import {
   number,
   categories,
@@ -17,7 +17,7 @@ import {
   RankingComparison,
 } from "./RankingComponents";
 
-function RankingTool({ players, competition, season }) {
+function RankingTool({ players = [], competition, season, fixtures = { upcoming: [], recent: [] }, standings = [] }) {
   const [category, setCategory] = useState("STRIKERS");
   const [weights, setWeights] = useState({
     goals: 30,
@@ -32,8 +32,6 @@ function RankingTool({ players, competition, season }) {
   const [search, setSearch] = useState("");
   const [minMinutes, setMinMinutes] = useState(0);
   const [minAppearances, setMinAppearances] = useState(0);
-  const [fixtures, setFixtures] = useState({ upcoming: [], recent: [] });
-  const [standings, setStandings] = useState([]);
   const [comparisonModel, setComparisonModel] = useState({
     goals: 15,
     assists: 25,
@@ -43,28 +41,11 @@ function RankingTool({ players, competition, season }) {
   });
 
   useEffect(() => {
-    let cancelled = false;
-
-    Promise.all([
-      fetchLeagueFixtures(competition, season).catch(() => ({ upcoming: [], recent: [] })),
-      fetchLeagueStandings(competition, season).catch(() => []),
-    ]).then(([fixtureData, table]) => {
-      if (cancelled) return;
-      setFixtures(fixtureData || { upcoming: [], recent: [] });
-      setStandings(Array.isArray(table) ? table : []);
-    });
-
-    return () => {
-      cancelled = true;
-    };
+    setExpandedId(null);
   }, [competition, season]);
 
   const presets = {
-    balanced: { goals: 25, assists: 20, points: 35, minutes: 10, rating: 10 },
-    attacking: { goals: 40, assists: 25, points: 25, minutes: 5, rating: 5 },
-    form: { goals: 10, assists: 15, points: 45, minutes: 5, rating: 25 },
-    creator: { goals: 10, assists: 40, points: 25, minutes: 10, rating: 15 },
-    consistency: { goals: 15, assists: 15, points: 25, minutes: 30, rating: 15 },
+    ...RANKING_PRESETS,
     custom: weights,
   };
 

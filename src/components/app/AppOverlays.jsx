@@ -12,20 +12,32 @@ export default function AppOverlays({
   toggleFavorite,
   addToComparison,
   setDetailsPlayer,
+  closePlayerProfile,
   setPlayerProfileData,
   setPlayerProfileError,
   isGuideOpen,
   setIsGuideOpen,
   isAccountOpen,
+  username,
+  avatarUrl,
   tempUsername,
   tempAvatar,
   avatarError,
   setTempUsername,
+  setTempAvatar,
   handleFileChange,
   saveAccount,
   setAvatarError,
   setIsAccountOpen,
 }) {
+  const compareAndCloseProfile = player => {
+    try {
+      addToComparison?.(player);
+    } finally {
+      closePlayerProfile();
+    }
+  };
+
   return (
     <>
       {detailsPlayer && (
@@ -36,12 +48,8 @@ export default function AppOverlays({
           profileLoading={playerProfileLoading}
           profileError={playerProfileError}
           onToggleFavorite={toggleFavorite}
-          onCompare={addToComparison}
-          onClose={() => {
-            setDetailsPlayer(null);
-            setPlayerProfileData(null);
-            setPlayerProfileError("");
-          }}
+          onCompare={compareAndCloseProfile}
+          onClose={closePlayerProfile}
         />
       )}
 
@@ -60,6 +68,9 @@ export default function AppOverlays({
           onFileChange={handleFileChange}
           onSave={saveAccount}
           onClose={() => {
+            // Discard unsaved profile edits when cancelling or closing the modal.
+            setTempUsername(username || "");
+            setTempAvatar(avatarUrl || "");
             setAvatarError("");
             setIsAccountOpen(false);
           }}

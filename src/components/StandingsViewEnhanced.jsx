@@ -14,6 +14,7 @@ import {
   getGoalsAgainst,
   getTeamId,
   getTeamForm,
+  getFormLabel,
 } from "../LeagueTableUtils";
 import {
   RaceCard,
@@ -24,6 +25,38 @@ import {
 } from "./LeagueTableComponents";
 import TeamDetailModal from "./TeamDetailModal";
 import TeamCompareModal from "./TeamCompareModal";
+
+function ZoneLegend({ competition }) {
+  const zones = getCompetitionZones(competition);
+
+  return (
+    <div className="border-t border-slate-100 bg-white px-5 py-4">
+      <p className="mb-3 text-[9px] font-black uppercase tracking-wider text-slate-400">
+        Vietu zonas
+      </p>
+      <div className="flex flex-wrap gap-x-5 gap-y-2 text-[10px] font-bold text-slate-600">
+        {Number(zones?.champions) > 0 && (
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+            Čempionu līga (1.–{zones.champions})
+          </span>
+        )}
+        {Number(zones?.conference) > Number(zones?.champions) && (
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-sm bg-sky-500" />
+            Eiropas turnīri ({Number(zones.champions) + 1}.–{zones.conference})
+          </span>
+        )}
+        {Number(zones?.relegationStart) > 0 && (
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-sm bg-rose-500" />
+            Izslēgšanas zona (no {zones.relegationStart}. vietas)
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function StandingsViewEnhanced({
   standings,
@@ -101,6 +134,8 @@ function StandingsViewEnhanced({
     season,
   ]);
 
+  const safeSortBy = ["position", "points", "goals", "difference", "wins", "form"].includes(sortBy) ? sortBy : "position";
+
   const filtered =
     useMemo(() => {
       const query =
@@ -128,7 +163,7 @@ function StandingsViewEnhanced({
       rows = [...rows].sort(
         (a, b) => {
           if (
-            sortBy ===
+            safeSortBy ===
             "points"
           ) {
             return (
@@ -142,7 +177,7 @@ function StandingsViewEnhanced({
           }
 
           if (
-            sortBy ===
+            safeSortBy ===
             "goals"
           ) {
             return (
@@ -160,7 +195,7 @@ function StandingsViewEnhanced({
           }
 
           if (
-            sortBy ===
+            safeSortBy ===
             "difference"
           ) {
             return (
@@ -178,7 +213,7 @@ function StandingsViewEnhanced({
           }
 
           if (
-            sortBy ===
+            safeSortBy ===
             "wins"
           ) {
             return (
@@ -192,7 +227,7 @@ function StandingsViewEnhanced({
           }
 
           if (
-            sortBy ===
+            safeSortBy ===
             "form"
           ) {
             return (
@@ -441,10 +476,10 @@ function StandingsViewEnhanced({
           <div className="flex flex-wrap items-center gap-2">
 
             <select
-              value={sortBy}
+              value={safeSortBy}
               onChange={event =>
                 setSortBy(
-                  event.target.value
+                  ["position", "points", "goals", "difference", "wins", "form"].includes(event.target.value) ? event.target.value : "position"
                 )
               }
               className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-700 outline-none"
