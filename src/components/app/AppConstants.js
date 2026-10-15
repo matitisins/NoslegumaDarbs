@@ -10,12 +10,28 @@ const ALLOWED_AVATAR_TYPES = new Set([
   "image/webp",
 ]);
 
+// Domestic leagues used by the global selector and the Teams / League Tables sections.
+// European competitions are intentionally excluded here so Teams only compares
+// teams from domestic leagues. European competitions remain available in Players.
 const LEAGUES = [
   ["PL", "Premier League"],
   ["PD", "La Liga"],
   ["SA", "Serie A"],
   ["BL1", "Bundesliga"],
   ["FL1", "Ligue 1"],
+];
+
+// Competitions available specifically in the Players comparison section.
+const PLAYER_COMPETITIONS = [
+  ["PL", "Premier League"],
+  ["PD", "La Liga"],
+  ["SA", "Serie A"],
+  ["BL1", "Bundesliga"],
+  ["FL1", "Ligue 1"],
+  ["UCL", "UEFA Champions League"],
+  ["UEL", "UEFA Europa League"],
+  ["UECL", "UEFA Conference League"],
+  ["USC", "UEFA Super Cup"],
 ];
 
 const CATEGORIES = {
@@ -94,6 +110,7 @@ export {
   MAX_AVATAR_DIMENSION,
   ALLOWED_AVATAR_TYPES,
   LEAGUES,
+  PLAYER_COMPETITIONS,
   CATEGORIES,
   CATEGORY_ORDER,
   formatBytes,

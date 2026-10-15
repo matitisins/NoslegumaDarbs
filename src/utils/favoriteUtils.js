@@ -37,7 +37,7 @@ const sanitizeFavoritePlayers = value => {
       return;
     }
 
-    const id = normalizeFavoriteId(player.id);
+    const id = normalizeFavoriteId(player.id ?? player.playerId ?? player.player_id ?? player.player?.id ?? player.player?.playerId);
 
     if (!id) {
       return;
@@ -184,7 +184,7 @@ const upsertFavoritePlayer = (
     return sanitizedPlayers;
   }
 
-  const id = normalizeFavoriteId(player.id);
+  const id = normalizeFavoriteId(player.id ?? player.playerId ?? player.player_id ?? player.player?.id ?? player.player?.playerId);
 
   if (!id) {
     return sanitizedPlayers;

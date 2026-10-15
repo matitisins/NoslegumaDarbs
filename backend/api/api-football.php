@@ -266,11 +266,15 @@ function apiFootballFetch(
 $action = strtolower(trim((string)($_GET['action'] ?? 'players')));
 
 $allowedActions = [
+    'standings',
+    'fixtures',
     'teams',
     'team-stats',
     'h2h',
     'fdr',
     'players',
+    'top-scorers',
+    'top-assists',
 ];
 
 if (!in_array($action, $allowedActions, true)) {
@@ -283,6 +287,54 @@ $cacheKey = '';
 $ttl = CACHE_TTL_API_FOOTBALL_PLAYERS;
 
 switch ($action) {
+    case 'standings':
+    case 'fixtures':
+        $league = filter_input(INPUT_GET, 'league', FILTER_VALIDATE_INT);
+        $season = trim((string)($_GET['season'] ?? ''));
+
+        if (!$league || !preg_match('/^\d{4}$/', $season)) {
+            apiFootballRespondError(
+                400,
+                'Eiropas sacensību datiem nepieciešams derīgs league un season.'
+            );
+        }
+
+        $endpoint = $action === 'standings' ? 'standings' : 'fixtures';
+        $params = ['league' => $league, 'season' => $season];
+        if ($action === 'fixtures') {
+            $status = strtoupper(trim((string)($_GET['status'] ?? '')));
+            $next = filter_input(INPUT_GET, 'next', FILTER_VALIDATE_INT);
+            $last = filter_input(INPUT_GET, 'last', FILTER_VALIDATE_INT);
+
+            if ($status !== '') {
+                $allowedStatuses = ['NS', 'FT', 'AET', 'PEN', 'LIVE'];
+                if (!in_array($status, $allowedStatuses, true)) {
+                    apiFootballRespondError(400, 'Nederīgs spēļu statuss.');
+                }
+                $params['status'] = $status;
+            }
+
+            // Prefer next/last filters for European match lists; status-only
+            // requests can omit AET/PEN matches and do not guarantee a useful sample.
+            if ($next !== false && $next !== null) {
+                if ($next < 1 || $next > 50) {
+                    apiFootballRespondError(400, 'Parametram next jābūt no 1 līdz 50.');
+                }
+                $params['next'] = $next;
+                unset($params['status']);
+            } elseif ($last !== false && $last !== null) {
+                if ($last < 1 || $last > 50) {
+                    apiFootballRespondError(400, 'Parametram last jābūt no 1 līdz 50.');
+                }
+                $params['last'] = $last;
+                unset($params['status']);
+            }
+        }
+        $cacheKey = $action . ':' . $league . ':' . $season . ':' .
+            hash('sha256', json_encode($params, JSON_UNESCAPED_SLASHES) ?: '');
+        $ttl = $action === 'standings' ? CACHE_TTL_API_FOOTBALL_TEAMS : CACHE_TTL_API_FOOTBALL_FDR;
+        break;
+
     case 'teams':
         $league = filter_input(INPUT_GET, 'league', FILTER_VALIDATE_INT);
         $season = trim((string)($_GET['season'] ?? ''));
@@ -370,6 +422,27 @@ switch ($action) {
         ];
         $cacheKey = 'fdr:' . $league . ':' . $season;
         $ttl = CACHE_TTL_API_FOOTBALL_FDR;
+        break;
+
+    case 'top-scorers':
+    case 'top-assists':
+        $league = filter_input(INPUT_GET, 'league', FILTER_VALIDATE_INT);
+        $season = trim((string)($_GET['season'] ?? ''));
+
+        if (!$league || !preg_match('/^\d{4}$/', $season)) {
+            apiFootballRespondError(
+                400,
+                'Līgas spēlētāju statistikai nepieciešams derīgs league un season.'
+            );
+        }
+
+        $endpoint = $action === 'top-assists' ? 'players/topassists' : 'players/topscorers';
+        $params = [
+            'league' => $league,
+            'season' => $season,
+        ];
+        $cacheKey = $action . ':' . $league . ':' . $season;
+        $ttl = CACHE_TTL_API_FOOTBALL_PLAYERS;
         break;
 
     case 'players':

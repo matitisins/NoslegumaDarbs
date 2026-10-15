@@ -23,6 +23,49 @@ import {
   RECOMMENDATION_STYLES,
 } from "./RecommendationComponents";
 
+const getPositionStats = (player, category) => {
+  const advanced = player?.advancedStats || {};
+  const read = (...values) => {
+    for (const value of values) {
+      if (value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))) return Number(value);
+    }
+    return null;
+  };
+  const format = (value, digits = 0) => value === null ? "—" : Number(value).toFixed(digits);
+  const stat = (label, value, digits = 0) => ({ label, value: format(value, digits) });
+
+  if (category === "GOALKEEPERS") return [
+    stat("Atvairījumi", read(advanced.saves, player.saves)),
+    stat("Tīrās spēles", read(advanced.cleanSheets, player.cleanSheets, player.clean_sheets)),
+    stat("Ielaistie vārti", read(advanced.goalsConceded, player.goalsConceded)),
+    stat("Vērtējums", read(advanced.rating, player.rating), 2),
+  ];
+  if (category === "DEFENDERS") return [
+    stat("Tīrās spēles", read(advanced.cleanSheets, player.cleanSheets, player.clean_sheets)),
+    stat("Tackles", read(advanced.tackles, player.tackles)),
+    stat("Pārtvertās bumbas", read(advanced.interceptions, player.interceptions)),
+    stat("Uzvarētas divcīņas %", read(advanced.duelsWonPercentage, player.duelsWonPercentage), 1),
+  ];
+  if (category === "MIDFIELDERS") return [
+    stat("Assist", read(player.assists, advanced.assists)),
+    stat("Key passes", read(advanced.keyPasses, player.keyPasses)),
+    stat("Vārti", read(player.goals, advanced.goals)),
+    stat("Vērtējums", read(advanced.rating, player.rating), 2),
+  ];
+  if (category === "STRIKERS") return [
+    stat("Vārti", read(player.goals, advanced.goals)),
+    stat("Assist", read(player.assists, advanced.assists)),
+    stat("Sitieni vārtu rāmī", read(advanced.shotsOnTarget, player.shotsOnTarget)),
+    stat("Vērtējums", read(advanced.rating, player.rating), 2),
+  ];
+  return [
+    stat("Flow punkti", read(player.flowPoints, player.points)),
+    stat("Vārti", read(player.goals)),
+    stat("Assist", read(player.assists)),
+    stat("Minūtes", read(player.minutes)),
+  ];
+};
+
 function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, standings = [], competition = "PL", season = 2026 }) {
   const [category, setCategory] = useState("STRIKERS");
   const [style, setStyle] = useState("balanced");
@@ -276,15 +319,15 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
   return (
     <div>
       <div className="mb-5 grid gap-3 md:grid-cols-2">
-        <label className="rounded-xl border border-slate-200 bg-white p-3">
-          <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">Pozīcija</span>
-          <select value={category} onChange={event => setCategory(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400">
+        <label className="rounded-xl border border-emerald-900/70 bg-[#0A2119] p-3">
+          <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">Pozīcija</span>
+          <select value={category} onChange={event => setCategory(event.target.value)} className="mt-2 w-full rounded-lg border border-emerald-900/70 bg-[#071A13] px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400">
             {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        <label className="rounded-xl border border-slate-200 bg-white p-3">
-          <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">Spēlētāja profils</span>
-          <select value={style} onChange={event => setStyle(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400">
+        <label className="rounded-xl border border-emerald-900/70 bg-[#0A2119] p-3">
+          <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">Spēlētāja profils</span>
+          <select value={style} onChange={event => setStyle(event.target.value)} className="mt-2 w-full rounded-lg border border-emerald-900/70 bg-[#071A13] px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400">
             {presets.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
@@ -292,19 +335,19 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
 
       <div className="mb-5 flex flex-wrap gap-2">
         {presets.map(([value, label]) => (
-          <button key={value} type="button" onClick={() => setStyle(value)} className={`rounded-full border px-3 py-2 text-[9px] font-black transition ${style === value ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"}`}>{label}</button>
+          <button key={value} type="button" onClick={() => setStyle(value)} className={`rounded-full border px-3 py-2 text-[9px] font-black transition ${style === value ? "border-emerald-300 bg-emerald-400/10 text-emerald-300" : "border-emerald-900/70 bg-[#0A2119] text-slate-500 hover:border-emerald-500/50"}`}>{label}</button>
         ))}
       </div>
 
       <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto_auto]">
-        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="🔎 Meklēt spēlētāju vai komandu..." className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-emerald-400" />
-        <button type="button" onClick={() => setShowHidden(current => !current)} className={`rounded-xl border px-4 py-3 text-xs font-black ${showHidden ? "border-violet-300 bg-violet-50 text-violet-700" : "border-slate-200 bg-white text-slate-600"}`}>💎 Hidden Gems</button>
+        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="🔎 Meklēt spēlētāju vai komandu..." className="rounded-xl border border-emerald-900/70 bg-[#0A2119] px-4 py-3 text-sm font-semibold outline-none focus:border-emerald-400" />
+        <button type="button" onClick={() => setShowHidden(current => !current)} className={`rounded-xl border px-4 py-3 text-xs font-black ${showHidden ? "border-violet-300 bg-violet-400/10 text-violet-300" : "border-emerald-900/70 bg-[#0A2119] text-slate-300"}`}>💎 Hidden Gems</button>
         <button type="button" disabled={compare.length < 2} onClick={() => setSelected({ compare: true })} className="rounded-xl bg-slate-900 px-4 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">⚖️ Salīdzināt {compare.length}/3</button>
       </div>
 
-      <div className="mb-5 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+      <div className="mb-5 rounded-xl border border-emerald-900 bg-[#06251b] p-4">
         <p className="text-xs font-bold text-emerald-700">Kā darbojas rekomendācija?</p>
-        <p className="mt-1 text-xs leading-5 text-emerald-700/80">Heuristisks Score no 0 līdz 100 apvieno statistiku, formu, spēles laiku un izvēlēto profilu. Tas ir salīdzinošs vērtējums, nevis veiksmes varbūtība.</p>
+        <p className="mt-1 text-xs leading-5 text-slate-300">Heuristisks Score no 0 līdz 100 apvieno statistiku, formu, spēles laiku un izvēlēto profilu. Tas ir salīdzinošs vērtējums, nevis veiksmes varbūtība.</p>
       </div>
 
       {showHidden ? (
@@ -317,8 +360,8 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
       ) : null}
 
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Top recommendations</p>
-        <p className="text-[9px] font-bold text-slate-400">{filteredPool.length} spēlētāji</p>
+        <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Top recommendations</p>
+        <p className="text-[9px] font-bold text-slate-500">{filteredPool.length} spēlētāji</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -331,32 +374,38 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
           const change = getChange(player);
           const isCompared = compare.some(candidate => String(candidate.player.id) === String(player.id));
           return (
-            <div key={player.id} className={`rounded-2xl border bg-white p-4 shadow-sm transition ${isCompared ? "border-violet-300 ring-2 ring-violet-100" : "border-slate-200 hover:border-emerald-200"}`}>
+            <div key={player.id} className={`rounded-2xl border bg-[#0A2119] p-4 shadow-sm transition ${isCompared ? "border-violet-300 ring-2 ring-violet-100" : "border-emerald-900/70 hover:border-emerald-200"}`}>
               <div className="flex items-center gap-3">
                 {player.photo ? <img src={player.photo} alt="" className="h-12 w-12 rounded-full object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500">PL</div>}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2"><span className="text-sm font-black text-slate-300">#{index + 1}</span><p className="truncate text-sm font-black text-slate-900">{player.name}</p></div>
-                  <p className="truncate text-[9px] font-bold uppercase tracking-wider text-slate-400">{player.team} · {player.positionLabel}</p>
+                  <div className="flex items-center gap-2"><span className="text-sm font-black text-slate-300">#{index + 1}</span><p className="truncate text-sm font-black text-white">{player.name}</p></div>
+                  <p className="truncate text-[9px] font-bold uppercase tracking-wider text-slate-500">{player.team} · {player.positionLabel}</p>
                 </div>
-                <div className="text-right"><p className="text-xl font-black text-emerald-600">{Math.round(item.score)}</p><p className="text-[8px] font-bold uppercase text-slate-400">Score</p></div>
+                <div className="text-right"><p className="text-xl font-black text-emerald-600">{Math.round(item.score)}</p><p className="text-[8px] font-bold uppercase text-slate-500">Score</p></div>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-[7px] font-black uppercase text-slate-400">GW aplēse</p><p className="mt-1 text-xs font-black text-slate-900">{getProjectedPoints(player).toFixed(1)}</p></div>
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-[7px] font-black uppercase text-slate-400">Cena</p><p className="mt-1 text-xs font-black text-slate-900">€{getBudgetPrice(player).toFixed(1)}m</p></div>
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-[7px] font-black uppercase text-slate-400">Form</p><p className="mt-1 text-[9px] font-black">{form.label}</p></div>
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-[7px] font-black uppercase text-slate-400">Izmaiņa</p><p className="mt-1 text-xs font-black text-slate-900">{change || "—"}</p></div>
+                {getPositionStats(player, category).map(stat => (
+                  <div key={stat.label} className="rounded-lg border border-emerald-900/70 bg-[#041a13] p-2">
+                    <p className="text-[7px] font-black uppercase tracking-wide text-slate-400">{stat.label}</p>
+                    <p className="mt-1 text-xs font-black text-white">{stat.value}</p>
+                  </div>
+                ))}
+                <div className="rounded-lg border border-emerald-900/70 bg-[#041a13] p-2"><p className="text-[7px] font-black uppercase tracking-wide text-slate-400">GW aplēse</p><p className="mt-1 text-xs font-black text-emerald-300">{getProjectedPoints(player).toFixed(1)}</p></div>
+                <div className="rounded-lg border border-emerald-900/70 bg-[#041a13] p-2"><p className="text-[7px] font-black uppercase tracking-wide text-slate-400">Cena</p><p className="mt-1 text-xs font-black text-white">€{getBudgetPrice(player).toFixed(1)}m</p></div>
+                <div className="rounded-lg border border-emerald-900/70 bg-[#041a13] p-2"><p className="text-[7px] font-black uppercase tracking-wide text-slate-400">Forma</p><p className="mt-1 text-[9px] font-black text-white">{form.label}</p></div>
+                <div className="rounded-lg border border-emerald-900/70 bg-[#041a13] p-2"><p className="text-[7px] font-black uppercase tracking-wide text-slate-400">Vietas izmaiņa</p><p className="mt-1 text-xs font-black text-white">{change || "—"}</p></div>
               </div>
 
-              <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-900 bg-[#041a13] px-3 py-2">
                 <span>{opponent ? (opponent.isHome ? "🏠" : "✈️") : "📅"}</span>
-                <p className="min-w-0 flex-1 truncate text-[9px] font-bold text-slate-600">{opponent ? `${opponent.isHome ? "vs" : "@"} ${opponent.name}` : "Nākamais mačs nav pieejams"}</p>
+                <p className="min-w-0 flex-1 truncate text-[9px] font-bold text-slate-300">{opponent ? `${opponent.isHome ? "vs" : "@"} ${opponent.name}` : "Nākamais mačs nav pieejams"}</p>
                 {difficulty ? <span className={`rounded-full border px-2 py-1 text-[8px] font-black ${difficulty.tone}`}>{difficulty.score}/5</span> : null}
               </div>
 
               <div className="mt-3 flex gap-2">
                 <button type="button" onClick={() => setSelected({ item: { ...item, player: resolvePlayerTeam(item.player, standings) } })} className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white hover:bg-slate-800">Kāpēc ieteikts?</button>
-                <button type="button" onClick={() => toggleCompare(item)} className={`rounded-lg border px-3 py-2 text-[9px] font-black uppercase tracking-wider ${isCompared ? "border-violet-300 bg-violet-50 text-violet-700" : "border-slate-200 bg-white text-slate-600"}`}>{isCompared ? "✓ Salīdzināts" : "Salīdzināt"}</button>
+                <button type="button" onClick={() => toggleCompare(item)} className={`rounded-lg border px-3 py-2 text-[9px] font-black uppercase tracking-wider ${isCompared ? "border-violet-300 bg-violet-400/10 text-violet-300" : "border-emerald-900/70 bg-[#0A2119] text-slate-300"}`}>{isCompared ? "✓ Salīdzināts" : "Salīdzināt"}</button>
               </div>
             </div>
           );
@@ -364,20 +413,20 @@ function RecommendationTool({ players, fixtures = { upcoming: [], recent: [] }, 
       </div>
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Recommendation History</p><p className="mt-1 text-xs text-slate-500">Kas mainījies pēc datu atjaunošanas.</p></div><span className="rounded-full bg-slate-50 px-2 py-1 text-[8px] font-black text-slate-400">{history.length}</span></div>
+        <div className="rounded-2xl border border-emerald-900/70 bg-[#0A2119] p-4">
+          <div className="mb-3 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Recommendation History</p><p className="mt-1 text-xs text-slate-500">Kas mainījies pēc datu atjaunošanas.</p></div><span className="rounded-full bg-[#071A13] px-2 py-1 text-[8px] font-black text-slate-500">{history.length}</span></div>
           <div className="space-y-2">
-            {history.slice(0, 4).map((entry, index) => <div key={`${entry.date}-${index}`} className="rounded-xl bg-slate-50 p-3"><div className="mb-1 flex justify-between"><span className="text-[8px] font-black uppercase tracking-wider text-slate-400">{entry.date}</span>{index === 0 ? <span className="text-[8px] font-black text-emerald-600">Pašreizējais</span> : null}</div><p className="text-xs font-bold text-slate-700">{entry.top.map(item => item.name).join(" · ")}</p></div>)}
-            {!history.length ? <p className="text-xs text-slate-400">Vēsture parādīsies pēc pirmās rekomendācijas saglabāšanas.</p> : null}
+            {history.slice(0, 4).map((entry, index) => <div key={`${entry.date}-${index}`} className="rounded-xl bg-[#071A13] p-3"><div className="mb-1 flex justify-between"><span className="text-[8px] font-black uppercase tracking-wider text-slate-500">{entry.date}</span>{index === 0 ? <span className="text-[8px] font-black text-emerald-600">Pašreizējais</span> : null}</div><p className="text-xs font-bold text-slate-200">{entry.top.map(item => item.name).join(" · ")}</p></div>)}
+            {!history.length ? <p className="text-xs text-slate-500">Vēsture parādīsies pēc pirmās rekomendācijas saglabāšanas.</p> : null}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Recommendation logic</p>
+        <div className="rounded-2xl border border-emerald-900/70 bg-[#0A2119] p-4">
+          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Recommendation logic</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl bg-emerald-50 p-3"><p className="text-[8px] font-black uppercase text-emerald-600">Heuristic Score</p><p className="mt-1 text-xs font-bold text-emerald-800">Statistikas svars pēc izvēlētā profila.</p></div>
-            <div className="rounded-xl bg-slate-50 p-3"><p className="text-[8px] font-black uppercase text-slate-400">Form</p><p className="mt-1 text-xs font-bold text-slate-700">Pēdējie pieejamie formas rādītāji.</p></div>
-            <div className="rounded-xl bg-slate-50 p-3"><p className="text-[8px] font-black uppercase text-slate-400">Fixture</p><p className="mt-1 text-xs font-bold text-slate-700">Nākamais pretinieks un grūtības pakāpe.</p></div>
+            <div className="rounded-xl bg-[#071A13] p-3"><p className="text-[8px] font-black uppercase text-slate-500">Form</p><p className="mt-1 text-xs font-bold text-slate-200">Pēdējie pieejamie formas rādītāji.</p></div>
+            <div className="rounded-xl bg-[#071A13] p-3"><p className="text-[8px] font-black uppercase text-slate-500">Fixture</p><p className="mt-1 text-xs font-bold text-slate-200">Nākamais pretinieks un grūtības pakāpe.</p></div>
             <div className="rounded-xl bg-violet-50 p-3"><p className="text-[8px] font-black uppercase text-violet-500">Value</p><p className="mt-1 text-xs font-bold text-violet-800">Flow Value pret prognozētajiem punktiem.</p></div>
           </div>
         </div>

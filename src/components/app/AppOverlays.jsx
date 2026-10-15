@@ -38,6 +38,14 @@ export default function AppOverlays({
     }
   };
 
+  // Close the modal first, then restore the saved values so unsaved edits are discarded.
+  const closeAccountModal = () => {
+    setIsAccountOpen(false);
+    setTempUsername(username || "");
+    setTempAvatar(avatarUrl || "");
+    setAvatarError("");
+  };
+
   return (
     <>
       {detailsPlayer && (
@@ -53,27 +61,18 @@ export default function AppOverlays({
         />
       )}
 
-      {isGuideOpen && (
-        <GuideModal
-          onClose={() => setIsGuideOpen(false)}
-        />
-      )}
+      {isGuideOpen && <GuideModal onClose={() => setIsGuideOpen(false)} />}
 
       {isAccountOpen && (
         <AccountModal
+          open={isAccountOpen}
           username={tempUsername}
           avatar={tempAvatar}
           fileError={avatarError}
           onUsernameChange={setTempUsername}
           onFileChange={handleFileChange}
           onSave={saveAccount}
-          onClose={() => {
-            // Discard unsaved profile edits when cancelling or closing the modal.
-            setTempUsername(username || "");
-            setTempAvatar(avatarUrl || "");
-            setAvatarError("");
-            setIsAccountOpen(false);
-          }}
+          onClose={closeAccountModal}
         />
       )}
     </>

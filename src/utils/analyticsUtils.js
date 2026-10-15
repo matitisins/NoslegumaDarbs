@@ -1,3 +1,4 @@
+
 const number = value => {
   const parsed = Number(value);
   return Number.isFinite(parsed)
@@ -354,14 +355,17 @@ const getFlowValue = player => {
 const getBudgetPrice = player => {
   const officialPrice = Number(player?.officialFplPrice);
   if (Number.isFinite(officialPrice) && officialPrice > 0) {
-    return Math.round(officialPrice * 10) / 10;
+    // Fantasy Builder applies a modest 10% discount so a full 15-player squad is more attainable under the fixed 100m cap.
+    return Math.round(Math.max(4.0, officialPrice * 0.9) * 10) / 10;
   }
 
-  // Other leagues do not have official FPL market prices. Keep the project's
-  // existing Flow Value estimate for those leagues, and never label it as an
-  // official FPL price.
+  // Other leagues do not provide official FPL prices. Use a lower, FPL-like
+  // estimate so a full 15-player squad can realistically fit within €100m.
+  // The estimate is based on Flow Value, but compressed to a sensible market
+  // range rather than treating the raw performance score as a price.
   const value = getFlowValue(player);
-  return Math.round(value * 10) / 10;
+  const estimatedPrice = 3.4 + value * 0.20;
+  return Math.round(Math.max(4.0, Math.min(7.5, estimatedPrice)) * 10) / 10;
 };
 
 const getPositionStrength = (players, category) => {
@@ -388,7 +392,7 @@ const getBestForCategory = (players, category, excluded = new Set()) =>
   )[0] || null;
 
 const getFormattedFixtureDate = fixture => {
-  const date = fixture?.fixture?.date;
+  const date = fixture?.fixture?.date || fixture?.utcDate || fixture?.date || fixture?.matchDate;
   if (!date) return "";
 
   try {
@@ -452,49 +456,91 @@ const resolvePlayerTeam = (player, standings = []) => {
   return player;
 };
 
+const fixtureTeams = fixture => {
+  // API-Football: { fixture: {...}, teams: { home, away } }
+  // Football-data.org: { homeTeam, awayTeam }
+  // Also tolerate wrappers that put the actual match under `match` or `data`.
+  const root = fixture?.teams ? fixture :
+    fixture?.fixture?.teams ? fixture.fixture :
+    fixture?.match?.teams ? fixture.match :
+    fixture?.data?.teams ? fixture.data : fixture;
+  const home = root?.teams?.home || root?.homeTeam || root?.home || root?.teams?.[0] || null;
+  const away = root?.teams?.away || root?.awayTeam || root?.away || root?.teams?.[1] || null;
+  return { home, away };
+};
+
 const getFixtureForTeam = (player, fixtures) => {
-  const teamId = Number(player?.teamId);
-  if (!teamId) return null;
-
-  const upcoming = Array.isArray(fixtures?.upcoming)
-    ? fixtures.upcoming
-    : [];
-
-  return (
-    upcoming.find(fixture => {
-      const homeId = Number(fixture?.teams?.home?.id);
-      const awayId = Number(fixture?.teams?.away?.id);
-      return homeId === teamId || awayId === teamId;
-    }) || null
-  );
+  const team = player?.team && typeof player.team === "object" ? player.team : {};
+  const teamId = Number(player?.teamId ?? player?.team_id ?? team?.id ?? player?.team?.teamId);
+  const rawName = player?.teamName || player?.team_name || player?.teamShortName ||
+    (typeof player?.team === "string" ? player.team : "") || team?.name || player?.club?.name || "";
+  const teamName = normalizeTeamName(rawName);
+  const all = [
+    ...(Array.isArray(fixtures?.upcoming) ? fixtures.upcoming : []),
+    ...(Array.isArray(fixtures?.recent) ? fixtures.recent : []),
+  ];
+  return all.find(fixture => {
+    const { home, away } = fixtureTeams(fixture);
+    const homeId = Number(home?.id ?? home?.teamId ?? home?.team_id);
+    const awayId = Number(away?.id ?? away?.teamId ?? away?.team_id);
+    const homeName = normalizeTeamName(home?.name ?? home?.teamName ?? home?.shortName ?? home?.short_name);
+    const awayName = normalizeTeamName(away?.name ?? away?.teamName ?? away?.shortName ?? away?.short_name);
+    const nameMatches = name => Boolean(teamName && name && (
+      name === teamName || name.includes(teamName) || teamName.includes(name)
+    ));
+    if (nameMatches(homeName) || nameMatches(awayName)) return true;
+    return Number.isInteger(teamId) && teamId > 0 && (homeId === teamId || awayId === teamId);
+  }) || null;
 };
 
 const getFixtureOpponent = (player, fixture) => {
   if (!fixture) return null;
+  const { home, away } = fixtureTeams(fixture);
+  if (!home || !away) return null;
 
-  const teamId = Number(player?.teamId);
-  const home = fixture?.teams?.home;
-  const away = fixture?.teams?.away;
+  const team = player?.team && typeof player.team === "object" ? player.team : {};
+  const teamId = Number(player?.teamId ?? player?.team_id ?? team?.id ?? player?.team?.teamId);
+  const playerNames = [
+    player?.teamName,
+    player?.team_name,
+    player?.teamShortName,
+    typeof player?.team === "string" ? player.team : null,
+    team?.name,
+    team?.shortName,
+    player?.club?.name,
+  ].map(normalizeTeamName).filter(Boolean);
+  const homeId = Number(home?.id ?? home?.teamId ?? home?.team_id);
+  const awayId = Number(away?.id ?? away?.teamId ?? away?.team_id);
+  const homeName = normalizeTeamName(home?.name ?? home?.teamName ?? home?.shortName ?? home?.short_name);
+  const awayName = normalizeTeamName(away?.name ?? away?.teamName ?? away?.shortName ?? away?.short_name);
+  const matches = (candidate, target) => Boolean(candidate && target && (
+    candidate === target || candidate.includes(target) || target.includes(candidate)
+  ));
 
-  if (Number(home?.id) === teamId) {
-    return {
-      name: away?.name || "Nezināms",
-      logo: away?.logo || null,
-      isHome: true,
-      venue: fixture?.fixture?.venue?.name || null,
-    };
+  // Prefer names over IDs: different football APIs use different team IDs.
+  let isHome = playerNames.some(name => matches(homeName, name));
+  let isAway = playerNames.some(name => matches(awayName, name));
+  if (isHome && isAway) {
+    // Avoid ambiguous partial-name matches; use a matching ID if possible.
+    isHome = Number.isInteger(teamId) && teamId > 0 && homeId === teamId;
+    isAway = Number.isInteger(teamId) && teamId > 0 && awayId === teamId;
   }
-
-  if (Number(away?.id) === teamId) {
-    return {
-      name: home?.name || "Nezināms",
-      logo: home?.logo || null,
-      isHome: false,
-      venue: fixture?.fixture?.venue?.name || null,
-    };
+  if (!isHome && !isAway && Number.isInteger(teamId) && teamId > 0) {
+    isHome = homeId === teamId;
+    isAway = awayId === teamId;
   }
+  if (!isHome && !isAway) return null;
 
-  return null;
+  const opponent = isHome ? away : home;
+  const name = opponent?.name || opponent?.teamName || opponent?.shortName || opponent?.short_name || opponent?.team?.name || null;
+  const logo = opponent?.logo || opponent?.crest || opponent?.image || opponent?.badge ||
+    opponent?.teamLogo || opponent?.team_logo || opponent?.team?.logo || opponent?.team?.crest || null;
+  return {
+    name: name || "Nezināms pretinieks",
+    logo,
+    isHome,
+    venue: fixture?.fixture?.venue?.name || fixture?.venue?.name || null,
+  };
 };
 
 const getDifficulty = (player, fixture, standings) => {
@@ -503,8 +549,9 @@ const getDifficulty = (player, fixture, standings) => {
 
   const safeStandings = Array.isArray(standings) ? standings : [];
   const playerTeamId = Number(player?.teamId ?? player?.team?.id);
-  const homeTeamId = Number(fixture?.teams?.home?.id);
-  const awayTeamId = Number(fixture?.teams?.away?.id);
+  const { home, away } = fixtureTeams(fixture);
+  const homeTeamId = Number(home?.id ?? home?.teamId ?? home?.team_id);
+  const awayTeamId = Number(away?.id ?? away?.teamId ?? away?.team_id);
   const opponentTeamId = homeTeamId === playerTeamId
     ? awayTeamId
     : homeTeamId;

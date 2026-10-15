@@ -8,18 +8,18 @@ import React from "react";
 
 const COLORS = {
   first: {
-    stroke: "#f43f5e",
-    fill: "#fb7185",
+    stroke: "#39E58C",
+    fill: "#39E58C",
   },
 
   second: {
-    stroke: "#10b981",
-    fill: "#10b981",
+    stroke: "#A78BFA",
+    fill: "#A78BFA",
   },
 
-  grid: "#dbe4ee",
-  text: "#475569",
-  muted: "#94a3b8",
+  grid: "#244C3C",
+  text: "#DCE6F7",
+  muted: "#9AB9A8",
 };
 
 /*
@@ -529,7 +529,9 @@ export default function RadarChart({
                 x={cx + 10}
                 y={y + 4}
                 textAnchor="start"
-                className="fill-slate-400 text-[10px] font-semibold"
+                fill={COLORS.muted}
+                fontSize="10"
+                fontWeight="600"
               >
                 {level}
               </text>
@@ -661,7 +663,7 @@ export default function RadarChart({
           cx={cx}
           cy={cy}
           r="3"
-          fill="#cbd5e1"
+          fill="#9AB9A8"
         />
 
         {/* ==================================================
@@ -695,7 +697,10 @@ export default function RadarChart({
                   position.anchor
                 }
                 dominantBaseline="middle"
-                className="fill-slate-600 text-[12px] font-bold uppercase"
+                fill={COLORS.text}
+                fontSize="11"
+                fontWeight="700"
+                letterSpacing="0.4"
               >
                 {label}
               </text>
@@ -708,11 +713,11 @@ export default function RadarChart({
           LEGEND
       ==================================================== */}
 
-      <div className="flex flex-wrap items-center justify-center gap-6 pb-2 pt-1">
+      <div className="flex flex-wrap items-center justify-center gap-6 pb-2 pt-3">
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-rose-500" />
+          <span className="h-3 w-3 rounded-full bg-[#39E58C]" />
 
-          <span className="text-sm font-bold text-slate-700">
+          <span className="text-sm font-bold text-slate-100">
             {first.name}
             {first.team
               ? ` (${first.team})`
@@ -721,9 +726,9 @@ export default function RadarChart({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-emerald-500" />
+          <span className="h-3 w-3 rounded-full bg-[#A78BFA]" />
 
-          <span className="text-sm font-bold text-slate-700">
+          <span className="text-sm font-bold text-slate-100">
             {second.name}
             {second.team
               ? ` (${second.team})`
@@ -737,7 +742,7 @@ export default function RadarChart({
       ==================================================== */}
 
       {!samePosition && (
-        <p className="mx-auto max-w-2xl px-4 text-center text-[11px] font-medium text-slate-400">
+        <p className="mx-auto max-w-2xl px-4 pt-3 text-center text-[11px] font-medium text-slate-500">
           Spēlētājiem ir atšķirīgas
           pozīcijas, tāpēc radars
           izmanto kopīgos rādītājus

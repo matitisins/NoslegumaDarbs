@@ -33,12 +33,22 @@ import {
   normalizeFavoriteId,
 } from "../utils/favoriteUtils";
 
+// API/player profile objects can expose the same player ID under different keys.
+const getFavoritePlayerId = player =>
+  normalizeFavoriteId(
+    player?.id ??
+    player?.playerId ??
+    player?.player_id ??
+    player?.player?.id ??
+    player?.player?.playerId
+  );
+
 export default function useAppController() {
     const [selectedSeason, setSelectedSeason] =
     useState("2026/2027");
 
   const [activeView, setActiveView] =
-    useState("players");
+    useState("home");
 
   const [selectedLeague, setSelectedLeague] =
     useState("PL");
@@ -131,40 +141,64 @@ export default function useAppController() {
       )
   );
 
+  // Enforce competition + season boundaries for both player search boxes.
   const categoryPlayers = selectedCategory
-    ? leaguePlayers.filter(
-        player =>
-          player.category === selectedCategory
+    ? leaguePlayers.filter(player =>
+        player.category === selectedCategory &&
+        player.competitionCode === selectedLeague &&
+        String(player.competitionSeason) === String(apiSeason)
       )
     : [];
+  const favoritePlayerById = new Map();
 
-  const favorites = favoritePlayers.map(
-    favoritePlayer => {
-      const currentLeaguePlayer =
-        leaguePlayers.find(
-          player =>
-            normalizeFavoriteId(player?.id) ===
-            normalizeFavoriteId(favoritePlayer?.id)
-        );
+  favoritePlayers.forEach(favoritePlayer => {
+    const id = getFavoritePlayerId(favoritePlayer);
+    if (!id) return;
 
-      return currentLeaguePlayer
+    const currentLeaguePlayer = leaguePlayers.find(
+      player => getFavoritePlayerId(player) === id
+    );
+
+    favoritePlayerById.set(
+      id,
+      currentLeaguePlayer
         ? {
             ...favoritePlayer,
             ...currentLeaguePlayer,
-            id: normalizeFavoriteId(
-              currentLeaguePlayer.id
-            ),
+            id,
+            favoriteLeague: favoritePlayer.favoriteLeague || selectedLeague,
+            favoriteSeason: favoritePlayer.favoriteSeason || selectedSeason,
           }
-        : favoritePlayer;
+        : { ...favoritePlayer, id }
+    );
+  });
+
+  // Recover players when only their IDs were saved successfully.
+  favoriteIds.forEach(rawId => {
+    const id = normalizeFavoriteId(rawId);
+    if (!id || favoritePlayerById.has(id)) return;
+
+    const matchingPlayer = leaguePlayers.find(
+      player => getFavoritePlayerId(player) === id
+    );
+
+    if (matchingPlayer) {
+      favoritePlayerById.set(id, {
+        ...matchingPlayer,
+        id,
+        favoriteLeague: selectedLeague,
+        favoriteSeason: selectedSeason,
+      });
     }
-  );
+  });
+
+  const favorites = [...favoritePlayerById.values()];
 
   const isFavorite = player =>
-    isFavoriteId(favoriteIds, player?.id);
+    isFavoriteId(favoriteIds, getFavoritePlayerId(player));
 
   const toggleFavorite = player => {
-    const playerId =
-      normalizeFavoriteId(player?.id);
+    const playerId = getFavoritePlayerId(player);
 
     if (!playerId) return;
 
@@ -245,7 +279,7 @@ export default function useAppController() {
     const matchingPlayers =
       leaguePlayers.filter(player =>
         favoriteIdSet.has(
-          normalizeFavoriteId(player?.id)
+          getFavoritePlayerId(player)
         )
       );
 
@@ -301,7 +335,7 @@ export default function useAppController() {
   const loadPlayers = async (forceRefresh = false) => {
     // Player pagination is expensive and must not run while the user
     // is looking at Teams, League Tables, or Analytics Tools.
-    if (activeView !== "players") return;
+    if (activeView !== "players" && activeView !== "favorite-players") return;
 
     const loadId = ++playerLoadIdRef.current;
     setLoading(true);
@@ -313,14 +347,14 @@ export default function useAppController() {
         apiSeason,
         {
           forceRefresh,
-          isCancelled: () => loadId !== playerLoadIdRef.current || activeView !== "players",
+          isCancelled: () => loadId !== playerLoadIdRef.current || (activeView !== "players" && activeView !== "favorite-players"),
         }
       );
 
-      if (loadId !== playerLoadIdRef.current || activeView !== "players") return;
+      if (loadId !== playerLoadIdRef.current || (activeView !== "players" && activeView !== "favorite-players")) return;
       setLeaguePlayers(players);
     } catch (err) {
-      if (loadId !== playerLoadIdRef.current || activeView !== "players") return;
+      if (loadId !== playerLoadIdRef.current || (activeView !== "players" && activeView !== "favorite-players")) return;
       console.error(err);
       setLeaguePlayers([]);
       setError(err?.message || "Neizdevās ielādēt datus no API.");
@@ -333,13 +367,18 @@ export default function useAppController() {
     // Invalidate a previous pagination run immediately when the user
     // changes view, league, or season. Only Players needs the full player list.
     playerLoadIdRef.current += 1;
-    if (activeView !== "players") {
+    if (activeView !== "players" && activeView !== "favorite-players") {
       setLoading(false);
       setError("");
       return;
     }
 
-    resetPlayers();
+    // Keep the chosen position when the league or season changes. Clear only
+    // the two selected players while the new competition data is loading.
+    // Calling resetPlayers() here also cleared selectedCategory, which made
+    // the position selector jump back and the comparison disappear.
+    setPlayer1(null);
+    setPlayer2(null);
     loadPlayers();
     // loadPlayers intentionally uses the current state captured by this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -349,7 +388,9 @@ export default function useAppController() {
     if (!selectedCategory) return;
 
     const players = leaguePlayers.filter(
-      p => p.category === selectedCategory
+      p => p.category === selectedCategory &&
+        p.competitionCode === selectedLeague &&
+        String(p.competitionSeason) === String(apiSeason)
     );
 
     setPlayer1(current =>
@@ -426,7 +467,9 @@ export default function useAppController() {
 
   const selectCategory = category => {
     const players = leaguePlayers.filter(
-      p => p.category === category
+      p => p.category === category &&
+        p.competitionCode === selectedLeague &&
+        String(p.competitionSeason) === String(apiSeason)
     );
 
     setSelectedCategory(category);

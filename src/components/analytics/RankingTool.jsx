@@ -51,7 +51,13 @@ function RankingTool({ players = [], competition, season, fixtures = { upcoming:
 
   const basePool = useMemo(
     () => players.filter(player => {
-      const categoryMatch = category === "ALL" || player.category === category;
+      const rawCategory = String(player.category || player.officialFplPosition || player.position || "").toUpperCase();
+      const normalizedCategory = rawCategory.includes("KEEPER") || rawCategory === "GK" ? "GOALKEEPERS"
+        : rawCategory.includes("DEF") || rawCategory.includes("BACK") ? "DEFENDERS"
+        : rawCategory.includes("MID") ? "MIDFIELDERS"
+        : rawCategory.includes("STRIK") || rawCategory.includes("FORWARD") || rawCategory.includes("ATTACK") || rawCategory.includes("WINGER") ? "STRIKERS"
+        : rawCategory;
+      const categoryMatch = category === "ALL" || normalizedCategory === category;
       const minutesMatch = number(player.minutes) >= Number(minMinutes);
       const appearancesMatch = number(player.appearances) >= Number(minAppearances);
       const query = search.trim().toLowerCase();
@@ -66,7 +72,12 @@ function RankingTool({ players = [], competition, season, fixtures = { upcoming:
   const ranking = useMemo(
     () => basePool
       .map(player => ({ player, score: weightedScore(player, weights, basePool) }))
-      .sort((a, b) => b.score - a.score),
+      .sort((a, b) => b.score - a.score
+        || number(b.player.flowPoints) - number(a.player.flowPoints)
+        || number(b.player.goals) - number(a.player.goals)
+        || number(b.player.assists) - number(a.player.assists)
+        || number(b.player.minutes) - number(a.player.minutes)
+        || String(a.player.name || "").localeCompare(String(b.player.name || ""))),
     [basePool, weights]
   );
 

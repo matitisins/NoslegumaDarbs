@@ -50,6 +50,14 @@ export const COMPETITION_IDS = {
   SERIE_A: "SA",
   BUNDESLIGA: "BL1",
   LIGUE_1: "FL1",
+  UCL: "UCL",
+  UEFA_CHAMPIONS_LEAGUE: "UCL",
+  UEL: "UEL",
+  UEFA_EUROPA_LEAGUE: "UEL",
+  UECL: "UECL",
+  UEFA_CONFERENCE_LEAGUE: "UECL",
+  USC: "USC",
+  UEFA_SUPER_CUP: "USC",
 };
 
 // API-Football requires numeric league IDs; football-data.org uses codes.
@@ -577,7 +585,8 @@ export const fetchApiSportsPlayers =
     const competition = COMPETITION_IDS[leagueId] || leagueId;
     const apiSeason = seasonToApiSeason(season);
     // Versioned cache ensures previously cached zero/mismatched Flow points are rebuilt.
-    const cacheKey = `flow_points_fpl_style_v2_${competition}_${apiSeason}`;
+    // Versioned, competition-scoped cache prevents domestic and European lists from mixing.
+    const cacheKey = `flow_points_fpl_style_v3_competition_scoped_${competition}_${apiSeason}`;
 
     if (!options.forceRefresh) {
       const cached = getCache(cacheKey);
@@ -647,10 +656,16 @@ export const fetchApiSportsPlayers =
         ? Number(player.flowPoints)
         : Number(player.points) || 0,
     }));
-    const enriched = players.map(player => ({
+    // Tag every player with the exact competition and season requested.
+    const scopedPlayers = players.map(player => ({
       ...player,
-      customStats: buildRadarStats(player, players),
-      radarPercentiles: buildRadarPercentiles(player, players),
+      competitionCode: competition,
+      competitionSeason: String(apiSeason),
+    }));
+    const enriched = scopedPlayers.map(player => ({
+      ...player,
+      customStats: buildRadarStats(player, scopedPlayers),
+      radarPercentiles: buildRadarPercentiles(player, scopedPlayers),
       formMetrics: buildFormMetrics(player),
     }));
 
@@ -993,38 +1008,64 @@ export const getPositionName =
 */
 
 export const fetchTeams = async (competition = "PL", season = 2026) => {
+  const normalizedCompetition = COMPETITION_IDS[competition] || competition;
   const apiSeason = String(seasonToApiSeason(season));
-  const league = toApiFootballLeagueId(competition);
-  const cacheKey = `teams_${league}_${apiSeason}`;
+  const league = toApiFootballLeagueId(normalizedCompetition);
 
+  if (!isValidSeason(apiSeason)) {
+    throw new Error("Nederīga sezona.");
+  }
+
+  // Versioned, competition-specific key prevents older cached lists that
+  // contained teams from several leagues from leaking into this view.
+  const cacheKey = `teams_v3_${normalizedCompetition}_${league}_${apiSeason}`;
   const cached = typeof localStorage !== "undefined" ? getAnyCache(cacheKey) : null;
-  if (Array.isArray(cached)) return cached;
-  if (!isValidSeason(apiSeason)) throw new Error("Nederīga sezona.");
+  if (Array.isArray(cached) && cached.length > 0 && cached.length <= 50) {
+    return cached;
+  }
 
   const data = await requestJson(buildApiUrl("api-football.php", {
-    action: "teams", league, season: apiSeason,
+    action: "teams",
+    league,
+    season: apiSeason,
   }));
-  // API-Football returns each club wrapped as { team, venue }.
-  // Normalize it here because TeamPage and the team modals expect
-  // the flat { id, name, logo, code } shape.
-  const teams = (Array.isArray(data?.response) ? data.response : [])
-    .map(item => {
-      const team = item?.team || item;
-      const venue = item?.venue || {};
-      const id = Number(team?.id);
-      if (!Number.isInteger(id) || id <= 0) return null;
-      return {
-        ...team,
-        id,
-        name: team?.name || `Komanda ${id}`,
-        logo: team?.logo || '',
-        code: team?.code || team?.tla || '',
-        venue,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.name.localeCompare(b.name, 'lv'));
-  setCache(cacheKey, teams);
+
+  // The endpoint must return the API-Football response for the exact league
+  // and season requested. Never fall back to a mixed or differently-shaped
+  // cached team list.
+  const response = Array.isArray(data?.response) ? data.response : [];
+  const uniqueTeams = new Map();
+  response.forEach(item => {
+    const team = item?.team || item;
+    const venue = item?.venue || {};
+    const id = Number(team?.id);
+    if (!Number.isInteger(id) || id <= 0 || uniqueTeams.has(id)) return;
+    uniqueTeams.set(id, {
+      ...team,
+      id,
+      name: team?.name || `Komanda ${id}`,
+      logo: team?.logo || "",
+      code: team?.code || team?.tla || "",
+      venue,
+    });
+  });
+
+  const teams = [...uniqueTeams.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "lv")
+  );
+
+  // Domestic leagues normally return 20-24 teams. European competitions can
+  // include qualifying-round entrants, so allow a larger list for UEFA IDs.
+  // Keep a hard upper bound to avoid rendering a malformed mixed dataset.
+  const isEuropeanCompetition = ["UCL", "UEL", "UECL", "USC"].includes(normalizedCompetition);
+  const maximumTeams = isEuropeanCompetition ? 100 : 50;
+  if (teams.length > maximumTeams) {
+    throw new Error(
+      `API atgrieza ${teams.length} komandas, kas pārsniedz ${isEuropeanCompetition ? "Eiropas sacensību" : "vienas līgas"} robežu (${maximumTeams}). Pārbaudi API kešatmiņu un izvēlēto turnīru.`
+    );
+  }
+
+  if (teams.length > 0) setCache(cacheKey, teams);
   return teams;
 };
 

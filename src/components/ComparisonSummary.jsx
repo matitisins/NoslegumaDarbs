@@ -58,24 +58,24 @@ function SummaryRow({
   }
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[#244C3C] py-3 last:border-b-0">
       <div
         className={`text-right text-sm font-black ${
-          firstBetter ? "text-rose-500" : "text-slate-700"
+          firstBetter ? "text-[#39E58C]" : "text-slate-100"
         }`}
       >
         {format(value1)}
       </div>
 
       <div className="min-w-[110px] text-center">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#9AB9A8]">
           {label}
         </span>
       </div>
 
       <div
         className={`text-left text-sm font-black ${
-          secondBetter ? "text-emerald-600" : "text-slate-700"
+          secondBetter ? "text-[#A78BFA]" : "text-slate-100"
         }`}
       >
         {format(value2)}
@@ -310,16 +310,16 @@ export default function ComparisonSummary({
   });
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+    <section className="rounded-2xl border border-[#244C3C] bg-[#10291F] p-5 shadow-sm md:p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9AB9A8]">
             Statistikas kopsavilkums
           </p>
 
-          <h2 className="mt-1 text-lg font-black text-slate-900">
+          <h2 className="mt-1 text-lg font-black text-white">
             {player1.name}
-            <span className="mx-2 text-slate-300">
+            <span className="mx-2 text-slate-500">
               vs
             </span>
             {player2.name}
@@ -327,13 +327,13 @@ export default function ComparisonSummary({
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-2 text-[10px] font-bold text-rose-500">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+          <span className="flex items-center gap-2 text-[10px] font-bold text-[#39E58C]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#39E58C]" />
             {player1.name}
           </span>
 
-          <span className="flex items-center gap-2 text-[10px] font-bold text-emerald-600">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          <span className="flex items-center gap-2 text-[10px] font-bold text-[#A78BFA]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#A78BFA]" />
             {player2.name}
           </span>
         </div>
@@ -354,24 +354,24 @@ export default function ComparisonSummary({
           ))}
         </div>
       ) : (
-        <div className="rounded-xl bg-slate-50 p-8 text-center">
-          <p className="text-sm text-slate-400">
+        <div className="rounded-xl bg-[#0C241B] p-8 text-center">
+          <p className="text-sm text-[#9AB9A8]">
             Nav pieejamu salīdzināmu statistikas datu.
           </p>
         </div>
       )}
 
       {player1.category !== player2.category && (
-        <div className="mt-5 rounded-xl bg-amber-50 p-3">
-          <p className="text-[10px] leading-5 text-amber-700">
+        <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
+          <p className="text-[10px] leading-5 text-amber-200">
             Pozīcijai specifiskā statistika tiek rādīta tikai,
             ja abi spēlētāji spēlē vienā pozīciju grupā.
           </p>
         </div>
       )}
 
-      <div className="mt-5 rounded-xl bg-slate-50 p-3">
-        <p className="text-[10px] leading-5 text-slate-400">
+      <div className="mt-5 rounded-xl bg-[#0C241B] p-3">
+        <p className="text-[10px] leading-5 text-[#9AB9A8]">
           Statistika tiek ņemta no API-Football.
           Flow punkti ir Flow lietotnes aprēķins,
           nevis oficiāli fantasy punkti.

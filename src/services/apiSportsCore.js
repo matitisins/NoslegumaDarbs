@@ -139,11 +139,17 @@ export const COMPETITION_IDS = {
   SA: "SA",
   BL1: "BL1",
   FL1: "FL1",
+  UCL: "UCL",
+  UEL: "UEL",
+  UECL: "UECL",
   PREMIER_LEAGUE: "PL",
   LA_LIGA: "PD",
   SERIE_A: "SA",
   BUNDESLIGA: "BL1",
   LIGUE_1: "FL1",
+  UEFA_CHAMPIONS_LEAGUE: "UCL",
+  UEFA_EUROPA_LEAGUE: "UEL",
+  UEFA_CONFERENCE_LEAGUE: "UECL",
 };
 
 export const LEAGUE_NAMES = {
@@ -152,6 +158,9 @@ export const LEAGUE_NAMES = {
   SA: "Serie A",
   BL1: "Bundesliga",
   FL1: "Ligue 1",
+  UCL: "UEFA Champions League",
+  UEL: "UEFA Europa League",
+  UECL: "UEFA Conference League",
 };
 
 const API_FOOTBALL_LEAGUES = {
@@ -160,6 +169,10 @@ const API_FOOTBALL_LEAGUES = {
   SA: 135,
   BL1: 78,
   FL1: 61,
+  UCL: 2,
+  UEL: 3,
+  UECL: 848,
+  USC: 531,
 };
 
 /*

@@ -1,525 +1,214 @@
-/*
- * Attēlo lietotāja ceļvedi par Flow lietotnes izmantošanu.
- * Izskaidro līgu, sezonu un spēlētāju izvēli, spēlētāju
- * statistiku, salīdzināšanu, profilus, favorītus, komandu
- * analīzi, līgas tabulas, analītikas rīkus, Fantasy Team
- * Builder un Captaincy Simulator.
- */
+import React, { useEffect, useMemo, useState } from "react";
 
-import React from "react";
+const GUIDE_SECTIONS = [
+  {
+    number: "01", icon: "⚙", category: "SĀKUMS", title: "Līga un sezona",
+    description: "Izvēlies sacensības un sezonu, lai pārējās sadaļas izmantotu atbilstošos pieejamos datus.",
+    bullets: ["Izvēlies pieejamo līgu.", "Izvēlies sezonu, kuru vēlies analizēt.", "Ja dati šķiet novecojuši, izmanto datu atjaunošanas pogu."],
+    keywords: "league season competition līga sezona turnīrs"
+  },
+  {
+    number: "02", icon: "⌕", category: "SPĒLĒTĀJI", title: "Atrodi spēlētāju",
+    description: "Meklē pēc spēlētāja vārda, uzvārda vai kluba un atver kartīti, lai apskatītu pieejamos rādītājus.",
+    bullets: ["Izvēlies pozīciju kategoriju: uzbrucēji, pussargi, aizsargi vai vārtsargi.", "Salīdzini statistiku, kas atbilst konkrētajai pozīcijai.", "Atver spēlētāja profilu detalizētākai informācijai."],
+    keywords: "player search players forward midfielder defender goalkeeper profile spēlētājs meklēšana"
+  },
+  {
+    number: "03", icon: "◈", category: "SPĒLĒTĀJI", title: "Spēlētāju salīdzināšana",
+    description: "Izvēlies divus spēlētājus un salīdzini viņu pieejamos rādītājus vienā skatā.",
+    bullets: ["Izmanto radar diagrammu, lai pamanītu stiprās puses.", "Pārskati statistikas tabulu un papildu rādītājus.", "Salīdzinājumā redzamie dati ir atkarīgi no API un izvēlētās sezonas."],
+    keywords: "compare comparison radar chart statistika salīdzinājums"
+  },
+  {
+    number: "04", icon: "☆", category: "SPĒLĒTĀJI", title: "Favorīti",
+    description: "Saglabā spēlētājus, kuriem vēlies ātri piekļūt atkārtotai analīzei.",
+    bullets: ["Nospied zvaigznītes ikonu, lai pievienotu vai noņemtu favorītu.", "Izmanto favorītus, lai ātrāk atgrieztos pie interesējošajiem spēlētājiem."],
+    keywords: "favorites favourite favorīti zvaigzne"
+  },
+  {
+    number: "05", icon: "▥", category: "KOMANDAS", title: "Komandu analīze",
+    description: "Izvēlies divas komandas un apskati sezonas sniegumu un savstarpējo spēļu vēsturi.",
+    bullets: ["Salīdzini uzvaras, neizšķirtus, zaudējumus un vārtu rādītājus.", "Pārskati vizuālos salīdzinājumus, ja attiecīgie dati ir pieejami.", "H2H sadaļā apskati pieejamās savstarpējās spēles."],
+    keywords: "team teams club h2h komanda salīdzināt"
+  },
+  {
+    number: "06", icon: "☷", category: "LĪGA", title: "League Tables",
+    description: "Apskati turnīra tabulu, komandu pozīcijas un sezonas rezultātus.",
+    bullets: ["Pārbaudi spēles, uzvaras, neizšķirtus, zaudējumus, vārtu starpību un punktus.", "Izmanto pieejamos formu un pozīciju indikatorus.", "Atver komandas informāciju, ja tabulā pieejama klikšķināma komanda."],
+    keywords: "league table standings tabula līgas pozīcija punkti"
+  },
+  {
+    number: "07", icon: "↗", category: "ANALĪTIKA", title: "Analytics Tools",
+    description: "Izmanto papildu rīkus, lai izvērtētu spēlētājus un viņu piemērotību izvēlētajiem kritērijiem.",
+    bullets: ["Player Recommendations palīdz atlasīt spēlētājus pēc izvēlētā profila.", "Izmanto pozīcijas, spēles stila un meklēšanas filtrus, lai sašaurinātu rezultātus.", "Rezultāti ir analītiski palīgrīki, nevis garantēta prognoze."],
+    keywords: "analytics tools recommendations ieteikumi spēlētāju atlase"
+  },
+  {
+    number: "08", icon: "⚑", category: "FANTASY", title: "Fantasy Team Builder",
+    description: "Veido Fantasy sastāvu, izmantojot pieejamos spēlētājus un komandas ierobežojumus.",
+    bullets: ["Izvēlies formāciju un aizpildi pozīcijas.", "Sekojiet budžetam un sastāva ierobežojumiem.", "Izmanto ieteikto sākumsastāvu vai labākās formācijas rīkus, ja tie ir pieejami."],
+    keywords: "fantasy team builder squad budget formation sastāvs budžets"
+  },
+  {
+    number: "09", icon: "✦", category: "FANTASY", title: "Kapteinis un Gameweek",
+    description: "Izvēlies kapteini un vicekapteini un apskati sastāva prognozēto punktu ieguldījumu.",
+    bullets: ["Kapteiņa izvēle ietekmē prognozēto kopējo rezultātu.", "FDR novērtē pretinieka grūtību, ja šie dati ir pieejami.", "Prognozes ir aptuvenas un negarantē reālo rezultātu."],
+    keywords: "captain vice captain captaincy simulator gameweek fdr kapteinis"
+  },
+  {
+    number: "10", icon: "ⓘ", category: "DATI", title: "Kā interpretēt rādītājus",
+    description: "Flow apvieno pieejamos futbola datus ar lietotnes aprēķinātiem analītiskiem rādītājiem.",
+    bullets: ["Flow punkti nav oficiālie Fantasy Premier League punkti.", "Projected GW ir aptuvens novērtējums, nevis garantēts rezultāts.", "Recommendation Score nav procentuāla varbūtība.", "Ja vērtība ir tukša vai nav pieejama, API, iespējams, šo statistiku nav sniedzis."],
+    keywords: "flow points projected recommendation score data api dati prognoze"
+  }
+];
 
 export default function GuideModal({ onClose }) {
+  const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("VISS");
+  const [expanded, setExpanded] = useState("01");
+
+  useEffect(() => {
+    const onKeyDown = event => {
+      if (event.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const categories = ["VISS", ...new Set(GUIDE_SECTIONS.map(item => item.category))];
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("lv");
+    return GUIDE_SECTIONS.filter(item => {
+      const categoryMatch = activeCategory === "VISS" || item.category === activeCategory;
+      const searchText = `${item.title} ${item.description} ${item.bullets.join(" ")} ${item.keywords}`.toLocaleLowerCase("lv");
+      return categoryMatch && (!normalized || searchText.includes(normalized));
+    });
+  }, [query, activeCategory]);
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose?.();
-        }
-      }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#020A07]/80 p-3 backdrop-blur-md sm:p-6"
+      onMouseDown={event => { if (event.target === event.currentTarget) onClose?.(); }}
     >
-      <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">
-              Flow
-            </p>
-
-            <h2 className="mt-1 text-2xl font-black text-slate-900">
-              Kā darbojas Flow?
-            </h2>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="flow-guide-title"
+        className="relative flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-emerald-300/20 bg-[#071A13] text-white shadow-[0_30px_100px_rgba(0,0,0,0.55)]"
+      >
+        <div className="relative shrink-0 overflow-hidden border-b border-emerald-300/15 bg-[radial-gradient(ellipse_at_top_right,rgba(57,229,140,0.18),transparent_48%),linear-gradient(120deg,#071A13,#0D2B20_60%,#101D29)] px-5 py-6 sm:px-8 sm:py-8">
+          <div className="absolute -right-8 -top-16 h-56 w-56 rounded-full border border-emerald-300/10" />
+          <div className="absolute -right-1 -top-8 h-40 w-40 rounded-full border border-emerald-300/10" />
+          <div className="relative flex items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#39E58C]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#39E58C] shadow-[0_0_10px_#39E58C]" /> FLOW PLAYBOOK
+              </div>
+              <h2 id="flow-guide-title" className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Iepazīsti Flow</h2>
+              <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-300 sm:text-sm">
+                Ātrs ceļvedis spēlētāju analīzei, komandu salīdzināšanai un Fantasy lēmumiem.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-slate-300">
+                <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">10 ceļveža tēmas</span>
+                <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">Meklē pēc atslēgvārda</span>
+                <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">Dati atkarīgi no API</span>
+              </div>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Aizvērt ceļvedi" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl text-slate-300 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-white">×</button>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xl font-bold text-slate-600 transition hover:bg-slate-200"
-            aria-label="Aizvērt"
-          >
-            ×
-          </button>
         </div>
 
-        <div className="overflow-y-auto px-6 py-6">
-          <div className="space-y-6">
-            {/* 1 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                1. Izvēlies līgu
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Sāc ar līgas izvēli. Flow ļauj analizēt pieejamos
-                spēlētāju un komandu datus no vairākām Eiropas
-                futbola līgām, piemēram, Premier League, La Liga,
-                Serie A, Bundesliga un Ligue 1.
-              </p>
-            </section>
-
-            {/* 2 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                2. Izvēlies sezonu
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Izvēlies sezonu, kuru vēlies analizēt. Visi
-                pieejamie spēlētāju, komandu, līgas tabulu un
-                spēļu dati tiek ielādēti atbilstoši izvēlētajai
-                līgai un sezonai.
-              </p>
-            </section>
-
-            {/* 3 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                3. Izvēlies spēlētāju kategoriju
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Spēlētāji ir sadalīti četrās pozīciju grupās.
-                Katrai pozīcijai tiek izmantoti tai piemērotākie
-                statistikas rādītāji.
-              </p>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Uzbrucēji
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Uzbrukuma produktivitāte, vārtu guvumi,
-                    piespēles un iesaiste uzbrukumā.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Pussargi
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Radošums, progresija, piespēles un iesaiste
-                    komandas uzbrukumā.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Aizsargi
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Aizsardzības statistika, stabilitāte,
-                    piespēles un vārtu draudi.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Vārtsargi
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Vārtu sargāšana, stabilitāte, spēļu
-                    statistika un tīrās spēles.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* 4 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                4. Atrodi spēlētāju
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Izmanto meklēšanu, lai ātri atrastu konkrētu
-                spēlētāju. Meklēšana ļauj atrast spēlētājus pēc
-                vārda, uzvārda vai kluba.
-              </p>
-            </section>
-
-            {/* 5 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                5. Apskati spēlētāja statistiku
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Spēlētāju kartītēs iespējams apskatīt galvenos
-                statistikas rādītājus, tostarp spēles, minūtes,
-                vārtus, piespēles un citus pozīcijai atbilstošus
-                rādītājus.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Dažiem spēlētājiem pieejama arī detalizētāka
-                statistika un spēlētāja profils.
-              </p>
-            </section>
-
-            {/* 6 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                6. Salīdzini spēlētājus
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Izvēlies divus spēlētājus, lai vienā skatā
-                salīdzinātu viņu statistiku. Flow izmanto
-                salīdzinājuma tabulas un vizuālus grafikus, lai
-                būtu vieglāk redzēt atšķirības starp spēlētājiem.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Salīdzinājumā iespējams apskatīt arī spēlētāju
-                formu, statistikas tendences un citus analīzes
-                rādītājus.
-              </p>
-            </section>
-
-            {/* 7 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                7. Spēlētāja profils
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Noklikšķini uz spēlētāja, lai atvērtu detalizētu
-                profilu. Profilā iespējams apskatīt spēlētāja
-                pamatinformāciju, komandu un statistikas datus.
-              </p>
-            </section>
-
-            {/* 8 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                8. Favorīti
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Spēlētājus vari pievienot favorītiem, izmantojot
-                zvaigznītes pogu. Favorīti ļauj ātrāk atgriezties
-                pie spēlētājiem, kurus vēlies regulāri analizēt.
-              </p>
-            </section>
-
-            {/* 9 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                9. FDR – spēļu grūtības novērtējums
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Flow izmanto FDR jeb Fixture Difficulty Rating,
-                lai novērtētu nākamās spēles pretinieka grūtības
-                līmeni skalā no 1 līdz 5.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Šis rādītājs palīdz analizēt, kādi pretinieki
-                spēlētājam vai komandai ir gaidāmi nākamajās
-                spēlēs.
-              </p>
-            </section>
-
-            {/* 10 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                10. Captaincy Simulator
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Captaincy Simulator ļauj salīdzināt spēlētājus
-                kapteiņa lomai. Simulatorā iespējams analizēt
-                potenciālo punktu ieguldījumu un redzēt, kā
-                kapteiņa izvēle ietekmē kopējo rezultātu.
-              </p>
-            </section>
-
-            {/* 11 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                11. League Tables
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                League Tables sadaļā iespējams apskatīt izvēlētās
-                līgas turnīra tabulu, komandu pozīcijas un
-                statistiku.
-              </p>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    League Table
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Komandu pozīcijas, spēles, uzvaras,
-                    neizšķirti, zaudējumi, vārti un punkti.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Top Scorers
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Sezonas līderi pēc vārtu guvumiem,
-                    piespēlēm un Flow punktiem.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Fixtures & Results
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Nākamās spēles un jaunākie līgas rezultāti.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* 12 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                12. Komandu analīze
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                League Tables sadaļā noklikšķinot uz komandas,
-                iespējams atvērt detalizētu komandas skatu.
-                Tajā redzama komandas pozīcija, forma, nākamā
-                spēle un papildu statistika.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Komandām tiek parādīta arī pēdējo spēļu forma,
-                mājas un izbraukuma statistika, kā arī nākamās
-                spēles pretinieks un tā grūtības novērtējums.
-              </p>
-            </section>
-
-            {/* 13 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                13. Komandu salīdzināšana
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                League Tables sadaļā iespējams izvēlēties
-                komandas un salīdzināt divas komandas savā
-                starpā. Tas ļauj pārskatīt to rezultātus,
-                statistiku, formu un spēļu datus vienuviet.
-              </p>
-            </section>
-
-            {/* 14 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                14. Pēdējo 5 spēļu forma
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Komandu tabulā tiek attēlota pēdējo piecu spēļu
-                forma ar uzvarām, neizšķirtiem un zaudējumiem.
-                Tas ļauj ātri pārskatīt komandas jaunāko sniegumu.
-              </p>
-            </section>
-
-            {/* 15 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                15. Pozīcijas izmaiņas līgas tabulā
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Komandas pozīcijas izmaiņas tiek attēlotas ar
-                bultiņām, lai varētu redzēt, vai komanda tabulā
-                ir pakāpusies vai noslīdējusi.
-              </p>
-            </section>
-
-            {/* 16 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                16. Player Recommendations
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Analytics Tools sadaļā iespējams izmantot Player
-                Recommendations, lai atrastu spēlētājus pēc
-                izvēlētā statistikas profila.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Šis rīks palīdz ātrāk atrast spēlētājus, kuri
-                atbilst konkrētām statistikas prasībām.
-              </p>
-            </section>
-
-            {/* 17 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                17. Custom Player Ranking
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Custom Player Ranking ļauj izveidot savu spēlētāju
-                vērtēšanas modeli. Vari izmantot dažādus
-                statistikas rādītājus, lai izveidotu sev
-                nepieciešamo spēlētāju reitingu.
-              </p>
-            </section>
-
-            {/* 18 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                18. Fantasy Team Builder
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Fantasy Team Builder ļauj izveidot savu Fantasy
-                komandu, izvēloties spēlētājus dažādām pozīcijām
-                un izmantojot pieejamās formācijas.
-              </p>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Formācija
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Izvēlies sev nepieciešamo komandas
-                    formāciju.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Ieteiktais XI
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Automātiski izveido komandas sākumsastāvu pēc Flow heuristiska
-                    vērtējuma, vienlaikus ievērojot izvēlēto formāciju un budžetu.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Labākā formācija
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Salīdzina pieejamās formācijas pēc Flow prognozes, ievērojot
-                    Fantasy budžeta un pozīciju ierobežojumus.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">
-                    Rezerves
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Automātiski izveido rezerves spēlētāju
-                    sarakstu.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* 19 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                19. Fantasy kapteinis un vicekapteinis
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Izveidotajā Fantasy komandā iespējams izvēlēties
-                kapteini un vicekapteini. Kapteiņa izvēle tiek
-                ņemta vērā komandas Gameweek punktu prognozē.
-              </p>
-            </section>
-
-            {/* 20 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                20. Gameweek prognoze
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Fantasy Team Builder parāda prognozēto Gameweek
-                punktu skaitu izvēlētajam sākumsastāvam. Prognozē
-                tiek ņemti vērā izvēlētie spēlētāji un kapteiņa
-                dubultais ieguldījums.
-              </p>
-            </section>
-
-            {/* Terminoloģija */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                Flow punktu un prognožu nozīme
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Flow punkti ir lietotnes paša aprēķināts analītisks rādītājs.
-                Tie nav oficiālie Fantasy Premier League punkti. Projected GW (heuristiska aplēse)
-                points ir Flow prognozes rādītājs, kas izmanto pieejamo spēlētāja
-                formu, statistiku, minūtes un pretinieka grūtības novērtējumu.
-                Tas nav garantēts nākamās spēļu kārtas rezultāts.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Recommendation Score ir projekta heuristisks rezultāts. Tas nav
-                statistiska ticamība vai procentuāla varbūtība, tāpēc to nevajag
-                interpretēt kā prognozi ar noteiktu panākuma garantiju.
-              </p>
-            </section>
-
-            {/* 21 */}
-            <section>
-              <h3 className="text-lg font-black text-slate-900">
-                22. Datu atjaunošana
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Ja nepieciešams iegūt jaunākos pieejamos datus,
-                izmanto atjaunošanas pogu. Tā ļauj atkārtoti
-                ielādēt izvēlētās līgas un sezonas informāciju no
-                API.
-              </p>
-            </section>
-
-            {/* Goal */}
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-              <p className="text-sm font-bold text-emerald-900">
-                Flow mērķis
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-emerald-800">
-                Flow ir futbola analītikas platforma, kas apvieno
-                spēlētāju salīdzināšanu, detalizētu statistiku,
-                komandu un līgu analīzi, Fantasy komandas
-                veidošanu un citus analītikas rīkus vienuviet.
-                Lietotājs var izvēlēties līgu un sezonu, analizēt
-                spēlētājus un komandas un izmantot pieejamos
-                statistikas datus, lai veiktu detalizētāku
-                futbola analīzi.
-              </p>
+        <div className="shrink-0 space-y-3 border-b border-emerald-300/10 bg-[#091E16] px-4 py-4 sm:px-8">
+          <label className="relative block">
+            <span className="sr-only">Meklēt ceļvedī</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-[#39E58C]">⌕</span>
+            <input
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Meklē, piemēram, Fantasy, H2H, favorīti..."
+              className="w-full rounded-xl border border-emerald-300/15 bg-[#06140F] py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[#39E58C]/60 focus:ring-2 focus:ring-[#39E58C]/10"
+            />
+          </label>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {categories.map(category => (
+              <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`shrink-0 rounded-lg border px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] transition ${activeCategory === category ? "border-[#39E58C]/40 bg-[#39E58C]/10 text-[#39E58C]" : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white"}`}>
+                {category === "VISS" ? "Visas tēmas" : category}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#39E58C]">QUICK GUIDE</p>
+              <h3 className="mt-1 text-sm font-extrabold text-white">Atrodi vajadzīgo sadaļu</h3>
+            </div>
+            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] font-bold text-slate-400">{filtered.length} {filtered.length === 1 ? "tēma" : "tēmas"}</span>
+          </div>
+
+          {filtered.length ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {filtered.map(item => {
+                const isOpen = expanded === item.number;
+                return (
+                  <article key={item.number} className={`overflow-hidden rounded-2xl border transition ${isOpen ? "border-[#39E58C]/35 bg-[#0C261B] shadow-[0_0_0_1px_rgba(57,229,140,0.04)]" : "border-white/[0.09] bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.04]"}`}>
+                    <button type="button" aria-expanded={isOpen} onClick={() => setExpanded(isOpen ? "" : item.number)} className="flex w-full items-start gap-3 p-4 text-left">
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-lg ${isOpen ? "border-[#39E58C]/25 bg-[#39E58C]/10 text-[#39E58C]" : "border-white/10 bg-[#071A13] text-slate-300"}`}>{item.icon}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-[9px] font-black tracking-[0.15em] text-slate-500">{item.number}</span>
+                          <span className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">{item.category}</span>
+                        </span>
+                        <span className="mt-1 block text-sm font-extrabold text-white">{item.title}</span>
+                        <span className="mt-1 block text-xs leading-5 text-slate-400">{item.description}</span>
+                      </span>
+                      <span className={`mt-1 text-sm transition ${isOpen ? "rotate-180 text-[#39E58C]" : "text-slate-500"}`}>⌄</span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-emerald-300/10 px-4 pb-4 pt-3">
+                        <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#39E58C]">Kā to izmantot</p>
+                        <ul className="space-y-2">
+                          {item.bullets.map((bullet, index) => (
+                            <li key={index} className="flex gap-2 text-xs leading-5 text-slate-300">
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#39E58C]" />
+                              <span>{bullet}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/15 px-5 py-12 text-center">
+              <span className="text-3xl text-slate-500">⌕</span>
+              <p className="mt-3 text-sm font-bold text-white">Nekas netika atrasts</p>
+              <p className="mt-1 text-xs text-slate-400">Pamēģini citu atslēgvārdu vai izvēlies “Visas tēmas”.</p>
+              <button type="button" onClick={() => { setQuery(""); setActiveCategory("VISS"); }} className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-bold text-[#39E58C] hover:bg-emerald-300/15">Notīrīt meklēšanu</button>
+            </div>
+          )}
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-300/15 bg-gradient-to-br from-emerald-300/[0.08] to-transparent p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#39E58C]">Atceries</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300">Flow punkti un spēļu prognozes ir projekta analītiski aprēķini, nevis oficiāli Fantasy punkti vai garantēts rezultāts.</p>
+            </div>
+            <div className="rounded-2xl border border-violet-300/15 bg-gradient-to-br from-violet-300/[0.07] to-transparent p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-violet-300">Datu pieejamība</p>
+              <p className="mt-2 text-xs leading-5 text-slate-300">Statistika var atšķirties pēc līgas, sezonas un API datu pieejamības. Trūkstošas vērtības nav jāuztver kā nulle.</p>
             </div>
           </div>
         </div>
-      </div>
+
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-emerald-300/15 bg-[#06140F] px-4 py-3 sm:px-8">
+          <p className="text-[10px] text-slate-500">FLOW FOOTBALL ANALYTICS <span className="mx-1 text-slate-700">/</span> Lietotāja ceļvedis</p>
+          <button type="button" onClick={onClose} className="rounded-xl bg-[#39E58C] px-5 py-2.5 text-xs font-black text-[#052015] shadow-[0_6px_22px_rgba(57,229,140,0.16)] transition hover:bg-emerald-300">Sapratu — sākt analīzi <span className="ml-1">→</span></button>
+        </footer>
+      </section>
     </div>
   );
 }

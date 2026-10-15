@@ -56,22 +56,24 @@ function SearchBox({
   return (
     <div
       className={`mb-3 rounded-xl border ${
-        rose ? "border-rose-200" : "border-emerald-200"
-      } bg-white p-3 shadow-sm`}
+        rose ? "border-rose-500/30" : "border-[#124B37]"
+      } bg-[#0B2119] p-3 shadow-sm`}
     >
-      <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
+      <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-400">
         🔎 {label}
       </label>
 
       <div className="relative">
         <input
           value={value}
+          spellCheck={false}
+          autoComplete="off"
           onChange={e => setValue(e.target.value)}
           placeholder="Meklē pēc vārda vai kluba..."
-          className={`w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 pr-9 text-sm outline-none transition focus:bg-white focus:ring-2 ${
+          className={`w-full rounded-lg border px-3 py-2 pr-9 text-sm text-white caret-[#39E58C] placeholder:text-slate-400 outline-none transition ${
             rose
-              ? "focus:border-rose-400 focus:ring-rose-100"
-              : "focus:border-emerald-400 focus:ring-emerald-100"
+              ? "border-rose-500/40 bg-[#061810] focus:border-rose-400 focus:bg-[#0B2119] focus:ring-2 focus:ring-rose-400/20"
+              : "border-[#24523F] bg-[#061810] focus:border-[#39E58C] focus:bg-[#0B2119] focus:ring-2 focus:ring-[#39E58C]/20"
           }`}
         />
 
@@ -79,7 +81,7 @@ function SearchBox({
           <button
             type="button"
             onClick={() => setValue("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-white"
           >
             ✕
           </button>
@@ -87,13 +89,13 @@ function SearchBox({
       </div>
 
       {value && (
-        <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-[#24523F] bg-[#071C14] shadow-lg shadow-black/20">
           {results.length ? (
             results.map(player => (
               <div
                 key={player.id}
-                className={`flex items-center gap-2 border-b border-slate-100 px-2 py-2 last:border-0 ${
-                  rose ? "hover:bg-rose-50" : "hover:bg-emerald-50"
+                className={`flex items-center gap-2 border-b border-white/5 px-2 py-2 last:border-0 transition-colors ${
+                  rose ? "hover:bg-rose-500/10" : "hover:bg-[#103526]"
                 }`}
               >
                 <button
@@ -104,10 +106,10 @@ function SearchBox({
                     event.stopPropagation();
                     onOpen?.(player);
                   }}
-                  className="flex min-w-0 flex-1 items-center justify-between rounded-lg px-1 py-1.5 text-left outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-400"
+                  className="flex min-w-0 flex-1 items-center justify-between rounded-lg px-1 py-1.5 text-left outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-[#39E58C]"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-slate-800">
+                    <span className="block truncate text-sm font-semibold text-white">
                       {player.name}
                     </span>
 
@@ -135,8 +137,8 @@ function SearchBox({
                   }}
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
                     isFavorite(player)
-                      ? "bg-amber-50 text-amber-500"
-                      : "bg-slate-50 text-slate-300 hover:bg-amber-50 hover:text-amber-500"
+                      ? "bg-amber-400/15 text-amber-400"
+                      : "bg-white/5 text-slate-400 hover:bg-amber-400/15 hover:text-amber-400"
                   }`}
                 >
                   <Star active={isFavorite(player)} />
@@ -151,8 +153,8 @@ function SearchBox({
                   }}
                   className={`rounded-lg px-2.5 py-2 text-[10px] font-bold text-white ${
                     rose
-                      ? "bg-rose-500 hover:bg-rose-600"
-                      : "bg-emerald-500 hover:bg-emerald-600"
+                      ? "bg-rose-500 hover:bg-rose-400"
+                      : "bg-[#12B886] text-[#04150E] hover:bg-[#39E58C]"
                   }`}
                 >
                   Izvēlēties
@@ -309,6 +311,182 @@ function PlayerProfileStat({ label, value }) {
   );
 }
 
+function getNationalityFlagCode(nationality) {
+  if (!nationality) return null;
+
+  const value = String(nationality).trim().toLowerCase();
+  const countryCodes = {
+    "england": "gb-eng",
+    "english": "gb-eng",
+    "scotland": "gb-sct",
+    "scottish": "gb-sct",
+    "wales": "gb-wls",
+    "welsh": "gb-wls",
+    "northern ireland": "gb-nir",
+    "united kingdom": "gb",
+    "british": "gb",
+    "germany": "de",
+    "german": "de",
+    "france": "fr",
+    "french": "fr",
+    "spain": "es",
+    "spanish": "es",
+    "italy": "it",
+    "italian": "it",
+    "portugal": "pt",
+    "portuguese": "pt",
+    "brazil": "br",
+    "brazilian": "br",
+    "argentina": "ar",
+    "argentinian": "ar",
+    "netherlands": "nl",
+    "dutch": "nl",
+    "belgium": "be",
+    "belgian": "be",
+    "croatia": "hr",
+    "croatian": "hr",
+    "serbia": "rs",
+    "serbian": "rs",
+    "denmark": "dk",
+    "danish": "dk",
+    "sweden": "se",
+    "swedish": "se",
+    "norway": "no",
+    "norwegian": "no",
+    "finland": "fi",
+    "finnish": "fi",
+    "poland": "pl",
+    "polish": "pl",
+    "latvia": "lv",
+    "latvian": "lv",
+    "lithuania": "lt",
+    "lithuanian": "lt",
+    "estonia": "ee",
+    "estonian": "ee",
+    "ukraine": "ua",
+    "ukrainian": "ua",
+    "united states": "us",
+    "usa": "us",
+    "american": "us",
+    "canada": "ca",
+    "canadian": "ca",
+    "mexico": "mx",
+    "mexican": "mx",
+    "japan": "jp",
+    "japanese": "jp",
+    "south korea": "kr",
+    "korea republic": "kr",
+    "morocco": "ma",
+    "moroccan": "ma",
+    "senegal": "sn",
+    "senegalese": "sn",
+    "ivory coast": "ci",
+    "cote d'ivoire": "ci",
+    "cameroon": "cm",
+    "cameroonian": "cm",
+    "nigeria": "ng",
+    "nigerian": "ng",
+    "ghana": "gh",
+    "ghanaian": "gh",
+    "egypt": "eg",
+    "egyptian": "eg",
+    "australia": "au",
+    "australian": "au",
+    "switzerland": "ch",
+    "swiss": "ch",
+    "austria": "at",
+    "austrian": "at",
+    "turkey": "tr",
+    "turkish": "tr",
+    "greece": "gr",
+    "greek": "gr",
+    "ireland": "ie",
+    "irish": "ie",
+    "romania": "ro",
+    "romanian": "ro",
+    "czech republic": "cz",
+    "czechia": "cz",
+    "czech": "cz",
+    "slovakia": "sk",
+    "slovak": "sk",
+    "slovenia": "si",
+    "slovenian": "si",
+    "hungary": "hu",
+    "hungarian": "hu",
+    "algeria": "dz",
+    "algerian": "dz",
+    "tunisia": "tn",
+    "tunisian": "tn",
+    "south africa": "za",
+    "colombia": "co",
+    "colombian": "co",
+    "uruguay": "uy",
+    "uruguayan": "uy",
+    "chile": "cl",
+    "chilean": "cl",
+    "ecuador": "ec",
+    "ecuadorian": "ec",
+    "paraguay": "py",
+    "paraguayan": "py",
+    "jamaica": "jm",
+    "jamaican": "jm",
+  };
+
+  if (countryCodes[value]) return countryCodes[value];
+  if (/^[a-z]{2}$/.test(value)) return value;
+  return null;
+}
+
+// API-Football trophy records do not consistently include competition logos.
+// Use a logo included in the record when available, then fall back to the
+// API-Sports league-logo CDN for competitions with known league IDs.
+const TROPHY_LOGOS = {
+  "premier league": 39,
+  "la liga": 140,
+  "serie a": 135,
+  "bundesliga": 78,
+  "ligue 1": 61,
+  "uefa champions league": 2,
+  "champions league": 2,
+  "uefa europa league": 3,
+  "europa league": 3,
+  "uefa conference league": 848,
+  "conference league": 848,
+  "fa cup": 45,
+  "league cup": 48,
+  "efl cup": 48,
+  "community shield": 528,
+  "fifa club world cup": 15,
+  "fifa intercontinental cup": 15,
+  "copa del rey": 143,
+  "supercopa de españa": 556,
+  "dfb pokal": 81,
+  "dfb-pokal": 81,
+  "coupe de france": 66,
+  "coppa italia": 137,
+  "eredivisie": 88,
+  "primeira liga": 94,
+};
+
+function getTrophyLogo(trophy) {
+  const direct = trophy?.logo || trophy?.leagueLogo || trophy?.league_logo || trophy?.image;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  const key = String(trophy?.league || "").trim().toLocaleLowerCase();
+  const id = TROPHY_LOGOS[key];
+  return id ? `https://media.api-sports.io/football/leagues/${id}.png` : null;
+}
+
+function TrophyFallbackIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-8 w-8" fill="none" aria-hidden="true">
+      <path d="M15 8h18v8c0 8-4 13-9 13s-9-5-9-13V8Z" fill="#FBBF24" stroke="#B45309" strokeWidth="1.8"/>
+      <path d="M15 12H8v4c0 6 4 9 10 9M33 12h7v4c0 6-4 9-10 9" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M21 29v5h-6v5h18v-5h-6v-5" fill="#D97706" stroke="#B45309" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="m24 11 1.8 3.5 3.9.6-2.8 2.7.7 3.9-3.6-1.9-3.6 1.9.7-3.9-2.8-2.7 3.9-.6L24 11Z" fill="#FFF7D6"/>
+    </svg>
+  );
+}
+
 function PlayerDetailsModal({
   player,
   favorite,
@@ -322,9 +500,37 @@ function PlayerDetailsModal({
   if (!player) return null;
 
   const profile = profileData?.profile || {};
-  const trophies = Array.isArray(profileData?.trophies)
+  const rawTrophies = Array.isArray(profileData?.trophies)
     ? profileData.trophies
     : [];
+
+  // Only show trophies the player actually won. API-Football can return
+  // runner-up finishes as well, but those are not trophy wins.
+  const trophyWins = rawTrophies.filter(trophy => {
+    const result = String(trophy?.place || trophy?.result || "").trim().toLowerCase();
+    return result === "winner" || result === "won" || result === "1st place" ||
+      result === "1st" || result === "champion" || result === "champions";
+  });
+
+  // Group repeated wins by competition and keep each season only once.
+  const trophies = Object.values(trophyWins.reduce((groups, trophy, index) => {
+    const name = String(trophy?.league || "Nezināma sacensība").trim();
+    const key = name.toLocaleLowerCase();
+    if (!groups[key]) groups[key] = {
+      league: name,
+      logo: getTrophyLogo(trophy),
+      seasons: [],
+      key: `${key}-${index}`,
+    };
+    if (!groups[key].logo) groups[key].logo = getTrophyLogo(trophy);
+    const season = String(trophy?.season || "").trim();
+    if (season && !groups[key].seasons.includes(season)) groups[key].seasons.push(season);
+    return groups;
+  }, {})).map(trophy => ({
+    ...trophy,
+    seasons: trophy.seasons.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    count: trophy.seasons.length,
+  }));
 
   const advanced = player.advancedStats || {};
 
@@ -479,7 +685,22 @@ function PlayerDetailsModal({
                   {nationality && (
                     <>
                       <span className="text-slate-600">•</span>
-                      <span>{nationality}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {getNationalityFlagCode(nationality) && (
+                          <img
+                            src={`https://flagcdn.com/w40/${getNationalityFlagCode(nationality)}.png`}
+                            srcSet={`https://flagcdn.com/w80/${getNationalityFlagCode(nationality)}.png 2x`}
+                            alt={`${nationality} flag`}
+                            title={`${nationality} flag`}
+                            className="h-3.5 w-5 rounded-[2px] object-cover shadow-sm"
+                            loading="lazy"
+                            onError={event => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        )}
+                        <span>{nationality}</span>
+                      </span>
                     </>
                   )}
                 </div>
@@ -645,44 +866,76 @@ function PlayerDetailsModal({
             </section>
           )}
 
-          {trophies.length > 0 && (
-            <section className="mt-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">
-                  Achievements
-                </p>
-                <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
-                  Trofejas
-                </h3>
-              </div>
+          <section className="mt-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">
+                Achievements
+              </p>
+              <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                Trofejas
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Parādītas tikai izcīnītās trofejas; atkārtotas uzvaras ir apvienotas.
+              </p>
+            </div>
 
+            {trophies.length > 0 ? (
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {trophies.slice(0, 12).map((trophy, index) => (
+                {trophies.map(trophy => (
                   <div
-                    key={`${trophy.league || "trophy"}-${trophy.season || index}`}
+                    key={trophy.key}
                     className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-amber-200 hover:bg-amber-50/40"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-base">
-                        🏆
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white p-2 shadow-sm" aria-label={`${trophy.league} logo`}>
+                        {trophy.logo ? (
+                          <img
+                            src={trophy.logo}
+                            alt={`${trophy.league} logo`}
+                            className="h-full w-full object-contain"
+                            loading="lazy"
+                            onError={event => {
+                              event.currentTarget.style.display = "none";
+                              const fallback = event.currentTarget.nextElementSibling;
+                              if (fallback) fallback.style.display = "block";
+                            }}
+                          />
+                        ) : null}
+                        <span style={{ display: trophy.logo ? "none" : "block" }}>
+                          <TrophyFallbackIcon />
+                        </span>
                       </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-extrabold text-slate-900">
-                          {trophy.league || "Nezināma sacensība"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {trophy.season || "—"}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-extrabold text-slate-900">
+                            {trophy.league}
+                          </p>
+                          {trophy.count > 1 && (
+                            <span className="shrink-0 rounded-lg bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-700">
+                              ×{trophy.count}
+                            </span>
+                          )}
+                        </div>
                         <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-emerald-600">
-                          {trophy.place || trophy.result || "—"}
+                          WINNER
                         </p>
+                        <div className="mt-3 border-t border-slate-200 pt-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Gadi</p>
+                          <p className="mt-1 text-sm text-slate-700">
+                            {trophy.seasons.length ? trophy.seasons.join(", ") : "Gads nav norādīts"}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
-          )}
+            ) : (
+              <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                Nav pieejamu ierakstu par izcīnītām trofejām.
+              </p>
+            )}
+          </section>
         </div>
 
         <div className="shrink-0 border-t border-slate-200 bg-white/95 p-4 backdrop-blur sm:px-7 sm:py-4">
